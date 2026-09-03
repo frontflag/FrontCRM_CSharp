@@ -266,6 +266,7 @@ public class CustomsDeclarationsController : ControllerBase
             ExchangeRate = row.ExchangeRate,
             BrokerAgencyRate = row.BrokerAgencyRate,
             AgencyRateManual = row.AgencyRateManual,
+            CostUsdManual = row.CostUsdManual,
             BrokerMasterAgencyRate = broker != null && broker.AgencyRate > 0m ? broker.AgencyRate : 1m,
             TotalTaxAmount = row.TotalTaxAmount,
             FeesCalculatedAt = row.FeesCalculatedAt,
@@ -319,6 +320,7 @@ public class CustomsDeclarationsController : ControllerBase
                     DutyRate = i.DutyRate,
                     VatRate = i.VatRate,
                     CostUsd = i.CostUsd,
+                    CostUsdManual = i.CostUsdManual,
                     DutyAmount = i.DutyAmount,
                     VatAmount = i.VatAmount,
                     CustomsPaymentGoods = i.CustomsPaymentGoods,
@@ -468,8 +470,7 @@ public class CustomsDeclarationsController : ControllerBase
         public string? Remark { get; set; }
         public decimal? ExchangeRate { get; set; }
         public string? CustomsBrokerId { get; set; }
-        public bool? AgencyRateManual { get; set; }
-        public decimal? BrokerAgencyRate { get; set; }
+        public bool? CostUsdManual { get; set; }
     }
 
     [HttpPost("{id}/recalculate-fees")]
@@ -511,7 +512,7 @@ public class CustomsDeclarationsController : ControllerBase
             var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
             await _customsV2FlowService.UpdateDeclarationHeaderAsync(
                 id, body?.ToWarehouseId, body?.Remark, uid, body?.ExchangeRate, body?.CustomsBrokerId,
-                body?.AgencyRateManual, body?.BrokerAgencyRate);
+                body?.CostUsdManual);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关单"));
         }
         catch (InvalidOperationException ex)

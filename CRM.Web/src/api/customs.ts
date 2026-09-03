@@ -184,6 +184,7 @@ export interface CustomsDeclarationDetailItemViewDto {
   purchaseRatio?: number
   purchaseCostParamId?: string | null
   costUsd?: number
+  costUsdManual?: boolean
   dutyRate?: number
   vatRate?: number
   dutyAmount: number
@@ -231,6 +232,7 @@ export interface CustomsDeclarationDetailDto {
   exchangeRate: number
   brokerAgencyRate?: number
   agencyRateManual?: boolean
+  costUsdManual?: boolean
   brokerMasterAgencyRate?: number
   feesCalculatedAt?: string | null
   feesLocked?: boolean
@@ -640,8 +642,7 @@ export async function patchCustomsDeclarationHeader(
     remark?: string | null
     exchangeRate?: number | null
     customsBrokerId?: string | null
-    agencyRateManual?: boolean | null
-    brokerAgencyRate?: number | null
+    costUsdManual?: boolean | null
   }
 ): Promise<void> {
   await apiClient.patch(`/api/v1/customs-declarations/${encodeURIComponent(id)}`, body)
@@ -655,6 +656,8 @@ export interface PatchCustomsDeclarationItemBody {
   vatRate?: number | null
   otherFee?: number | null
   inspectionFee?: number | null
+  costUsd?: number | null
+  costUsdManual?: boolean | null
 }
 
 export async function patchCustomsDeclarationItem(

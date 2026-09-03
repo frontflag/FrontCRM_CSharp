@@ -47,8 +47,7 @@ public interface ICustomsV2FlowService
         string? actingUserId,
         decimal? exchangeRate = null,
         string? customsBrokerId = null,
-        bool? agencyRateManual = null,
-        decimal? brokerAgencyRate = null,
+        bool? costUsdManual = null,
         CancellationToken cancellationToken = default);
 
     Task UpdateDeclarationItemAsync(string itemId, CustomsDeclarationItemPatch patch, string? actingUserId, CancellationToken cancellationToken = default);
@@ -80,6 +79,8 @@ public sealed class CustomsDeclarationItemPatch
     public decimal? VatRate { get; set; }
     public decimal? OtherFee { get; set; }
     public decimal? InspectionFee { get; set; }
+    public decimal? CostUsd { get; set; }
+    public bool? CostUsdManual { get; set; }
 }
 
 public sealed class CreateCustomsArrivalNotifiesResultDto

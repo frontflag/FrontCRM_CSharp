@@ -92,12 +92,6 @@ public sealed class CustomsAgencyRateInboundCostRefreshService : ICustomsAgencyR
                     continue;
                 }
 
-                if (dec.AgencyRateManual)
-                {
-                    result.SkippedManual++;
-                    continue;
-                }
-
                 var applied = await RefreshDeclarationAsync(dec, agencyRate, actor, fx, result);
                 if (!applied)
                 {

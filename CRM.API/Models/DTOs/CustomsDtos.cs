@@ -79,6 +79,7 @@ public sealed class CustomsDeclarationDetailViewDto
     public decimal ExchangeRate { get; set; }
     public decimal BrokerAgencyRate { get; set; } = 1m;
     public bool AgencyRateManual { get; set; }
+    public bool CostUsdManual { get; set; }
     /// <summary>报关公司资料当前代理费率，供费用面板「系统」模式对照。</summary>
     public decimal BrokerMasterAgencyRate { get; set; } = 1m;
     public decimal TotalTaxAmount { get; set; }
@@ -119,6 +120,7 @@ public sealed class CustomsDeclarationDetailItemViewDto
     public decimal DutyRate { get; set; }
     public decimal VatRate { get; set; } = 0.13m;
     public decimal CostUsd { get; set; }
+    public bool CostUsdManual { get; set; }
     public decimal DutyAmount { get; set; }
     public decimal VatAmount { get; set; }
     public decimal CustomsPaymentGoods { get; set; }

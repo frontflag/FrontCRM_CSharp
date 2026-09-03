@@ -679,8 +679,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         string? actingUserId,
         decimal? exchangeRate = null,
         string? customsBrokerId = null,
-        bool? agencyRateManual = null,
-        decimal? brokerAgencyRate = null,
+        bool? costUsdManual = null,
         CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
@@ -692,15 +691,13 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             throw new InvalidOperationException("报关单已作废。");
         var touchesFeesInputs = exchangeRate.HasValue
             || customsBrokerId != null
-            || agencyRateManual.HasValue
-            || brokerAgencyRate.HasValue;
+            || costUsdManual.HasValue;
         if (dec.FeesLocked && touchesFeesInputs)
-            throw new InvalidOperationException("报关费用已锁定，不能修改汇率、报关公司或代理费率。");
+            throw new InvalidOperationException("报关费用已锁定，不能修改汇率、报关公司或采购美金价。");
 
         var now = DateTime.UtcNow;
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);
         var shouldRecalculate = false;
-        var brokerChanged = false;
 
         if (toWarehouseId != null)
         {
@@ -735,33 +732,23 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             dec.CustomsBrokerId = brokerKey;
             dec.AgencyRateManual = false;
             dec.BrokerAgencyRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m;
-            brokerChanged = true;
             shouldRecalculate = true;
         }
 
-        if (!brokerChanged && (agencyRateManual.HasValue || brokerAgencyRate.HasValue))
+        if (costUsdManual.HasValue)
         {
-            if (agencyRateManual.HasValue)
-                dec.AgencyRateManual = agencyRateManual.Value;
-
-            if (dec.AgencyRateManual)
+            dec.CostUsdManual = costUsdManual.Value;
+            if (!dec.CostUsdManual)
             {
-                var rate = brokerAgencyRate ?? dec.BrokerAgencyRate;
-                try
+                var items = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted)).ToList();
+                foreach (var item in items)
                 {
-                    CustomsAgencyRateRules.EnsureValid(rate);
+                    if (!item.CostUsdManual)
+                        continue;
+                    item.CostUsdManual = false;
+                    item.ModifyTime = now;
+                    await _declarationItemRepo.UpdateAsync(item);
                 }
-                catch (ArgumentException ex)
-                {
-                    throw new InvalidOperationException(ex.Message);
-                }
-                dec.BrokerAgencyRate = rate;
-            }
-            else
-            {
-                var broker = await _brokerRepo.GetByIdAsync(dec.CustomsBrokerId.Trim())
-                             ?? throw new InvalidOperationException("报关公司不存在。");
-                dec.BrokerAgencyRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m;
             }
 
             shouldRecalculate = true;
@@ -801,7 +788,9 @@ public class CustomsV2FlowService : ICustomsV2FlowService
                 || patch.DeclareQty.HasValue
                 || patch.DeclareUnitPrice.HasValue
                 || patch.DutyRate.HasValue
-                || patch.VatRate.HasValue)
+                || patch.VatRate.HasValue
+                || patch.CostUsd.HasValue
+                || patch.CostUsdManual.HasValue)
             {
                 throw new InvalidOperationException("报关费用已锁定，仅可修改杂费与商检费。");
             }
@@ -874,6 +863,33 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         if (patch.InspectionFee.HasValue)
             row.InspectionFee = patch.InspectionFee.Value;
 
+        if (patch.CostUsd.HasValue || patch.CostUsdManual.HasValue)
+        {
+            if (!dec.CostUsdManual)
+                throw new InvalidOperationException("当前为系统模式，不能手工修改采购美金价。");
+
+            if (patch.CostUsdManual == false)
+            {
+                row.CostUsdManual = false;
+                shouldRecalculate = true;
+            }
+            else if (patch.CostUsd.HasValue)
+            {
+                try
+                {
+                    CustomsCostUsdRules.EnsureValid(patch.CostUsd.Value);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new InvalidOperationException(ex.Message);
+                }
+
+                row.CostUsd = patch.CostUsd.Value;
+                row.CostUsdManual = patch.CostUsdManual ?? true;
+                shouldRecalculate = true;
+            }
+        }
+
         row.ModifyTime = DateTime.UtcNow;
         await _declarationItemRepo.UpdateAsync(row);
         await _unitOfWork.SaveChangesAsync();
@@ -907,8 +923,23 @@ public class CustomsV2FlowService : ICustomsV2FlowService
 
         foreach (var item in items)
         {
-            if (item.OriginalPurchasePrice <= 0m)
-                throw new InvalidOperationException($"第 {item.LineNo} 行请先完成拣货回写采购价。");
+            if (dec.CostUsdManual && item.CostUsdManual)
+            {
+                try
+                {
+                    CustomsCostUsdRules.EnsureValid(item.CostUsd);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new InvalidOperationException($"第 {item.LineNo} 行{ex.Message}");
+                }
+            }
+            else if (item.OriginalPurchasePrice <= 0m)
+            {
+                throw new InvalidOperationException(
+                    $"第 {item.LineNo} 行请先完成拣货回写采购价，或在手工模式下填写采购美金价。");
+            }
+
             if (item.DeclareQty <= 0)
                 throw new InvalidOperationException($"第 {item.LineNo} 行申报数量无效。");
         }
@@ -916,8 +947,9 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         var costParam = await _purchaseCostParamService.GetEffectiveAsync();
         var broker = await _brokerRepo.GetByIdAsync(dec.CustomsBrokerId.Trim())
                      ?? throw new InvalidOperationException("报关公司不存在。");
+        dec.AgencyRateManual = false;
         var brokerRate = CustomsAgencyRateRules.ResolveForCalculation(
-            dec.AgencyRateManual,
+            false,
             dec.BrokerAgencyRate,
             broker.AgencyRate);
         var systemFx = await _financeExchangeRateService.GetCurrentAsync(cancellationToken);
@@ -935,22 +967,34 @@ public class CustomsV2FlowService : ICustomsV2FlowService
                     purchaseCurrency = layer.PurchaseCurrency;
             }
 
-            var result = _customsFeeCalculator.CalculateLine(
-                item.OriginalPurchasePrice,
-                purchaseCurrency,
-                costParam.Ratio,
-                dec.ExchangeRate,
-                item.DeclareQty,
-                item.DutyRate,
-                item.VatRate > 0m ? item.VatRate : 0.13m,
-                brokerRate,
-                item.OtherFee,
-                item.InspectionFee,
-                systemFx);
+            var result = dec.CostUsdManual && item.CostUsdManual
+                ? _customsFeeCalculator.CalculateLineFromManualCostUsd(
+                    item.CostUsd,
+                    dec.ExchangeRate,
+                    item.DeclareQty,
+                    item.DutyRate,
+                    item.VatRate > 0m ? item.VatRate : 0.13m,
+                    brokerRate,
+                    item.OtherFee,
+                    item.InspectionFee)
+                : _customsFeeCalculator.CalculateLine(
+                    item.OriginalPurchasePrice,
+                    purchaseCurrency,
+                    costParam.Ratio,
+                    dec.ExchangeRate,
+                    item.DeclareQty,
+                    item.DutyRate,
+                    item.VatRate > 0m ? item.VatRate : 0.13m,
+                    brokerRate,
+                    item.OtherFee,
+                    item.InspectionFee,
+                    systemFx);
 
             item.PurchaseCostParamId = costParam.Id;
             item.PurchaseRatio = costParam.Ratio;
             item.PurchaseCurrency = purchaseCurrency;
+            if (!dec.CostUsdManual || !item.CostUsdManual)
+                item.CostUsdManual = false;
             item.CostUsd = result.CostUsd;
             item.CustomsUsdPrice = result.CustomsUsdPrice;
             item.CustomsPaymentGoods = result.CustomsPaymentGoods;

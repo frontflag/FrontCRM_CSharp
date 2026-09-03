@@ -153,7 +153,7 @@ public class CustomsAgencyRateInboundCostRefreshServiceTests
     }
 
     [Fact]
-    public async Task RefreshAsync_ManualDeclaration_SkippedAndInboundUnchanged()
+    public async Task RefreshAsync_LegacyAgencyRateManualDeclaration_StillRefreshes()
     {
         var brokerId = "broker-1";
         _brokerRepo.GetByIdAsync(brokerId).Returns(new CustomsBroker { Id = brokerId, AgencyRate = 1.03m });
@@ -174,16 +174,21 @@ public class CustomsAgencyRateInboundCostRefreshServiceTests
             DeclarationId = dec.Id,
             DeclareQty = 1,
             CustomsPaymentGoods = 1000m,
+            DutyAmount = 0m,
+            VatAmount = 0m,
+            OtherFee = 0m,
             CustomsAgencyFee = 80m,
+            TotalValueTax = 1080m,
             TaxIncludedUnitPrice = 1080m
         });
 
         var result = await _service.RefreshAsync(brokerId, 1.025m, null);
 
-        Assert.Equal(1, result.SkippedManual);
-        Assert.Equal(0, result.RefreshedDeclarations);
-        Assert.Equal(80m, _items[0].CustomsAgencyFee);
-        await _uow.DidNotReceive().SaveChangesAsync();
+        Assert.Equal(0, result.SkippedManual);
+        Assert.Equal(1, result.RefreshedDeclarations);
+        Assert.Equal(25m, _items[0].CustomsAgencyFee);
+        Assert.False(dec.AgencyRateManual);
+        await _uow.Received(1).SaveChangesAsync();
     }
 
     [Fact]

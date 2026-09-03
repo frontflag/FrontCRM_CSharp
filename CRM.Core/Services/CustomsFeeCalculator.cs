@@ -92,6 +92,50 @@ public class CustomsFeeCalculator : ICustomsFeeCalculator
         };
     }
 
+    public CustomsFeeLineResult CalculateLineFromManualCostUsd(
+        decimal manualCostUsd,
+        decimal exchangeRate,
+        int declareQty,
+        decimal dutyRate,
+        decimal vatRate,
+        decimal brokerAgencyRate,
+        decimal otherFee,
+        decimal inspectionFee)
+    {
+        _ = inspectionFee;
+        CustomsCostUsdRules.EnsureValid(manualCostUsd);
+
+        if (declareQty <= 0)
+            throw new InvalidOperationException("申报数量须大于 0。");
+        if (exchangeRate <= 0m)
+            throw new InvalidOperationException("请填写报关汇率。");
+        if (brokerAgencyRate < 1m)
+            throw new InvalidOperationException("报关代理费率无效。");
+
+        var costUsd = Round6(manualCostUsd);
+        var customsUsdPrice = costUsd;
+        var qty = (decimal)declareQty;
+        var customsPaymentGoods = Round2(costUsd * exchangeRate * qty);
+        var dutyAmount = Round2(customsPaymentGoods * dutyRate);
+        var vatAmount = Round2((customsPaymentGoods + dutyAmount) * vatRate);
+        var agencyMargin = brokerAgencyRate - 1m;
+        var customsAgencyFee = Round2((customsPaymentGoods + dutyAmount + vatAmount) * agencyMargin);
+        var totalValueTax = Round2(customsPaymentGoods + dutyAmount + vatAmount + customsAgencyFee + otherFee);
+        var taxIncludedUnitPrice = Round6(totalValueTax / qty);
+
+        return new CustomsFeeLineResult
+        {
+            CostUsd = costUsd,
+            CustomsUsdPrice = customsUsdPrice,
+            CustomsPaymentGoods = customsPaymentGoods,
+            DutyAmount = dutyAmount,
+            VatAmount = vatAmount,
+            CustomsAgencyFee = customsAgencyFee,
+            TotalValueTax = totalValueTax,
+            TaxIncludedUnitPrice = taxIncludedUnitPrice
+        };
+    }
+
     private static decimal Round2(decimal v) => Math.Round(v, 2, MidpointRounding.AwayFromZero);
 
     private static decimal Round6(decimal v) => Math.Round(v, 6, MidpointRounding.AwayFromZero);

@@ -117,9 +117,13 @@ public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
     [Column("broker_agency_rate", TypeName = "numeric(10,6)")]
     public decimal BrokerAgencyRate { get; set; } = 1m;
 
-    /// <summary>false=用报关公司资料；true=本单手工。换报关公司时强制回 false。</summary>
+    /// <summary>false=用报关公司资料；true=本单手工。换报关公司时强制回 false。UI 已取消手工，试算时强制 false。</summary>
     [Column("agency_rate_manual")]
     public bool AgencyRateManual { get; set; }
+
+    /// <summary>false=采购美金价按系统公式；true=允许行内手工覆盖。换报关公司不重置。</summary>
+    [Column("cost_usd_manual")]
+    public bool CostUsdManual { get; set; }
 
     [Column(TypeName = "numeric(18,2)")]
     public decimal TotalTaxAmount { get; set; }
@@ -208,6 +212,10 @@ public class CustomsDeclarationItem : BaseGuidEntity, ISoftDeletable
 
     [Column("cost_usd", TypeName = "numeric(18,6)")]
     public decimal CostUsd { get; set; }
+
+    /// <summary>本行采购美金价是否手工覆盖（仅头 <see cref="CustomsDeclaration.CostUsdManual"/> 为 true 时生效）。</summary>
+    [Column("cost_usd_manual")]
+    public bool CostUsdManual { get; set; }
 
     [Column("duty_rate", TypeName = "numeric(18,6)")]
     public decimal DutyRate { get; set; }

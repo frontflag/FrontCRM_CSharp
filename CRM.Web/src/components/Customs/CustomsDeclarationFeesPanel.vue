@@ -13,7 +13,8 @@ import {
 import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CURRENCY_CODE_TO_TEXT, CurrencyCode } from '@/constants/currency'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
-import { isValidCustomsAgencyRate } from '@/utils/customsAgencyRate'
+import { isValidCustomsCostUsd } from '@/utils/customsCostUsd'
+import { unitLocalToUsd, type ExchangeRatesUsdBase } from '@/utils/exchangeRateToUsd'
 
 const props = defineProps<{
   detail: CustomsDeclarationDetailDto
@@ -30,9 +31,10 @@ const { t } = useI18n()
 const recalculating = ref(false)
 const systemPurchaseRatio = ref<number | null>(null)
 const systemRatioLoadFailed = ref(false)
+const financeFxRates = ref<ExchangeRatesUsdBase | null>(null)
 
 const headerExchangeRate = ref(0)
-const agencyRateManual = ref(false)
+const costUsdManual = ref(false)
 const headerBrokerAgencyRate = ref(1)
 const itemDrafts = reactive<Record<string, ItemDraft>>({})
 
@@ -42,6 +44,8 @@ type ItemDraft = {
   vatRate: number
   otherFee: number
   inspectionFee: number
+  costUsd: number
+  costUsdManual: boolean
 }
 
 type PanelMode =
@@ -53,23 +57,20 @@ type PanelMode =
 
 function syncDraftsFromDetail(d: CustomsDeclarationDetailDto) {
   headerExchangeRate.value = Number(d.exchangeRate) || 0
-  agencyRateManual.value = Boolean(d.agencyRateManual)
+  costUsdManual.value = Boolean(d.costUsdManual)
   const master = Number(d.brokerMasterAgencyRate)
   const snapshot = Number(d.brokerAgencyRate ?? 1)
-  if (agencyRateManual.value) {
-    headerBrokerAgencyRate.value = Number.isFinite(snapshot) && snapshot > 0 ? snapshot : 1
-  } else if (Number.isFinite(master) && master > 0) {
-    headerBrokerAgencyRate.value = master
-  } else {
-    headerBrokerAgencyRate.value = Number.isFinite(snapshot) && snapshot > 0 ? snapshot : 1
-  }
+  headerBrokerAgencyRate.value =
+    Number.isFinite(master) && master > 0 ? master : Number.isFinite(snapshot) && snapshot > 0 ? snapshot : 1
   for (const row of d.items ?? []) {
     itemDrafts[row.id] = {
       hsCode: (row.hsCode ?? '').trim(),
       dutyRate: Number(row.dutyRate ?? 0),
       vatRate: Number(row.vatRate ?? 0.13) || 0.13,
       otherFee: Number(row.otherFee ?? 0),
-      inspectionFee: Number(row.inspectionFee ?? 0)
+      inspectionFee: Number(row.inspectionFee ?? 0),
+      costUsd: Number(row.costUsd ?? 0),
+      costUsdManual: Boolean(row.costUsdManual)
     }
   }
 }
@@ -79,6 +80,7 @@ watch(
   (d) => {
     syncDraftsFromDetail(d)
     void loadSystemPurchaseRatio()
+    void loadFinanceFxRates()
   },
   { immediate: true, deep: true }
 )
@@ -94,26 +96,38 @@ async function loadSystemPurchaseRatio() {
   }
 }
 
+async function loadFinanceFxRates() {
+  try {
+    const fx = await financeExchangeRateApi.getCurrent()
+    financeFxRates.value = {
+      usdToCny: Number(fx.usdToCny),
+      usdToHkd: Number(fx.usdToHkd),
+      usdToEur: Number(fx.usdToEur)
+    }
+  } catch {
+    financeFxRates.value = null
+  }
+}
+
 const panelMode = computed<PanelMode>(() => {
   const d = props.detail
   if (d.internalStatus === -1) return 'readonly_void'
   if (d.internalStatus === 3) return 'readonly_completed'
   if (d.feesLocked) return 'readonly_locked'
   const items = d.items ?? []
-  if (items.some((r) => Number(r.originalPurchasePrice) <= 0)) return 'blocked_no_p0'
+  if (items.some((r) => Number(r.originalPurchasePrice) <= 0) && !costUsdManual.value) return 'blocked_no_p0'
   return 'editable'
 })
 
 const isLockedPartial = computed(() => panelMode.value === 'readonly_locked')
 
-/** 未拣货（P0=0）仍可改汇率、看到试算按钮（禁用）；与原型 blocked_no_p0 一致 */
 const canMaintainFees = computed(
   () => panelMode.value === 'editable' || panelMode.value === 'blocked_no_p0'
 )
 
 const canEditHeaderRate = computed(() => props.canWrite && canMaintainFees.value)
 
-const canEditAgencyRate = computed(() => canEditHeaderRate.value && !props.maskPurchase)
+const canEditCostUsdMode = computed(() => canEditHeaderRate.value && !props.maskPurchase)
 
 const canEditLineCoreInputs = computed(() => props.canWrite && panelMode.value === 'editable')
 
@@ -128,6 +142,16 @@ const showLockedSave = computed(() => props.canWrite && panelMode.value === 'rea
 const hasMissingP0 = computed(() =>
   (props.detail.items ?? []).some((r) => Number(r.originalPurchasePrice) <= 0)
 )
+
+const rowsBlockingRecalc = computed(() => {
+  if (!hasMissingP0.value) return false
+  if (!costUsdManual.value) return true
+  return (props.detail.items ?? []).some((row) => {
+    if (!rowMissingP0(row)) return false
+    const draft = rowDraft(row)
+    return !(draft.costUsdManual && isValidCustomsCostUsd(draft.costUsd))
+  })
+})
 
 const snapshotPurchaseRatio = computed(() => {
   const items = props.detail.items ?? []
@@ -161,8 +185,7 @@ const recalcDisabled = computed(() => {
   if (!showRecalculateActions.value) return true
   if (headerExchangeRate.value <= 0) return true
   if (systemRatioLoadFailed.value || systemPurchaseRatio.value == null) return true
-  if (hasMissingP0.value) return true
-  if (agencyRateManual.value && !isValidCustomsAgencyRate(headerBrokerAgencyRate.value)) return true
+  if (rowsBlockingRecalc.value) return true
   return recalculating.value
 })
 
@@ -173,14 +196,19 @@ function agencyRateHint(rate: number | undefined): string {
   return t('customsPages.fees.agencyRateHint', { pct: pct.toFixed(2) })
 }
 
-const agencyRateMode = computed({
-  get: () => (agencyRateManual.value ? 'manual' : 'system'),
+function resetRowCostUsdDraftsToSystem() {
+  for (const row of props.detail.items ?? []) {
+    const draft = rowDraft(row)
+    draft.costUsdManual = false
+    draft.costUsd = computeSystemCostUsd(row) ?? Number(row.costUsd ?? 0)
+  }
+}
+
+const costUsdMode = computed({
+  get: () => (costUsdManual.value ? 'manual' : 'system'),
   set: (mode: string) => {
-    agencyRateManual.value = mode === 'manual'
-    if (!agencyRateManual.value) {
-      const master = Number(props.detail.brokerMasterAgencyRate)
-      headerBrokerAgencyRate.value = Number.isFinite(master) && master > 0 ? master : 1
-    }
+    costUsdManual.value = mode === 'manual'
+    if (!costUsdManual.value) resetRowCostUsdDraftsToSystem()
   }
 })
 
@@ -231,6 +259,26 @@ function linePurchaseCurrency(row: CustomsDeclarationDetailItemViewDto): number 
   return null
 }
 
+function computeSystemCostUsd(row: CustomsDeclarationDetailItemViewDto): number | null {
+  const p0 = Number(row.originalPurchasePrice)
+  if (p0 <= 0) return null
+  const currency = linePurchaseCurrency(row)
+  const ratio = linePurchaseRatio(row) ?? headerPurchaseRatio.value
+  const fx = financeFxRates.value
+  if (currency == null || ratio == null || fx == null) return null
+  const usd = unitLocalToUsd(p0, currency, fx)
+  if (usd == null) return null
+  return Math.round(usd * ratio * 1e6) / 1e6
+}
+
+function displayCostUsd(row: CustomsDeclarationDetailItemViewDto): number {
+  const draft = rowDraft(row)
+  if (costUsdManual.value && draft.costUsdManual) return draft.costUsd
+  const computed = computeSystemCostUsd(row)
+  if (computed != null) return computed
+  return Number(row.costUsd ?? 0)
+}
+
 function usd6Text(n: number | null | undefined): string {
   if (props.maskPurchase) return '—'
   const x = Number(n)
@@ -250,7 +298,9 @@ function rowDraft(row: CustomsDeclarationDetailItemViewDto): ItemDraft {
       dutyRate: Number(row.dutyRate ?? 0),
       vatRate: Number(row.vatRate ?? 0.13) || 0.13,
       otherFee: Number(row.otherFee ?? 0),
-      inspectionFee: Number(row.inspectionFee ?? 0)
+      inspectionFee: Number(row.inspectionFee ?? 0),
+      costUsd: Number(row.costUsd ?? 0),
+      costUsdManual: Boolean(row.costUsdManual)
     }
   }
   return itemDrafts[row.id]
@@ -260,17 +310,25 @@ function rowMissingP0(row: CustomsDeclarationDetailItemViewDto): boolean {
   return Number(row.originalPurchasePrice) <= 0
 }
 
+function canEditCostUsdRow(_row: CustomsDeclarationDetailItemViewDto): boolean {
+  return costUsdManual.value && canEditCostUsdMode.value && showRecalculateActions.value
+}
+
+function onCostUsdEdited(row: CustomsDeclarationDetailItemViewDto) {
+  rowDraft(row).costUsdManual = true
+}
+
 function validateDrafts(): string | null {
   for (const row of props.detail.items ?? []) {
     const d = rowDraft(row)
     if (d.dutyRate < 0) return t('customsPages.fees.validateDutyNegative')
     if (d.dutyRate === 0 && !d.hsCode.trim()) return t('customsPages.fees.validateZeroDutyHs', { line: row.lineNo })
     if (d.vatRate <= 0) return t('customsPages.fees.validateVatPositive', { line: row.lineNo })
+    if (costUsdManual.value && rowMissingP0(row) && d.costUsdManual && !isValidCustomsCostUsd(d.costUsd)) {
+      return t('customsPages.fees.validateCostUsd')
+    }
   }
   if (headerExchangeRate.value <= 0) return t('customsPages.fees.alertNoExchangeRate')
-  if (agencyRateManual.value && !isValidCustomsAgencyRate(headerBrokerAgencyRate.value)) {
-    return t('customsPages.fees.validateAgencyRate')
-  }
   return null
 }
 
@@ -297,20 +355,9 @@ async function persistDirtyFields(): Promise<void> {
     headerPatch.exchangeRate = headerExchangeRate.value
   }
 
-  const serverManual = Boolean(d.agencyRateManual)
-  const serverAgency = Number(d.brokerAgencyRate ?? 1)
-  if (canEditAgencyRate.value) {
-    if (agencyRateManual.value) {
-      if (!isValidCustomsAgencyRate(headerBrokerAgencyRate.value)) {
-        throw new Error(t('customsPages.fees.validateAgencyRate'))
-      }
-      if (!serverManual || Math.abs(headerBrokerAgencyRate.value - serverAgency) > 0.000001) {
-        headerPatch.agencyRateManual = true
-        headerPatch.brokerAgencyRate = headerBrokerAgencyRate.value
-      }
-    } else if (serverManual) {
-      headerPatch.agencyRateManual = false
-    }
+  const serverCostUsdManual = Boolean(d.costUsdManual)
+  if (canEditCostUsdMode.value && costUsdManual.value !== serverCostUsdManual) {
+    headerPatch.costUsdManual = costUsdManual.value
   }
 
   if (Object.keys(headerPatch).length > 0) {
@@ -327,6 +374,14 @@ async function persistDirtyFields(): Promise<void> {
     if (Math.abs(draft.otherFee - Number(row.otherFee ?? 0)) > 0.000001) patch.otherFee = draft.otherFee
     if (Math.abs(draft.inspectionFee - Number(row.inspectionFee ?? 0)) > 0.000001) {
       patch.inspectionFee = draft.inspectionFee
+    }
+    if (costUsdManual.value && draft.costUsdManual) {
+      const serverManual = Boolean(row.costUsdManual)
+      const serverCost = Number(row.costUsd ?? 0)
+      if (!serverManual || Math.abs(draft.costUsd - serverCost) > 0.000001) {
+        patch.costUsd = draft.costUsd
+        patch.costUsdManual = true
+      }
     }
     if (Object.keys(patch).length > 0) {
       await patchCustomsDeclarationItem(row.id, patch)
@@ -385,7 +440,7 @@ async function handleSave() {
 }
 
 function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
-  return rowMissingP0(row) ? 'fees-row--no-p0' : ''
+  return rowMissingP0(row) && !costUsdManual.value ? 'fees-row--no-p0' : ''
 }
 </script>
 
@@ -448,7 +503,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
         :title="t('customsPages.fees.alertLockedPartial')"
       />
       <el-alert
-        v-if="hasMissingP0 && canMaintainFees"
+        v-if="hasMissingP0 && canMaintainFees && rowsBlockingRecalc"
         type="warning"
         :closable="false"
         show-icon
@@ -490,26 +545,8 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
         <div class="info-item">
           <span class="info-label">{{ t('customsPages.fees.agencyRate') }}</span>
           <span class="info-value fees-exchange-rate-value">
-            <el-input-number
-              v-if="canEditAgencyRate && agencyRateManual"
-              v-model="headerBrokerAgencyRate"
-              :min="1"
-              :precision="6"
-              :step="0.001"
-              controls-position="right"
-              class="fees-input-number fees-field-highlight"
-            />
-            <span v-else>{{ maskPurchase ? '—' : headerBrokerAgencyRate.toFixed(6) }}</span>
+            <span>{{ maskPurchase ? '—' : headerBrokerAgencyRate.toFixed(6) }}</span>
             <span v-if="!maskPurchase" class="fees-hint">{{ agencyRateHint(headerBrokerAgencyRate) }}</span>
-            <el-radio-group
-              v-if="canEditAgencyRate"
-              v-model="agencyRateMode"
-              size="small"
-              class="fees-agency-rate-mode"
-            >
-              <el-radio-button value="system">{{ t('customsPages.fees.agencyRateModeSystem') }}</el-radio-button>
-              <el-radio-button value="manual">{{ t('customsPages.fees.agencyRateModeManual') }}</el-radio-button>
-            </el-radio-group>
           </span>
         </div>
         <div class="info-item">
@@ -558,8 +595,35 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
           <el-table-column :label="t('customsPages.fees.purchaseRatio')" min-width="112" align="right">
             <template #default="{ row }">{{ ratioText(linePurchaseRatio(row)) }}</template>
           </el-table-column>
-          <el-table-column :label="t('customsPages.fees.costUsd')" min-width="118" align="right">
-            <template #default="{ row }">{{ usd6Text(row.costUsd) }}</template>
+          <el-table-column min-width="168" align="right">
+            <template #header>
+              <div class="fees-cost-usd-header">
+                <span>{{ t('customsPages.fees.costUsd') }}</span>
+                <el-radio-group
+                  v-if="canEditCostUsdMode"
+                  v-model="costUsdMode"
+                  size="small"
+                  class="fees-cost-usd-mode"
+                >
+                  <el-radio-button value="system">{{ t('customsPages.fees.costUsdModeSystem') }}</el-radio-button>
+                  <el-radio-button value="manual">{{ t('customsPages.fees.costUsdModeManual') }}</el-radio-button>
+                </el-radio-group>
+              </div>
+            </template>
+            <template #default="{ row }">
+              <el-input-number
+                v-if="canEditCostUsdRow(row)"
+                v-model="rowDraft(row).costUsd"
+                size="small"
+                :min="0"
+                :precision="6"
+                :step="0.000001"
+                :controls="false"
+                class="fees-input-number fees-input-number--plain fees-field-highlight"
+                @change="onCostUsdEdited(row)"
+              />
+              <span v-else>{{ usd6Text(displayCostUsd(row)) }}</span>
+            </template>
           </el-table-column>
           <el-table-column :label="t('customsPages.items.colHs')" min-width="128">
             <template #default="{ row }">
@@ -798,7 +862,15 @@ $fees-highlight-text: #78350f;
   min-width: 0;
 }
 
-.fees-agency-rate-mode {
+.fees-cost-usd-header {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.fees-cost-usd-mode {
   flex-shrink: 0;
 }
 
@@ -854,21 +926,6 @@ $fees-highlight-text: #78350f;
 
   :deep(.el-input__inner) {
     color: $fees-highlight-text !important;
-  }
-}
-
-.fees-input-number--spin {
-  width: 120px;
-  min-width: 120px;
-  max-width: none;
-
-  :deep(.el-input__wrapper) {
-    padding-left: 8px;
-    padding-right: 4px;
-  }
-
-  :deep(.el-input__inner) {
-    text-align: right;
   }
 }
 

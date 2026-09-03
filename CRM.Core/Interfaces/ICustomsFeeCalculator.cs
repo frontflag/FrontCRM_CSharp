@@ -29,6 +29,17 @@ public interface ICustomsFeeCalculator
         decimal otherFee,
         int declareQty,
         decimal brokerAgencyRate);
+
+    /// <summary>以手工采购美金价为起点计算费用链（跳过 P0 折合步骤）。</summary>
+    CustomsFeeLineResult CalculateLineFromManualCostUsd(
+        decimal manualCostUsd,
+        decimal exchangeRate,
+        int declareQty,
+        decimal dutyRate,
+        decimal vatRate,
+        decimal brokerAgencyRate,
+        decimal otherFee,
+        decimal inspectionFee);
 }
 
 public sealed class CustomsFeeLineResult

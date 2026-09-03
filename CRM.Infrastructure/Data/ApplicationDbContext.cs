@@ -1527,6 +1527,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ExchangeRate).HasColumnType("numeric(18,6)");
                 entity.Property(e => e.BrokerAgencyRate).HasColumnName("broker_agency_rate").HasColumnType("numeric(10,6)").HasDefaultValue(1m);
                 entity.Property(e => e.AgencyRateManual).HasColumnName("agency_rate_manual").HasDefaultValue(false);
+                entity.Property(e => e.CostUsdManual).HasColumnName("cost_usd_manual").HasDefaultValue(false);
                 entity.Property(e => e.FeesCalculatedAt).HasColumnName("fees_calculated_at");
                 entity.Property(e => e.FeesLocked).HasColumnName("fees_locked").HasDefaultValue(false);
                 entity.Property(e => e.TotalTaxAmount).HasColumnType("numeric(18,2)");
@@ -1570,6 +1571,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.PurchaseRatio).HasColumnName("purchase_ratio").HasColumnType("numeric(10,4)").HasDefaultValue(1m);
                 entity.Property(e => e.PurchaseCurrency).HasColumnName("purchase_currency");
                 entity.Property(e => e.CostUsd).HasColumnName("cost_usd").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
+                entity.Property(e => e.CostUsdManual).HasColumnName("cost_usd_manual").HasDefaultValue(false);
                 entity.Property(e => e.DutyRate).HasColumnName("duty_rate").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.VatRate).HasColumnName("vat_rate").HasColumnType("numeric(18,6)").HasDefaultValue(0.13m);
                 entity.Property(e => e.CustomsUsdPrice).HasColumnName("customs_usd_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);

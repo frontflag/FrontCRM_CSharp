@@ -38,6 +38,8 @@ public class CustomsDeclarationItemsController : ControllerBase
         public decimal? VatRate { get; set; }
         public decimal? OtherFee { get; set; }
         public decimal? InspectionFee { get; set; }
+        public decimal? CostUsd { get; set; }
+        public bool? CostUsdManual { get; set; }
     }
 
     [HttpPatch("{id}")]
@@ -59,7 +61,9 @@ public class CustomsDeclarationItemsController : ControllerBase
                 DutyRate = body?.DutyRate,
                 VatRate = body?.VatRate,
                 OtherFee = body?.OtherFee,
-                InspectionFee = body?.InspectionFee
+                InspectionFee = body?.InspectionFee,
+                CostUsd = body?.CostUsd,
+                CostUsdManual = body?.CostUsdManual
             }, uid);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关明细"));
         }
