@@ -17,14 +17,16 @@ const row = {
 }
 
 describe('buildStockOutItemFlowStations', () => {
-  it('renders five stations in business order with stock-out as current', () => {
+  it('renders seven stations in business order with stock-out as current', () => {
     const stations = buildStockOutItemFlowStations(row, null, t)
     expect(stations.map((s) => s.key)).toEqual([
       'sellOrderItem',
       'stockOutNotify',
       'stockItem',
       'packing',
-      'stockOut'
+      'stockOut',
+      'receivable',
+      'receiptWriteOff'
     ])
     expect(stations.find((s) => s.key === 'stockOut')?.stationStatus).toBe('done')
     expect(stations.filter((s) => s.key !== 'stockOut').every((s) => s.stationStatus === 'empty')).toBe(true)
@@ -111,5 +113,42 @@ describe('buildStockOutItemFlowStations', () => {
     expect(stock?.cards[1].qtyText).toBe('0 pcs')
     expect(stations.map((s) => s.key)).not.toContain('stockingStockItem')
     expect(stations.map((s) => s.key)).not.toContain('picking')
+  })
+
+  it('shows receivable scope note and linked stock-out line codes when shared', () => {
+    const stations = buildStockOutItemFlowStations(row, {
+      stockOutItemId: 'outi-1',
+      receivables: [
+        {
+          id: 'ar-1',
+          receivableCode: 'AR0001',
+          verificationStatus: 1,
+          amount: 1000,
+          verifiedToBe: 400,
+          currency: 2,
+          stockOutDate: '2026-07-17T19:44:00Z',
+          customerName: 'Cust',
+          stockOutItemLineCount: 2,
+          stockOutItemCodes: ['STO0021X-1', 'STO0021X-2']
+        }
+      ],
+      receiptWriteOffs: [
+        {
+          id: 'wo-1',
+          amount: 600,
+          currency: 2,
+          createTime: '2026-07-18T10:00:00Z',
+          financeReceiptId: 'rc-1',
+          financeReceiptCode: 'RC0001',
+          customerName: 'Cust',
+          operatorUserName: 'FinUser'
+        }
+      ]
+    }, t)
+    const receivable = stations.find((s) => s.key === 'receivable')?.cards[0]
+    expect(receivable?.receivableScopeNote).toBe('stockOutItemList.flowPanel.receivableScopeNote')
+    expect(receivable?.linkedStockOutItemCodes).toEqual(['STO0021X-1', 'STO0021X-2'])
+    expect(receivable?.verifiedToBeText).toBeTruthy()
+    expect(stations.find((s) => s.key === 'receiptWriteOff')?.cards).toHaveLength(1)
   })
 })

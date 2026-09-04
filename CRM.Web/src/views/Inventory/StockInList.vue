@@ -226,7 +226,7 @@
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
       :data="list"
-      :row-class-name="opsPanelRowClassName"
+      :row-class-name="panelRowClassName"
       v-loading="loading"
       @row-click="onRowClick"
       @row-dblclick="handleView"
@@ -422,6 +422,7 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useStockInOpsPanelStore } from '@/stores/stockInOpsPanel'
+import { useStockInFlowPanelStore } from '@/stores/stockInFlowPanel'
 import type { StockInListAnalyticsQuery } from '@/api/stockInAnalytics'
 import {
   LOGISTICS_ANALYTICS_STOCK_IN_DRILL,
@@ -433,6 +434,7 @@ const viewMode = ref<'list' | 'board'>('list')
 useListBoardHelpOverride('pages/入库单看板_MENU_STOCK_IN_BOARD.md', viewMode)
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const stockInOpsStore = useStockInOpsPanelStore()
+const stockInFlowPanelStore = useStockInFlowPanelStore()
 const {
   expanded: vendorExtendExpanded,
   activeField: vendorExtendActiveField,
@@ -865,6 +867,7 @@ const fetchList = async (resetPage = true) => {
     list.value = paged.items
     listTotalServer.value = paged.total
     void stockInOpsStore.refreshFromListRows(list.value, t('stockInList.opsPanel.loadFailed'))
+    void stockInFlowPanelStore.refreshFromListRows(list.value, t('stockInList.flowPanel.loadFailed'))
   } catch (e) {
     console.error(e)
     ElMessage.error(t('stockInList.messages.loadFailed'))
@@ -999,7 +1002,7 @@ const handleView = (row: StockInListItemDto) => {
   void router.push({ name: 'StockInDetail', params: { id } })
 }
 
-const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+const { onOpsPanelRowClick: onOpsTabRowClick } = useListRightOpsPanelInteraction({
   workspaceLayout,
   isActiveRoute: () => route.name === 'StockInList',
   hasSelectedRow: () => !!stockInOpsStore.row,
@@ -1011,17 +1014,36 @@ const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
   shouldBlockRowClick: () => viewMode.value === 'board'
 })
 
+const { onOpsPanelRowClick: onFlowTabRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'StockInList',
+  hasSelectedRow: () => !!stockInFlowPanelStore.row,
+  setRowOnly: row => stockInFlowPanelStore.setRowOnly(row),
+  selectRow: row =>
+    stockInFlowPanelStore.selectRow(row, t('stockInList.flowPanel.loadFailed')),
+  loadSelected: () => {
+    void stockInFlowPanelStore.loadSelected(t('stockInList.flowPanel.loadFailed'))
+  },
+  shouldBlockRowClick: () => viewMode.value === 'board',
+  dataTabIds: ['r-flow']
+})
+
 async function onRowClick(row: StockInListItemDto) {
   if (viewMode.value === 'board') return
-  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+  const rec = row as unknown as Record<string, unknown>
+  await onOpsTabRowClick(rec)
+  await onFlowTabRowClick(rec)
 }
 
-function opsPanelRowClassName({ row }: { row: StockInListItemDto }) {
-  if (!stockInOpsStore.row) return 'table-row-pointer'
-  return stockInOpsStore.rowKey(row as unknown as Record<string, unknown>) ===
-    stockInOpsStore.rowKey(stockInOpsStore.row)
-    ? 'so-item-row--active'
-    : 'table-row-pointer'
+function panelRowClassName({ row }: { row: StockInListItemDto }) {
+  const rec = row as unknown as Record<string, unknown>
+  const opsActive =
+    !!stockInOpsStore.row &&
+    stockInOpsStore.rowKey(rec) === stockInOpsStore.rowKey(stockInOpsStore.row)
+  const flowActive =
+    !!stockInFlowPanelStore.row &&
+    stockInFlowPanelStore.rowKey(rec) === stockInFlowPanelStore.rowKey(stockInFlowPanelStore.row)
+  return opsActive || flowActive ? 'so-item-row--active' : 'table-row-pointer'
 }
 
 onMounted(() => {

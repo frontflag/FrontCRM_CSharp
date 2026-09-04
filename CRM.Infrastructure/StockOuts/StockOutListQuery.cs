@@ -29,8 +29,13 @@ public sealed class StockOutListQuery : IStockOutListQuery
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
-        var q = _db.StockOuts.AsNoTracking()
-            .Where(so => so.StockOutType != StockOutTypeCode.Transfer);
+        // 移库虚拟出库默认不出现在业务列表；按出库单号检索时需能定位（如流程图跳转、强制删除排查）。
+        var includeTransferVirtual = filter != null
+            && !string.IsNullOrWhiteSpace(filter.StockOutCode);
+
+        var q = _db.StockOuts.AsNoTracking();
+        if (!includeTransferVirtual)
+            q = q.Where(so => so.StockOutType != StockOutTypeCode.Transfer);
 
         var scopeUserId = filter?.CurrentUserId;
         q = await _dataPermission.ApplyStockOutListDataScopeAsync(

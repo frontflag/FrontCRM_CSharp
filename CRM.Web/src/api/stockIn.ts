@@ -1,4 +1,5 @@
 import apiClient from './client'
+import type { StockItemFlowDoc } from './inventoryCenter'
 
 export interface StockInItemDto {
   lineNo: number
@@ -364,6 +365,11 @@ export const stockInApi = {
     return normalizeStockInOpsAggregates(res)
   },
 
+  async getFlowAggregates(id: string): Promise<StockInFlowAggregatesDto> {
+    const res = await apiClient.get<unknown>(`/api/v1/stock-in/${encodeURIComponent(id)}/flow-aggregates`)
+    return normalizeStockInFlowAggregates(res)
+  },
+
   async runOpsCheck(): Promise<StockInOpsCheckResult> {
     const res = await apiClient.post<unknown>('/api/v1/stock-in/ops-check')
     const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : null
@@ -438,6 +444,17 @@ export interface StockInOpsAggregatesDto {
   arrivalNotice?: StockInOpsArrivalNoticeDto | null
 }
 
+export interface StockInFlowAggregatesDto {
+  stockInId: string
+  stockIn: StockItemFlowDoc
+  purchaseOrderItems?: StockItemFlowDoc[]
+  qcs?: StockItemFlowDoc[]
+  stockItems?: StockItemFlowDoc[]
+  stockOutNotifies?: StockItemFlowDoc[]
+  packings?: StockItemFlowDoc[]
+  stockOuts?: StockItemFlowDoc[]
+}
+
 function unwrapApiData(res: unknown): Record<string, unknown> {
   const root = res && typeof res === 'object' ? (res as Record<string, unknown>) : {}
   const data = (root.data ?? root.Data ?? root) as Record<string, unknown>
@@ -484,6 +501,70 @@ function normalizeStockInOpsAggregates(res: unknown): StockInOpsAggregatesDto {
               : null
         }
       : null
+  }
+}
+
+function mapFlowDoc(raw: Record<string, unknown>): StockItemFlowDoc {
+  return {
+    id: String(raw.id ?? raw.Id ?? ''),
+    docCode: (raw.docCode ?? raw.DocCode) as string | null | undefined,
+    status: raw.status != null || raw.Status != null ? Number(raw.status ?? raw.Status) : null,
+    createTime: (raw.createTime ?? raw.CreateTime) as string | null | undefined,
+    bizDate: (raw.bizDate ?? raw.BizDate) as string | null | undefined,
+    vendorName: (raw.vendorName ?? raw.VendorName) as string | null | undefined,
+    vendorCode: (raw.vendorCode ?? raw.VendorCode) as string | null | undefined,
+    customerName: (raw.customerName ?? raw.CustomerName) as string | null | undefined,
+    customerCode: (raw.customerCode ?? raw.CustomerCode) as string | null | undefined,
+    personName: (raw.personName ?? raw.PersonName) as string | null | undefined,
+    unitPrice: raw.unitPrice != null || raw.UnitPrice != null ? Number(raw.unitPrice ?? raw.UnitPrice) : null,
+    currency: raw.currency != null || raw.Currency != null ? Number(raw.currency ?? raw.Currency) : null,
+    salesUnitPrice:
+      raw.salesUnitPrice != null || raw.SalesUnitPrice != null
+        ? Number(raw.salesUnitPrice ?? raw.SalesUnitPrice)
+        : null,
+    salesCurrency:
+      raw.salesCurrency != null || raw.SalesCurrency != null
+        ? Number(raw.salesCurrency ?? raw.SalesCurrency)
+        : null,
+    qty: raw.qty != null || raw.Qty != null ? Number(raw.qty ?? raw.Qty) : null,
+    qty2: raw.qty2 != null || raw.Qty2 != null ? Number(raw.qty2 ?? raw.Qty2) : null,
+    passQty: raw.passQty != null || raw.PassQty != null ? Number(raw.passQty ?? raw.PassQty) : null,
+    rejectQty: raw.rejectQty != null || raw.RejectQty != null ? Number(raw.rejectQty ?? raw.RejectQty) : null,
+    stockInType:
+      raw.stockInType != null || raw.StockInType != null ? Number(raw.stockInType ?? raw.StockInType) : null,
+    stockOutType:
+      raw.stockOutType != null || raw.StockOutType != null ? Number(raw.stockOutType ?? raw.StockOutType) : null,
+    customsDeclarationId: (raw.customsDeclarationId ?? raw.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (raw.customsDeclarationCode ?? raw.CustomsDeclarationCode) as string | null | undefined,
+    stockInNotifyId: (raw.stockInNotifyId ?? raw.StockInNotifyId) as string | null | undefined,
+    purchaseOrderId: (raw.purchaseOrderId ?? raw.PurchaseOrderId) as string | null | undefined,
+    purchaseOrderItemId: (raw.purchaseOrderItemId ?? raw.PurchaseOrderItemId) as string | null | undefined,
+    stockAggregateId: (raw.stockAggregateId ?? raw.StockAggregateId) as string | null | undefined,
+    sellOrderId: (raw.sellOrderId ?? raw.SellOrderId) as string | null | undefined,
+    lineDocCode: (raw.lineDocCode ?? raw.LineDocCode) as string | null | undefined,
+    isDeleted: Boolean(raw.isDeleted ?? raw.IsDeleted)
+  }
+}
+
+function mapFlowDocList(raw: unknown): StockItemFlowDoc[] {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+    .map(mapFlowDoc)
+}
+
+function normalizeStockInFlowAggregates(res: unknown): StockInFlowAggregatesDto {
+  const r = unwrapApiData(res)
+  const stockInRaw = (r.stockIn ?? r.StockIn) as Record<string, unknown> | undefined
+  return {
+    stockInId: String(r.stockInId ?? r.StockInId ?? stockInRaw?.id ?? stockInRaw?.Id ?? ''),
+    stockIn: mapFlowDoc(stockInRaw ?? {}),
+    purchaseOrderItems: mapFlowDocList(r.purchaseOrderItems ?? r.PurchaseOrderItems),
+    qcs: mapFlowDocList(r.qcs ?? r.Qcs),
+    stockItems: mapFlowDocList(r.stockItems ?? r.StockItems),
+    stockOutNotifies: mapFlowDocList(r.stockOutNotifies ?? r.StockOutNotifies),
+    packings: mapFlowDocList(r.packings ?? r.Packings),
+    stockOuts: mapFlowDocList(r.stockOuts ?? r.StockOuts)
   }
 }
 

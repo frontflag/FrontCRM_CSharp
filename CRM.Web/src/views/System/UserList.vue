@@ -360,8 +360,8 @@ const searchFilters = reactive({
   roleId: '' as string,
   userNameKw: '',
   realNameKw: '',
-  /** all | 0 | 1 | 2 */
-  statusFilter: 'all' as string
+  /** all | 0 | 1 | 2；默认 1=正常 */
+  statusFilter: '1' as string
 })
 
 const appliedFilters = reactive({
@@ -369,7 +369,7 @@ const appliedFilters = reactive({
   roleId: '' as string,
   userNameKw: '',
   realNameKw: '',
-  statusFilter: 'all' as string
+  statusFilter: '1' as string
 })
 
 const selectedUsers = ref<AdminUserDto[]>([])
@@ -415,7 +415,7 @@ function resetSearch() {
   searchFilters.roleId = ''
   searchFilters.userNameKw = ''
   searchFilters.realNameKw = ''
-  searchFilters.statusFilter = 'all'
+  searchFilters.statusFilter = '1'
   applySearch()
 }
 

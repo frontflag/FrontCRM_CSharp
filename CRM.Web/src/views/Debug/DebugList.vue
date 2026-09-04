@@ -12,6 +12,7 @@ const debugTableColumns: CrmTableColumnDef[] = [
 
 const items = ref<{ name: string; value: string }[]>([])
 const databaseConnectionDisplay = ref('')
+const backendDebugVersion = ref('')
 const loading = ref(false)
 const error = ref<string | null>(null)
 
@@ -23,6 +24,10 @@ onMounted(async () => {
   try {
     const page = await getDebugPage()
     databaseConnectionDisplay.value = page.databaseConnectionDisplay ?? ''
+    backendDebugVersion.value =
+      page.backendDebugVersion ??
+      (page as { backendDebugVersion?: string; BackendDebugVersion?: string }).BackendDebugVersion ??
+      ''
     items.value = page.items ?? []
   } catch (e: any) {
     error.value =
@@ -42,6 +47,10 @@ onMounted(async () => {
       <div class="debug-sub">
         当前前端构建版本：<span class="mono version-strong">{{ FRONTEND_DEBUG_VERSION }}</span>
         （post-commit 自动写入；用于核对线上是否为本次构建）
+      </div>
+      <div v-if="backendDebugVersion" class="debug-sub muted">
+        当前后端 API 版本：<span class="mono version-strong">{{ backendDebugVersion }}</span>
+        （须与前端同时更新；二者不一致说明 API 未重启或未重新编译）
       </div>
       <div class="debug-sub muted">按 PRD：数据库面板仅展示库名（脱敏），debug 表记录；版本号见上。</div>
     </div>

@@ -1663,6 +1663,16 @@
             class="aux-panel-tab-body"
             @edit-remark="stockInOpsStore.runEditRemark()"
           />
+          <StockInFlowPanel
+            v-show="showStockInFlowPanel"
+            :row="stockInFlowPanelStore.row"
+            :aggregates="stockInFlowPanelStore.aggregates"
+            :loading="stockInFlowPanelStore.loading"
+            :load-error="stockInFlowPanelStore.loadError"
+            :mask-purchase="maskPurchaseSensitiveFields"
+            :mask-sale="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <UserLevelChangeLogPanel v-show="showUserLevelLogPanel" class="aux-panel-tab-body" />
           <StockOutNotifyCustomsTabPanel
             v-show="showStockOutNotifyCustomsPanel"
@@ -1833,6 +1843,7 @@ import ArrivalNoticeOpsPanel from '@/components/Logistics/ArrivalNoticeOpsPanel.
 import QcOpsPanel from '@/components/Logistics/QcOpsPanel.vue'
 import StockOutOpsPanel from '@/components/Inventory/StockOutOpsPanel.vue'
 import StockInOpsPanel from '@/components/Inventory/StockInOpsPanel.vue'
+import StockInFlowPanel from '@/components/Inventory/StockInFlowPanel.vue'
 import UserLevelChangeLogPanel from '@/components/System/UserLevelChangeLogPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
@@ -1850,6 +1861,7 @@ import { canEditArrivalNoticeArrivalInfo } from '@/utils/arrivalNoticeArrivalInf
 import { useQcOpsPanelStore } from '@/stores/qcOpsPanel'
 import { useStockOutOpsPanelStore } from '@/stores/stockOutOpsPanel'
 import { useStockInOpsPanelStore } from '@/stores/stockInOpsPanel'
+import { useStockInFlowPanelStore } from '@/stores/stockInFlowPanel'
 import { useStockItemFlowPanelStore } from '@/stores/stockItemFlowPanel'
 import { useStockOutNotifyFlowPanelStore } from '@/stores/stockOutNotifyFlowPanel'
 import { useStockOutItemFlowPanelStore } from '@/stores/stockOutItemFlowPanel'
@@ -1903,6 +1915,7 @@ const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const qcOpsStore = useQcOpsPanelStore()
 const stockOutOpsStore = useStockOutOpsPanelStore()
 const stockInOpsStore = useStockInOpsPanelStore()
+const stockInFlowPanelStore = useStockInFlowPanelStore()
 const stockItemFlowStore = useStockItemFlowPanelStore()
 const stockOutNotifyFlowStore = useStockOutNotifyFlowPanelStore()
 const stockOutItemFlowStore = useStockOutItemFlowPanelStore()
@@ -2347,6 +2360,12 @@ const showStockInOpsPanel = computed(
     isStockInListRoute.value &&
     !stockInOpsStore.boardMode
 )
+const showStockInFlowPanel = computed(
+  () =>
+    rightActiveTabId.value === 'r-flow' &&
+    isStockInListRoute.value &&
+    !stockInOpsStore.boardMode
+)
 
 const isUserLevelListRoute = computed(() => route.name === 'UserLevelList')
 const showUserLevelLogPanel = computed(
@@ -2525,6 +2544,7 @@ function syncStockInListRightTabs() {
   }
   rightTabs.value = [
     { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+    { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
     { id: 'r4', labelKey: 'layout.auxTabs.help' }
   ]
 }
@@ -2541,6 +2561,9 @@ watch(
     }
     if (name !== 'StockOutItemList') {
       stockOutItemFlowStore.clear()
+    }
+    if (name !== 'StockInList') {
+      stockInFlowPanelStore.clear()
     }
 
     if (name === 'ApprovalDesktop') {

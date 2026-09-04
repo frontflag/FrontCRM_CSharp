@@ -337,7 +337,8 @@ public sealed class CustomerWorkspaceService : ICustomerWorkspaceService
         var summary = await _rbacService.GetUserPermissionSummaryAsync(viewerUserId);
         if (summary.SaleDataScope == 0)
             return;
-        if (summary.SaleDataScope == 4)
+        if (summary.SaleDataScope == 4
+            && !BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
             throw new UnauthorizedAccessException("无权限访问该装箱单");
 
         if (!string.IsNullOrWhiteSpace(packing.SalesId)
@@ -366,7 +367,8 @@ public sealed class CustomerWorkspaceService : ICustomerWorkspaceService
         var summary = await _rbacService.GetUserPermissionSummaryAsync(viewerUserId);
         if (summary.SaleDataScope == 0)
             return;
-        if (summary.SaleDataScope == 4)
+        if (summary.SaleDataScope == 4
+            && !BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
             throw new UnauthorizedAccessException("无权限访问该出库单");
 
         var itemId = stockOut.SellOrderItemId?.Trim();

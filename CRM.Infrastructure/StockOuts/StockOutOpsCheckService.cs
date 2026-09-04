@@ -152,14 +152,16 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
             .ToList();
 
         var customers = customerIds.Count == 0
-            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            ? new Dictionary<string, (string? Code, string? Name)>(StringComparer.OrdinalIgnoreCase)
             : (await _db.Customers.AsNoTracking()
                 .Where(c => customerIds.Contains(c.Id))
-                .Select(c => new { c.Id, c.OfficialName, c.NickName })
+                .Select(c => new { c.Id, c.CustomerCode, c.OfficialName, c.NickName })
                 .ToListAsync(cancellationToken))
             .ToDictionary(
                 c => c.Id,
-                c => string.IsNullOrWhiteSpace(c.OfficialName) ? c.NickName : c.OfficialName,
+                c => (
+                    Code: (string?)c.CustomerCode,
+                    Name: string.IsNullOrWhiteSpace(c.OfficialName) ? c.NickName : c.OfficialName),
                 StringComparer.OrdinalIgnoreCase);
 
         var notifyIds = packingItems
@@ -672,7 +674,7 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
             AddFinding(findings, "warning", "status", "packingItem", pi.Id, pi.ItemCode,
                 "PackingItemList", null, Highlight(pi.ItemCode),
                 "packing", pi.PackingId, packing?.Code, "PackingDetail", Params(pi.PackingId),
-                $"已有有效出库，出库通知 {n.Item1} 状态仍为 {n.Status}（应为已出库）。",
+                $"已有有效出库，出库通知 {OpsCheckDocumentCodes.ForSuggestion(n.Item1)} 状态仍为 {n.Status}（应为已出库）。",
                 StockOutOpsCheckSuggestions.NotifyNotStockedOut(
                     OpsCheckDocumentCodes.ForSuggestion(n.Item1, pi.StockOutNotifyId),
                     OpsCheckDocumentCodes.IsUsableCode(packing?.Code) ? packing!.Code : null,
@@ -704,7 +706,7 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
         string? soCustomerId,
         string? arCustomerId,
         string? sellCustomerId,
-        Dictionary<string, string?> customers,
+        Dictionary<string, (string? Code, string? Name)> customers,
         string? arCustomerName,
         string? sellOrderCode,
         StockOutOpsCheckSuggestions.ReceivableHint arHint,
@@ -719,10 +721,19 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
         {
             var arLabel = OpsCheckDocumentCodes.ForSuggestion(arCode, arHint.StockOutCode);
             var arStatus = FormatReceivableVerificationStatus(arHint);
+            string Slot(string? docCode, string? customerId)
+            {
+                string? code = null;
+                if (!string.IsNullOrWhiteSpace(customerId)
+                    && customers.TryGetValue(customerId.Trim(), out var c))
+                    code = c.Code;
+                return OpsCheckDocumentCodes.FormatDocPartySlot(docCode, customerId, code);
+            }
+
             AddFinding(findings, "error", "customer", "receivable", arId, arCode,
                 "FinanceReceivableDetail", Params(arId), null,
                 "stockOut", soId, soCode, "StockOutDetail", Params(soId),
-                $"客户主键不一致（应收 {arLabel} {arStatus}）：装箱 {Norm(packingCustomerId)} / 出库 {Norm(soCustomerId)} / 应收 {Norm(arCustomerId)} / 销售订单 {Norm(sellCustomerId)}。",
+                $"客户主键不一致（应收 {arLabel} {arStatus}）：装箱 {Slot(packingCode, packingCustomerId)} / 出库 {Slot(soCode, soCustomerId)} / 应收 {Slot(arCode, arCustomerId)} / 销售订单 {Slot(sellOrderCode, sellCustomerId)}。",
                 StockOutOpsCheckSuggestions.IsWrittenOff(arHint.VerifiedDone)
                     ? StockOutOpsCheckSuggestions.VoidThenRebuild(
                         arHint,
@@ -733,21 +744,18 @@ public sealed class StockOutOpsCheckService : IStockOutOpsCheckService
         }
 
         if (ids.Count == 1
-            && customers.TryGetValue(ids[0], out var masterName)
-            && !string.IsNullOrWhiteSpace(masterName)
+            && customers.TryGetValue(ids[0], out var master)
+            && !string.IsNullOrWhiteSpace(master.Name)
             && !string.IsNullOrWhiteSpace(arCustomerName)
-            && !string.Equals(masterName.Trim(), arCustomerName.Trim(), StringComparison.Ordinal))
+            && !string.Equals(master.Name.Trim(), arCustomerName.Trim(), StringComparison.Ordinal))
         {
             AddFinding(findings, "warning", "customer", "receivable", arId, arCode,
                 "FinanceReceivableDetail", Params(arId), null,
                 "stockOut", soId, soCode, "StockOutDetail", Params(soId),
-                $"应收客户名「{arCustomerName}」与客户主数据「{masterName}」不一致。",
-                StockOutOpsCheckSuggestions.CustomerRefresh(sellOrderCode, ar: null));
+                $"应收客户名「{arCustomerName}」与客户主数据「{master.Name}」不一致。",
+                StockOutOpsCheckSuggestions.CustomerNameSnapshotRefresh(sellOrderCode, arCode));
         }
     }
-
-    private static string Norm(string? id) =>
-        string.IsNullOrWhiteSpace(id) ? "空" : id.Trim();
 
     private static string FormatReceivableVerificationStatus(StockOutOpsCheckSuggestions.ReceivableHint arHint)
     {

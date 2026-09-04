@@ -137,10 +137,9 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
         if (idList.Count == 0)
             return new List<InventoryStockItemListRowDto>();
 
+        // 按主键精确加载（流程面板等）：不过滤 ManualTransferSource，与列表按编号定位语义一致。
         var stockItems = _db.StockItems.AsNoTracking()
-            .Where(si =>
-                idList.Contains(si.Id) &&
-                (si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource));
+            .Where(si => idList.Contains(si.Id));
         if (applyDataScope)
         {
             stockItems = await _dataPermission.ApplyStockItemListDataScopeAsync(

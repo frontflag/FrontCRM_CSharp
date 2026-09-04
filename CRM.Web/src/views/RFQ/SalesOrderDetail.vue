@@ -2686,7 +2686,7 @@ function buildCustomerSyncPreviewHtml(preview: SalesOrderCustomerDownstreamSyncP
     renderGroup('装箱单', 'packing', preview.packingsToSync),
     renderGroup('装箱明细扩展', 'packingItemExtend', preview.packingItemExtendsToSync),
     renderGroup('未完结出库单', 'stockOut', preview.stockOutsToSync),
-    renderGroup('未核销应收', 'receivable', preview.receivablesToSync ?? 0)
+    renderGroup('应收客户名称', 'receivable', preview.receivablesToSync ?? 0)
   ].filter(Boolean)
 
   if (preview.blockingDocuments?.length) {
@@ -2755,7 +2755,7 @@ async function handleSyncDownstreamCustomer() {
 
   if (preview.noOp) {
     await ElMessageBox.alert(
-      '销售订单客户名称快照与未完结下游客户信息已与当前 CustomerId 主数据一致，无需同步。',
+      '销售订单客户名称快照与下游客户信息已与当前客户主数据一致，无需同步。',
       '刷新客户',
       { confirmButtonText: '知道了' }
     )
@@ -2767,7 +2767,7 @@ async function handleSyncDownstreamCustomer() {
       buildCustomerSyncPreviewHtml(preview),
       completedDocumentsOf(preview).length > 0
         ? t('salesOrderDetailView.refreshCompletedWarnTitle')
-        : `确认按销售订单 ${order.value.sellOrderCode} 的 CustomerId 刷新名称快照，并同步未完结下游客户吗？`,
+        : `确认按销售订单 ${order.value.sellOrderCode} 的客户主数据刷新名称快照，并同步下游客户信息吗？`,
       {
         ...customerSyncMessageBoxOptions,
         type: 'warning',

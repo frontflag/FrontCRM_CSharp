@@ -3979,6 +3979,7 @@ const enUS = {
     importExcel: 'Import from Excel',
     expandMenu: 'Expand menu',
     empty: 'No customer data',
+    emptyCommerceHint: 'If you are a commerce assistant, assign responsible salespeople under System → User Configuration first.',
     filters: {
       keyword: 'Keyword',
       keywordPlaceholderFull: 'Customer name / contact…',
@@ -7840,6 +7841,46 @@ const enUS = {
         sample: 'Sample PO'
       }
     },
+    flowPanel: {
+      pickRow: 'With the Flow tab open, click a row to see the purchase-to-stock-out chain for this stock-in.',
+      emptyStation: 'Not started',
+      stationEmpty: 'Not started',
+      stationActive: 'In progress',
+      stationDone: 'Completed',
+      loadFailed: 'Failed to load stock-in flow',
+      stations: {
+        purchaseOrderItem: 'PO line',
+        qc: 'QC',
+        stockIn: 'Stock-in',
+        stockItem: 'Stock item',
+        stockOutNotify: 'Stock-out notice',
+        packing: 'Packing',
+        stockOut: 'Stock-out'
+      },
+      role: {
+        purchaser: 'Buyer',
+        creator: 'Created by',
+        salesUser: 'Sales rep'
+      },
+      fields: {
+        docNo: 'Doc no.',
+        status: 'Status',
+        createdAt: 'Created',
+        stockInDate: 'Stock-in date',
+        vendorName: 'Vendor',
+        customerName: 'Customer',
+        unitPrice: 'Unit cost · currency',
+        salesPrice: 'Sales price · currency',
+        qty: 'Qty',
+        inboundQty: 'Stock-in qty',
+        outboundQty: 'Stock-out qty',
+        packingQty: 'Packing qty',
+        qcQty: 'Pass / reject',
+        stockInType: 'Stock-in type',
+        stockOutType: 'Stock-out type',
+        description: 'Description'
+      }
+    },
     stockInTypeLabels: {
       purchase: 'Purchase stock-in',
       customs: 'Customs stock-in',
@@ -8397,12 +8438,27 @@ const enUS = {
     flowPanel: {
       pickRow: 'On the Flow tab, click a row to see this stock-out line’s upstream and downstream chain',
       loadFailed: 'Failed to load the stock-out line flow',
+      writeOffStatus: 'Written off',
+      receivableScopeNote: 'This receivable covers {count} stock-out lines',
       stations: {
         sellOrderItem: 'Sales line',
         stockOutNotify: 'Stock-out notice',
         stockItem: 'Stock item',
         packing: 'Packing',
-        stockOut: 'Stock-out'
+        stockOut: 'Stock-out',
+        receivable: 'Receivable',
+        receiptWriteOff: 'Receipt write-off'
+      },
+      role: {
+        operator: 'Operator'
+      },
+      fields: {
+        docNo: 'Doc no.',
+        receivableAmount: 'Receivable amount · currency',
+        verifiedToBe: 'Pending write-off · currency',
+        receivableScope: 'Scope',
+        linkedStockOutItemCodes: 'Stock-out line nos.',
+        writeOffAmount: 'Write-off amount · currency'
       }
     },
     board: {

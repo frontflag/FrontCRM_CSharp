@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Sales;
 using CRM.Core.Utilities;
@@ -26,6 +27,8 @@ public class StockOutItemFlowService : IStockOutItemFlowService
     private readonly IRepository<CustomerInfo> _customerRepo;
     private readonly IRepository<User> _userRepo;
     private readonly ICustomsTraceQuery _customsTraceQuery;
+    private readonly IRepository<FinanceReceivable> _receivableRepo;
+    private readonly IFinanceReceivableService _financeReceivableService;
 
     public StockOutItemFlowService(
         IInventoryStockItemListQuery stockItemListQuery,
@@ -43,7 +46,9 @@ public class StockOutItemFlowService : IStockOutItemFlowService
         IRepository<StockIn> stockInRepo,
         IRepository<CustomerInfo> customerRepo,
         IRepository<User> userRepo,
-        ICustomsTraceQuery customsTraceQuery)
+        ICustomsTraceQuery customsTraceQuery,
+        IRepository<FinanceReceivable> receivableRepo,
+        IFinanceReceivableService financeReceivableService)
     {
         _stockItemListQuery = stockItemListQuery;
         _dataPermission = dataPermission;
@@ -61,6 +66,8 @@ public class StockOutItemFlowService : IStockOutItemFlowService
         _customerRepo = customerRepo;
         _userRepo = userRepo;
         _customsTraceQuery = customsTraceQuery;
+        _receivableRepo = receivableRepo;
+        _financeReceivableService = financeReceivableService;
     }
 
     public async Task<StockOutItemFlowAggregatesDto> GetFlowAggregatesAsync(
@@ -254,7 +261,129 @@ public class StockOutItemFlowService : IStockOutItemFlowService
             packingDeclCode);
         dto.StockOuts.Add(outDoc);
 
+        await AppendFinanceStationsAsync(dto, header, sellLineId, customers, currentUserId, cancellationToken);
+
         return dto;
+    }
+
+    private async Task AppendFinanceStationsAsync(
+        StockOutItemFlowAggregatesDto dto,
+        StockOut header,
+        string? sellLineId,
+        Dictionary<string, CustomerInfo> customers,
+        string? currentUserId,
+        CancellationToken cancellationToken)
+    {
+        var lineId = EmptyToNull(sellLineId);
+        if (lineId == null || !StockOutTypeCode.IsSalesStockOut(header.StockOutType))
+            return;
+
+        var receivables = (await _receivableRepo.FindAsync(r =>
+                !r.IsDeleted
+                && r.StockOutId == header.Id
+                && r.SellOrderItemId == lineId))
+            .OrderBy(r => r.ReceivableCode)
+            .ThenBy(r => r.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (receivables.Count == 0)
+            return;
+
+        var receivable = receivables[0];
+        if (!string.IsNullOrWhiteSpace(currentUserId))
+        {
+            if (!await _dataPermission.CanAccessFinanceReceivableAsync(currentUserId.Trim(), receivable))
+                return;
+        }
+
+        var itemCodes = await ResolveStockOutItemCodesForSellLineAsync(header, lineId);
+        dto.Receivables.Add(new StockOutItemFlowReceivableDto
+        {
+            Id = receivable.Id,
+            ReceivableCode = receivable.ReceivableCode,
+            VerificationStatus = receivable.VerificationStatus,
+            Amount = receivable.Amount,
+            VerifiedToBe = receivable.VerifiedToBe,
+            Currency = receivable.Currency,
+            StockOutDate = receivable.StockOutDate,
+            CreateTime = receivable.CreateTime,
+            CustomerId = receivable.CustomerId,
+            CustomerName = FirstNonEmpty(
+                CustomerNameOf(customers, receivable.CustomerId),
+                receivable.CustomerName),
+            CustomerCode = CustomerCodeOf(customers, receivable.CustomerId),
+            StockOutItemLineCount = itemCodes.Count,
+            StockOutItemCodes = itemCodes
+        });
+
+        var writeOffs = await _financeReceivableService.GetWriteOffLedgerBySellOrderItemIdsAsync(
+            new[] { lineId },
+            currentUserId,
+            cancellationToken);
+        foreach (var row in writeOffs
+                     .Where(w => string.Equals(w.StockOutId?.Trim(), header.Id, StringComparison.OrdinalIgnoreCase))
+                     .OrderBy(w => w.CreateTime))
+        {
+            dto.ReceiptWriteOffs.Add(new StockOutItemFlowReceiptWriteOffDto
+            {
+                Id = row.Id,
+                Amount = row.Amount,
+                Currency = row.Currency,
+                CreateTime = row.CreateTime,
+                FinanceReceiptId = row.FinanceReceiptId,
+                FinanceReceiptCode = row.FinanceReceiptCode,
+                ReceivableCode = row.ReceivableCode,
+                CustomerName = row.CustomerName,
+                OperatorUserName = row.OperatorUserName
+            });
+        }
+    }
+
+    private async Task<List<string>> ResolveStockOutItemCodesForSellLineAsync(StockOut header, string sellLineId)
+    {
+        var items = (await _stockOutItemRepo.FindAsync(i =>
+                !i.IsDeleted && i.StockOutId == header.Id))
+            .ToList();
+        if (items.Count == 0)
+            return new List<string>();
+
+        var itemIds = items.Select(i => i.Id.Trim()).ToList();
+        var extends = (await _stockOutExtendRepo.FindAsync(e =>
+                !e.IsDeleted && itemIds.Contains(e.Id)))
+            .ToList();
+        var extByItemId = extends
+            .GroupBy(e => e.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var codes = new List<string>();
+        foreach (var item in items)
+        {
+            var extLineId = extByItemId.TryGetValue(item.Id.Trim(), out var ext)
+                ? EmptyToNull(ext.SellOrderItemId)
+                : null;
+            if (extLineId == null)
+                continue;
+            if (!string.Equals(extLineId, sellLineId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var code = EmptyToNull(item.StockOutItemCode);
+            if (code != null)
+                codes.Add(code);
+        }
+
+        if (codes.Count == 0
+            && string.Equals(EmptyToNull(header.SellOrderItemId), sellLineId, StringComparison.OrdinalIgnoreCase))
+        {
+            foreach (var item in items)
+            {
+                var code = EmptyToNull(item.StockOutItemCode);
+                if (code != null)
+                    codes.Add(code);
+            }
+        }
+
+        return codes
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private static PackingItem? PickPackingLine(

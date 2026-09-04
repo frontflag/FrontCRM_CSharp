@@ -1303,9 +1303,11 @@ namespace CRM.Core.Services
                 throw new ArgumentException(writeOffGuard.Message);
 
             var sidLower = sid.ToLowerInvariant();
+            // 与库存明细列表一致：ManualTransferSource 为已出清源行，列表不可见，不应阻断入库单删除。
             var downstreamStockItems = (await _stockItemRepository.FindAsync(x =>
                     x.StockInId != null &&
-                    x.StockInId.ToLower() == sidLower))
+                    x.StockInId.ToLower() == sidLower &&
+                    (x.TransferType == null || x.TransferType != StockItemTransferTypeCodes.ManualTransferSource)))
                 .Where(x => !x.IsDeleted)
                 .ToList();
             if (downstreamStockItems.Count > 0)

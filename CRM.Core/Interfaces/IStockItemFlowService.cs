@@ -7,6 +7,12 @@ public interface IStockItemFlowService
         string stockItemId,
         string? currentUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>单条库存层下游（出库通知 / 装箱 / 出库），供入库单流程等多层聚合复用。</summary>
+    Task<StockItemFlowDownstreamSliceDto> GetDownstreamSliceAsync(
+        string stockItemId,
+        InventoryStockItemListRowDto row,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class StockItemFlowAggregatesDto

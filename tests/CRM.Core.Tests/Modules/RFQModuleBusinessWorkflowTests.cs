@@ -313,7 +313,7 @@ public sealed class RFQModuleBusinessWorkflowTests
         req.Items[0].Brand = " ";
 
         var act = async () => await h.Service.CreateAsync(req);
-        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*供应品牌*");
+        await act.Should().ThrowAsync<ArgumentException>().WithMessage("*品牌*");
     }
 
     [Fact]

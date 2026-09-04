@@ -59,7 +59,8 @@ public sealed class RequirePermissionAttributeTests
 
         await attr.OnAuthorizationAsync(ctx);
 
-        ctx.Result.Should().BeOfType<StatusCodeResult>().Subject.StatusCode.Should().Be(500);
+        var obj = ctx.Result.Should().BeOfType<ObjectResult>().Subject;
+        obj.StatusCode.Should().Be(500);
     }
 
     [Fact]

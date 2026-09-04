@@ -168,6 +168,17 @@ public class StockOutOpsCheckSuggestionsTests
         Assert.Contains("打开「装箱单详情」PAK001ZB，按装箱流程重新出库。", text);
     }
 
+    [Fact]
+    public void CustomerNameSnapshotRefresh_NamesReceivableAndKeepsPrimaryKey()
+    {
+        var text = StockOutOpsCheckSuggestions.CustomerNameSnapshotRefresh("SO0020H", "ARV00001");
+        Assert.Contains("① 打开「销售订单详情」SO0020H", text);
+        Assert.Contains("刷新客户", text);
+        Assert.Contains("ARV00001", text);
+        Assert.Contains("不改客户主键", text);
+        Assert.DoesNotContain("反核销", text);
+    }
+
     private static StockOutOpsCheckSuggestions.StockOutHint Hint(
         string code,
         bool verified,

@@ -194,6 +194,31 @@ public static class SaleSensitiveFieldMask521
             ApplyInventoryStockItemListRow(x, true);
     }
 
+    public static void ApplyStockInFlowAggregates(StockInFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        if (dto.StockItems != null)
+        {
+            foreach (var x in dto.StockItems)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.StockOutNotifies != null)
+        {
+            foreach (var x in dto.StockOutNotifies)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.Packings != null)
+        {
+            foreach (var x in dto.Packings)
+                MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.StockOuts != null)
+        {
+            foreach (var x in dto.StockOuts)
+                MaskSaleFields(x, maskPerson: true);
+        }
+    }
+
     public static void ApplyStockItemFlowAggregates(StockItemFlowAggregatesDto? dto, bool mask)
     {
         if (!mask || dto == null) return;
@@ -261,6 +286,27 @@ public static class SaleSensitiveFieldMask521
         {
             foreach (var x in dto.StockOuts)
                 MaskSaleFields(x, maskPerson: true);
+        }
+        if (dto.Receivables != null)
+        {
+            foreach (var rec in dto.Receivables)
+            {
+                rec.Amount = 0m;
+                rec.VerifiedToBe = 0m;
+                rec.Currency = 0;
+                rec.CustomerName = null;
+                rec.CustomerCode = null;
+            }
+        }
+        if (dto.ReceiptWriteOffs != null)
+        {
+            foreach (var wo in dto.ReceiptWriteOffs)
+            {
+                wo.Amount = 0m;
+                wo.Currency = 0;
+                wo.CustomerName = null;
+                wo.OperatorUserName = null;
+            }
         }
     }
 

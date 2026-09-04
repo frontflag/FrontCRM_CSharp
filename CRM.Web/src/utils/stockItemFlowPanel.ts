@@ -62,6 +62,11 @@ export interface StockItemFlowCard {
   lineDocNo?: string | null
   lineDocLabelKey?: string
   lineDocRoute?: FlowDocRoute
+  verifiedToBeText?: string | null
+  /** 应收站：共享应收说明（已翻译） */
+  receivableScopeNote?: string | null
+  /** 应收站：关联出库明细单号 */
+  linkedStockOutItemCodes?: string[]
 }
 
 export interface StockItemFlowStation {
@@ -252,6 +257,29 @@ function maskDash(mask: boolean, v?: string | null) {
 }
 
 export { formatFlowCardDate as formatStockItemFlowCardDate }
+
+export function mapStockItemFlowDocToLayerRow(layer: StockItemFlowDoc): RowRecord {
+  return {
+    stockItemId: layer.id,
+    stockItemCode: layer.docCode,
+    stockAggregateId: layer.stockAggregateId,
+    customerId: null,
+    customerName: layer.customerName,
+    vendorName: layer.vendorName,
+    vendorId: null,
+    salespersonName: layer.personName,
+    sellOrderItemCode: '',
+    outboundStatus: layer.status,
+    stockInDate: layer.bizDate,
+    qtyInbound: layer.qty,
+    qtyStockOut: layer.qty2,
+    purchasePrice: layer.unitPrice,
+    purchaseCurrency: layer.currency,
+    salesPrice: layer.salesUnitPrice,
+    salesCurrency: layer.salesCurrency,
+    stockInType: layer.stockInType
+  }
+}
 
 export function buildStockItemFlowStations(
   row: RowRecord | null | undefined,
@@ -511,7 +539,7 @@ export function buildStockItemFlowStations(
       createdAt: x.createTime,
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
-      showCustomer: true,
+      showCustomer: resolveStockOutTypeLabelKey(asBizType(x.stockOutType)) !== 'transfer',
       customerId: lineCustomerId,
       customerName: maskDash(mask521, x.customerName),
       showPerson: false,

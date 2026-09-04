@@ -227,6 +227,17 @@ describe('buildStockItemFlowStations', () => {
     expect(salesOutCard?.bizTypeText).toBe('stockOutList.stockOutTypeLabels.sales')
     expect(salesOutCard?.showCustomsIcon).toBe(false)
 
+    const transferOut = buildStockItemFlowStations(row, {
+      stockItemId: 'si-1',
+      stockItem: { id: 'si-1', docCode: 'STK-1-01', status: 3, qty: 10, qty2: 4 },
+      stockOuts: [
+        { id: 'so-tr', docCode: 'STO00054', status: 2, stockOutType: 3, qty: 4, createTime: '2026-08-03T00:00:00Z' }
+      ]
+    }, t)
+    const transferOutCard = transferOut.find((s) => s.key === 'stockOut')?.cards[0]
+    expect(transferOutCard?.bizTypeText).toBe('stockOutList.stockOutTypeLabels.transfer')
+    expect(transferOutCard?.showCustomer).toBe(false)
+
     const customsPacking = buildStockItemFlowStations(row, {
       stockItemId: 'si-1',
       stockItem: { id: 'si-1', docCode: 'STK-1-01', status: 2, qty: 10, qty2: 4 },

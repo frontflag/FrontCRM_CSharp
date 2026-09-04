@@ -3966,6 +3966,7 @@ const zhCN = {
     importExcel: '通过Excel导入',
     expandMenu: '展开菜单',
     empty: '暂无客户数据',
+    emptyCommerceHint: '若您为商务助理，请先在「系统 → 用户配置」中为本人分配负责的业务员。',
     filters: {
       keyword: '关键词',
       keywordPlaceholderFull: '客户名称 / 联系人…',
@@ -7817,6 +7818,46 @@ const zhCN = {
         sample: '样品采购'
       }
     },
+    flowPanel: {
+      pickRow: '在「流程」页签下单击列表行，查看本单从采购到出库的业务链路',
+      emptyStation: '未开始',
+      stationEmpty: '未开始',
+      stationActive: '进行中',
+      stationDone: '已完成',
+      loadFailed: '加载入库单流程失败',
+      stations: {
+        purchaseOrderItem: '采购明细',
+        qc: '质检',
+        stockIn: '入库',
+        stockItem: '库存明细',
+        stockOutNotify: '出库通知',
+        packing: '装箱',
+        stockOut: '出库'
+      },
+      role: {
+        purchaser: '采购员',
+        creator: '创建人',
+        salesUser: '业务员'
+      },
+      fields: {
+        docNo: '单号',
+        status: '状态',
+        createdAt: '创建日期',
+        stockInDate: '入库日期',
+        vendorName: '供应商名称',
+        customerName: '客户名称',
+        unitPrice: '采购价·币别',
+        salesPrice: '销售价·币别',
+        qty: '数量',
+        inboundQty: '入库数量',
+        outboundQty: '出库数量',
+        packingQty: '装箱数量',
+        qcQty: '通过/拒收',
+        stockInType: '入库类型',
+        stockOutType: '出库类型',
+        description: '描述'
+      }
+    },
     stockInTypeLabels: {
       purchase: '采购入库',
       customs: '报关入库',
@@ -8373,12 +8414,27 @@ const zhCN = {
     flowPanel: {
       pickRow: '在「流程」页签下单击列表行，查看本出库明细上下游业务链路',
       loadFailed: '加载出库明细流程失败',
+      writeOffStatus: '已核销',
+      receivableScopeNote: '本次应收包含 {count} 条出库明细',
       stations: {
         sellOrderItem: '销售明细',
         stockOutNotify: '出库通知',
         stockItem: '库存明细',
         packing: '装箱',
-        stockOut: '出库'
+        stockOut: '出库',
+        receivable: '应收款',
+        receiptWriteOff: '收款核销'
+      },
+      role: {
+        operator: '操作人'
+      },
+      fields: {
+        docNo: '单号',
+        receivableAmount: '应收金额·币别',
+        verifiedToBe: '待核销金额·币别',
+        receivableScope: '范围说明',
+        linkedStockOutItemCodes: '出库明细单号',
+        writeOffAmount: '核销金额·币别'
       }
     },
     board: {

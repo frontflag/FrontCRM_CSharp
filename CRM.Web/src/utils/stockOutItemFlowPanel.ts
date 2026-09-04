@@ -15,6 +15,8 @@ export type StockOutItemFlowStationKey =
   | 'stockItem'
   | 'packing'
   | 'stockOut'
+  | 'receivable'
+  | 'receiptWriteOff'
 
 export interface StockOutItemFlowStation {
   key: StockOutItemFlowStationKey
@@ -154,6 +156,21 @@ function stockOutStatusLabel(v: unknown, t: TFunc): string {
   if (s === 3) return t('stockOutList.status.cancelled')
   if (s === 4) return t('stockOutList.status.finished')
   return Number.isFinite(s) ? String(s) : '—'
+}
+
+function formatAmountWithCurrency(amount: unknown, currency?: number): string {
+  return formatUnitPriceWithCurrencyCodeSuffix(amount, Number(currency))
+}
+
+function receivableVerificationStatusLabel(v: unknown, t: TFunc): string {
+  const s = Number(v)
+  if (s === 2) return t('financeReceivableList.verification.complete')
+  if (s === 1) return t('financeReceivableList.verification.partial')
+  return t('financeReceivableList.verification.pending')
+}
+
+function isReceivableFinal(v: unknown) {
+  return Number(v) === 2
 }
 
 function isStockOutFinal(v: unknown) {
@@ -461,6 +478,71 @@ export function buildStockOutItemFlowStations(
       }
     })
     stations.push(buildStation('stockOut', `${N}.stations.stockOut`, cards))
+  }
+
+  {
+    const list = aggregates?.receivables ?? []
+    const cards: StockItemFlowCard[] = list.map((x) => {
+      const codes = (x.stockOutItemCodes ?? []).map((c) => String(c ?? '').trim()).filter(Boolean)
+      const lineCount = x.stockOutItemLineCount > 0 ? x.stockOutItemLineCount : codes.length
+      return {
+        id: x.id,
+        docNo: dash(x.receivableCode),
+        docRoute: !mask521 && x.id ? { name: 'FinanceReceivableDetail', params: { id: x.id } } : undefined,
+        statusText: receivableVerificationStatusLabel(x.verificationStatus, t),
+        isFinal: isReceivableFinal(x.verificationStatus),
+        createdAt: x.stockOutDate ?? x.createTime,
+        createdAtLabelKey: `${F}.fields.createdAt`,
+        showVendor: false,
+        showCustomer: true,
+        customerId: lineCustomerId,
+        customerName: maskDash(mask521, x.customerName),
+        showPerson: false,
+        personRoleKey: `${F}.role.salesUser`,
+        personName: null,
+        qtyLabelKey: `${F}.fields.qty`,
+        unitPriceText: mask521 ? '—' : formatAmountWithCurrency(x.amount, x.currency),
+        verifiedToBeText: mask521 ? '—' : formatAmountWithCurrency(x.verifiedToBe, x.currency),
+        receivableScopeNote:
+          lineCount > 1
+            ? (t(`${N}.receivableScopeNote`, { count: lineCount }) as string)
+            : null,
+        linkedStockOutItemCodes: codes,
+        description: null
+      }
+    })
+    stations.push(buildStation('receivable', `${N}.stations.receivable`, cards))
+  }
+
+  {
+    const list = sortByCreatedAsc(aggregates?.receiptWriteOffs ?? [], (x) => x.createTime)
+    const cards: StockItemFlowCard[] = list.map((x) => {
+      const docNo = dash(x.financeReceiptCode || x.receivableCode || x.id)
+      return {
+        id: x.id,
+        docNo,
+        docRoute:
+          x.financeReceiptId && !mask521
+            ? { name: 'FinanceReceiptDetail', params: { id: x.financeReceiptId } }
+            : undefined,
+        statusText: t(`${N}.writeOffStatus`),
+        isFinal: true,
+        createdAt: x.createTime,
+        createdAtLabelKey: `${F}.fields.createdAt`,
+        showVendor: false,
+        showCustomer: true,
+        customerId: lineCustomerId,
+        customerName: maskDash(mask521, x.customerName),
+        showPerson: true,
+        personRoleKey: `${N}.role.operator`,
+        personName: maskDash(mask521, x.operatorUserName),
+        qtyLabelKey: `${F}.fields.qty`,
+        unitPriceText: mask521 ? '—' : formatAmountWithCurrency(x.amount, x.currency),
+        qtyText: null,
+        description: null
+      }
+    })
+    stations.push(buildStation('receiptWriteOff', `${N}.stations.receiptWriteOff`, cards))
   }
 
   return stations

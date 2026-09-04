@@ -157,6 +157,22 @@ public static class PurchaseSensitiveFieldMask511
         }
     }
 
+    public static void ApplyStockInFlowAggregates(StockInFlowAggregatesDto? dto, bool mask)
+    {
+        if (!mask || dto == null) return;
+        MaskPurchaseFields(dto.StockIn);
+        if (dto.PurchaseOrderItems != null)
+        {
+            foreach (var x in dto.PurchaseOrderItems)
+                MaskPurchaseFields(x);
+        }
+        if (dto.StockItems != null)
+        {
+            foreach (var x in dto.StockItems)
+                MaskPurchaseFields(x);
+        }
+    }
+
     public static void ApplyStockItemFlowAggregates(StockItemFlowAggregatesDto? dto, bool mask)
     {
         if (!mask || dto == null) return;

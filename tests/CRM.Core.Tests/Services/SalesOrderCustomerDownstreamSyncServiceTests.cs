@@ -473,6 +473,161 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
     }
 
     [Fact]
+    public async Task PreviewAsync_WhenReceivableNameStaleButIdMatches_ShouldNotNoOp()
+    {
+        const string orderId = "SO-1";
+        const string customerId = "CUST-OK";
+        var order = new SellOrder
+        {
+            Id = orderId,
+            SellOrderCode = "SO0020H",
+            CustomerId = customerId,
+            CustomerName = "芯皓电子有限公司"
+        };
+        _soRepo.GetByIdAsync(orderId).Returns(order);
+        _customerRepo.GetByIdAsync(customerId).Returns(new CustomerInfo
+        {
+            Id = customerId,
+            OfficialName = "芯皓电子有限公司"
+        });
+        _soItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrderItem, bool>>>())
+            .Returns(Array.Empty<SellOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOutRequest, bool>>>())
+            .Returns(Array.Empty<StockOutRequest>());
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(Array.Empty<PackingItem>());
+        _stockOutRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOut, bool>>>())
+            .Returns(Array.Empty<StockOut>());
+        _receivableRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceivable, bool>>>())
+            .Returns(new[]
+            {
+                new FinanceReceivable
+                {
+                    Id = "AR-1",
+                    ReceivableCode = "ARV00001",
+                    SellOrderId = orderId,
+                    CustomerId = customerId,
+                    CustomerName = "芯皓",
+                    VerifiedDone = 40m,
+                    VerificationStatus = FinanceVerificationStatusCode.Complete
+                }
+            });
+        _customerRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<CustomerInfo, bool>>>())
+            .Returns(new[]
+            {
+                new CustomerInfo { Id = customerId, OfficialName = "芯皓电子有限公司" }
+            });
+
+        var preview = await _service.PreviewAsync(orderId);
+
+        Assert.False(preview.NoOp);
+        Assert.Equal(1, preview.ReceivablesToSync);
+        Assert.Equal(0, preview.SellOrderCustomerNameToSync);
+        Assert.Empty(preview.CompletedDocuments);
+        Assert.Contains(preview.SyncItems, x => x.Category == "receivable" && x.IsMismatch);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WhenWrittenOffReceivableNameStale_ShouldRefreshNameKeepId()
+    {
+        const string orderId = "SO-1";
+        const string customerId = "CUST-OK";
+        var order = new SellOrder
+        {
+            Id = orderId,
+            SellOrderCode = "SO0020H",
+            CustomerId = customerId,
+            CustomerName = "芯皓电子有限公司"
+        };
+        var receivable = new FinanceReceivable
+        {
+            Id = "AR-1",
+            ReceivableCode = "ARV00001",
+            SellOrderId = orderId,
+            CustomerId = customerId,
+            CustomerName = "芯皓",
+            VerifiedDone = 40m,
+            VerificationStatus = FinanceVerificationStatusCode.Complete
+        };
+
+        _soRepo.GetByIdAsync(orderId).Returns(order);
+        _customerRepo.GetByIdAsync(customerId).Returns(new CustomerInfo
+        {
+            Id = customerId,
+            OfficialName = "芯皓电子有限公司"
+        });
+        _soItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrderItem, bool>>>())
+            .Returns(Array.Empty<SellOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOutRequest, bool>>>())
+            .Returns(Array.Empty<StockOutRequest>());
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(Array.Empty<PackingItem>());
+        _stockOutRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOut, bool>>>())
+            .Returns(Array.Empty<StockOut>());
+        _receivableRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceivable, bool>>>())
+            .Returns(new[] { receivable });
+        _customerRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<CustomerInfo, bool>>>())
+            .Returns(new[]
+            {
+                new CustomerInfo { Id = customerId, OfficialName = "芯皓电子有限公司" }
+            });
+
+        var result = await _service.ApplyAsync(order);
+
+        Assert.True(result.Applied);
+        Assert.Equal(customerId, receivable.CustomerId);
+        Assert.Equal("芯皓电子有限公司", receivable.CustomerName);
+        await _receivableRepo.Received(1).UpdateAsync(receivable);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WhenWrittenOffReceivableIdMismatch_ShouldNotChangeReceivable()
+    {
+        const string orderId = "SO-1";
+        const string customerId = "CUST-OK";
+        var order = new SellOrder
+        {
+            Id = orderId,
+            SellOrderCode = "SO0020H",
+            CustomerId = customerId,
+            CustomerName = "芯皓电子有限公司"
+        };
+        var receivable = new FinanceReceivable
+        {
+            Id = "AR-1",
+            ReceivableCode = "ARV00001",
+            SellOrderId = orderId,
+            CustomerId = "CUST-OTHER",
+            CustomerName = "芯皓",
+            VerifiedDone = 40m,
+            VerificationStatus = FinanceVerificationStatusCode.Complete
+        };
+
+        _soRepo.GetByIdAsync(orderId).Returns(order);
+        _customerRepo.GetByIdAsync(customerId).Returns(new CustomerInfo
+        {
+            Id = customerId,
+            OfficialName = "芯皓电子有限公司"
+        });
+        _soItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrderItem, bool>>>())
+            .Returns(Array.Empty<SellOrderItem>());
+        _notifyRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOutRequest, bool>>>())
+            .Returns(Array.Empty<StockOutRequest>());
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(Array.Empty<PackingItem>());
+        _stockOutRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockOut, bool>>>())
+            .Returns(Array.Empty<StockOut>());
+        _receivableRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceivable, bool>>>())
+            .Returns(new[] { receivable });
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => _service.ApplyAsync(order));
+        Assert.Contains("已有核销记录", ex.Message);
+        Assert.Equal("CUST-OTHER", receivable.CustomerId);
+        Assert.Equal("芯皓", receivable.CustomerName);
+        await _receivableRepo.DidNotReceive().UpdateAsync(receivable);
+    }
+
+    [Fact]
     public async Task PreviewAsync_WhenNotifyStockedOutMismatch_ParamOn_ListsCompletedDocuments()
     {
         var salesParams = Substitute.For<ISalesParamsService>();

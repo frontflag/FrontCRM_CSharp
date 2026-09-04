@@ -25,6 +25,7 @@ namespace CRM.API.Controllers
         private readonly IRbacService _rbacService;
         private readonly IExportOperationLogService _exportLog;
         private readonly IStockInOpsCheckService _opsCheck;
+        private readonly IStockInFlowService _flowService;
         private readonly ILogger<StockInController> _logger;
 
         public StockInController(
@@ -34,6 +35,7 @@ namespace CRM.API.Controllers
             IRbacService rbacService,
             IExportOperationLogService exportLog,
             IStockInOpsCheckService opsCheck,
+            IStockInFlowService flowService,
             ILogger<StockInController> logger)
         {
             _service = service;
@@ -42,6 +44,7 @@ namespace CRM.API.Controllers
             _rbacService = rbacService;
             _exportLog = exportLog;
             _opsCheck = opsCheck;
+            _flowService = flowService;
             _logger = logger;
         }
 
@@ -335,6 +338,39 @@ namespace CRM.API.Controllers
             {
                 _logger.LogError(ex, "获取入库单操作面板失败");
                 return StatusCode(500, ApiResponse<StockInOpsAggregates>.Fail($"加载失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpGet("{id}/flow-aggregates")]
+        public async Task<ActionResult<ApiResponse<StockInFlowAggregatesDto>>> GetFlowAggregates(
+            string id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (!await _service.CanUserAccessStockInAsync(userId, id, cancellationToken))
+                    return StatusCode(403, ApiResponse<StockInFlowAggregatesDto>.Fail("无权查看该入库单", 403));
+
+                var data = await _flowService.GetFlowAggregatesAsync(id, userId, cancellationToken);
+                if (await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User))
+                    PurchaseSensitiveFieldMask511.ApplyStockInFlowAggregates(data, true);
+                if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
+                    SaleSensitiveFieldMask521.ApplyStockInFlowAggregates(data, true);
+                return Ok(ApiResponse<StockInFlowAggregatesDto>.Ok(data, "OK"));
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ApiResponse<StockInFlowAggregatesDto>.Fail(ex.Message, 400));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<StockInFlowAggregatesDto>.Fail(ex.Message, 404));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取入库单流程聚合失败");
+                return StatusCode(500, ApiResponse<StockInFlowAggregatesDto>.Fail($"加载失败: {ex.Message}", 500));
             }
         }
 

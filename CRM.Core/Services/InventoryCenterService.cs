@@ -252,7 +252,8 @@ namespace CRM.Core.Services
 
             var allStocks = (await _stockRepository.GetAllAsync()).ToList();
             var allLedgers = (await _ledgerRepository.GetAllAsync()).ToList();
-            var postedLayers = (await _stockItemRepository.FindAsync(x => x.StockInId == stockInId)).ToList();
+            // 含已软删层：避免删除库存明细后再次过账重复创建同入库明细编号。
+            var postedLayers = (await _stockItemRepository.FindIgnoreFiltersAsync(x => x.StockInId == stockInId)).ToList();
             var changed = false;
             var fx = await _financeExchangeRateService.GetCurrentAsync();
 
@@ -2285,9 +2286,12 @@ namespace CRM.Core.Services
             var linkedStockOutItems = (await _stockOutItemRepository.FindAsync(x => x.StockItemId == item.Id))
                 .Where(x => !x.IsDeleted)
                 .ToList();
-            if (linkedStockOutItems.Count > 0)
+            var blockingStockOutItems = await StockOutDownstreamGuard.FilterBlockingItemsAsync(
+                linkedStockOutItems,
+                _stockOutRepository);
+            if (blockingStockOutItems.Count > 0)
             {
-                var stockOutIds = linkedStockOutItems
+                var stockOutIds = blockingStockOutItems
                     .Select(x => x.StockOutId?.Trim())
                     .Where(x => !string.IsNullOrWhiteSpace(x))
                     .Distinct(StringComparer.OrdinalIgnoreCase)

@@ -29,6 +29,7 @@ internal static class InventoryStockItemListFilter
     {
         var codeNeedle = query.StockInCode?.Trim().ToLowerInvariant();
         var stockItemCodeNeedle = query.StockItemCode?.Trim().ToLowerInvariant();
+        var lookupByStockItemCode = !string.IsNullOrEmpty(stockItemCodeNeedle);
         var warehouseIdNeedle = query.WarehouseId?.Trim();
         var pnNeedle = query.PurchasePn?.Trim().ToLowerInvariant();
         var brandNeedle = query.PurchaseBrand?.Trim().ToLowerInvariant();
@@ -43,15 +44,27 @@ internal static class InventoryStockItemListFilter
         DateTime? fromD = query.StockInDateFrom.HasValue ? query.StockInDateFrom.Value.Date : null;
         DateTime? toEx = query.StockInDateTo.HasValue ? query.StockInDateTo.Value.Date.AddDays(1) : null;
 
-        var stockItems = db.StockItems.AsNoTracking()
-            .Where(si => si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource);
-        stockItems = await dataPermission.ApplyStockItemListDataScopeAsync(
-            query.CurrentUserId,
-            stockItems,
-            db.SellOrders.AsNoTracking(),
-            db.SellOrderItems.AsNoTracking(),
-            db.Customers.AsNoTracking(),
-            cancellationToken);
+        var stockItems = lookupByStockItemCode
+            ? db.StockItems.IgnoreQueryFilters().AsNoTracking()
+            : db.StockItems.AsNoTracking();
+        // 默认排除手工移库源行（TransferType=10，整行出清后仅留链路）；按库存明细编号检索时纳入，便于定位库里有、列表不可见的行。
+        if (!lookupByStockItemCode)
+        {
+            stockItems = stockItems.Where(si =>
+                si.TransferType == null || si.TransferType != StockItemTransferTypeCodes.ManualTransferSource);
+        }
+
+        // 按库存明细编号检索：单据定位模式，不受销采数据范围与在库数量类筛选限制（移库源行在库量常为 0）。
+        if (!lookupByStockItemCode)
+        {
+            stockItems = await dataPermission.ApplyStockItemListDataScopeAsync(
+                query.CurrentUserId,
+                stockItems,
+                db.SellOrders.AsNoTracking(),
+                db.SellOrderItems.AsNoTracking(),
+                db.Customers.AsNoTracking(),
+                cancellationToken);
+        }
 
         var filtered =
             from si in stockItems
@@ -133,7 +146,7 @@ internal static class InventoryStockItemListFilter
             }
         }
 
-        if (query.StagnantOnly == true)
+        if (!lookupByStockItemCode && query.StagnantOnly == true)
         {
             var stagnantThreshold = DateTime.UtcNow.Date.AddDays(-StagnantDays);
             filtered = filtered.Where(x =>
@@ -145,7 +158,7 @@ internal static class InventoryStockItemListFilter
 
         var rankDim = query.RankDimension?.Trim().ToLowerInvariant();
         var rankKey = query.RankKey?.Trim();
-        if (!string.IsNullOrEmpty(rankDim) && !string.IsNullOrEmpty(rankKey))
+        if (!lookupByStockItemCode && !string.IsNullOrEmpty(rankDim) && !string.IsNullOrEmpty(rankKey))
         {
             var isUnset = string.Equals(rankKey, "_unset", StringComparison.OrdinalIgnoreCase);
             var rankKeyLower = rankKey.ToLowerInvariant();
@@ -173,10 +186,13 @@ internal static class InventoryStockItemListFilter
             }
         }
 
-        if (query.RepertoryHasStock == true)
-            filtered = filtered.Where(x => x.Si.QtyRepertory > 0);
-        else if (query.RepertoryHasStock == false)
-            filtered = filtered.Where(x => x.Si.QtyRepertory == 0);
+        if (!lookupByStockItemCode)
+        {
+            if (query.RepertoryHasStock == true)
+                filtered = filtered.Where(x => x.Si.QtyRepertory > 0);
+            else if (query.RepertoryHasStock == false)
+                filtered = filtered.Where(x => x.Si.QtyRepertory == 0);
+        }
 
         return filtered;
     }

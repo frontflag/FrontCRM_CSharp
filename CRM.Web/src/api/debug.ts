@@ -8,6 +8,7 @@ export type DebugItem = {
 /** 与后端 DebugPageDto 一致（版本号由 vite 注入 package.json，不在此接口） */
 export type DebugPage = {
   databaseConnectionDisplay: string
+  backendDebugVersion?: string
   items: DebugItem[]
 }
 
@@ -63,7 +64,7 @@ function normalizeDebugPage(raw: unknown): DebugPage {
   const r = raw as Record<string, unknown> | null | undefined
   const inner = (r?.data ?? r?.Data ?? r) as Record<string, unknown> | null | undefined
   if (!inner || typeof inner !== 'object') {
-    return { databaseConnectionDisplay: '', items: [] }
+    return { databaseConnectionDisplay: '', backendDebugVersion: '', items: [] }
   }
 
   const itemsRaw = inner.items ?? inner.Items
@@ -77,8 +78,11 @@ function normalizeDebugPage(raw: unknown): DebugPage {
   const databaseConnectionDisplay = String(
     inner.databaseConnectionDisplay ?? inner.DatabaseConnectionDisplay ?? ''
   )
+  const backendDebugVersion = String(
+    inner.backendDebugVersion ?? inner.BackendDebugVersion ?? ''
+  )
 
-  return { databaseConnectionDisplay, items }
+  return { databaseConnectionDisplay, backendDebugVersion, items }
 }
 
 export async function getDebugPage(): Promise<DebugPage> {

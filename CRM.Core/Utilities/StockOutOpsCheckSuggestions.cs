@@ -99,6 +99,16 @@ public static class StockOutOpsCheckSuggestions
             ? "打开本行关联的「销售订单详情」，点击页头「刷新」右侧下拉「刷新客户」并确认。"
             : $"打开「销售订单详情」{sellOrderCode.Trim()}，点击页头「刷新」右侧下拉「刷新客户」并确认。";
 
+    public static string CustomerNameSnapshotRefresh(string? sellOrderCode, string? receivableCode)
+    {
+        var refresh = RefreshCustomer(sellOrderCode);
+        var ar = OpsCheckDocumentCodes.ForSuggestion(receivableCode);
+        var step = ar == OpsCheckDocumentCodes.Missing
+            ? $"{refresh}（会同步应收客户名称快照，不改客户主键。）"
+            : $"{refresh}（会同步应收 {ar} 的客户名称快照，不改客户主键。）";
+        return JoinSteps(new[] { step });
+    }
+
     public static string PackingFinishedNoStockOut(string packingCode) =>
         JoinSteps(new[] { RefreshPacking(packingCode, thisRow: true) });
 

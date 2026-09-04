@@ -663,6 +663,34 @@ export interface StockOutNotifyFlowAggregates {
 }
 
 /** GET /api/v1/stock-out/items/{id}/flow-aggregates */
+export interface StockOutItemFlowReceivable {
+  id: string
+  receivableCode?: string | null
+  verificationStatus: number
+  amount: number
+  verifiedToBe: number
+  currency: number
+  stockOutDate?: string | null
+  createTime?: string | null
+  customerId?: string | null
+  customerName?: string | null
+  customerCode?: string | null
+  stockOutItemLineCount: number
+  stockOutItemCodes?: string[]
+}
+
+export interface StockOutItemFlowReceiptWriteOff {
+  id: string
+  amount: number
+  currency: number
+  createTime?: string | null
+  financeReceiptId?: string | null
+  financeReceiptCode?: string | null
+  receivableCode?: string | null
+  customerName?: string | null
+  operatorUserName?: string | null
+}
+
 export interface StockOutItemFlowAggregates {
   stockOutItemId: string
   sellOrderItem?: StockItemFlowDoc | null
@@ -670,6 +698,8 @@ export interface StockOutItemFlowAggregates {
   stockItems?: StockItemFlowDoc[]
   packings?: StockItemFlowDoc[]
   stockOuts?: StockItemFlowDoc[]
+  receivables?: StockOutItemFlowReceivable[]
+  receiptWriteOffs?: StockOutItemFlowReceiptWriteOff[]
 }
 
 /** GET 出库明细列表 */

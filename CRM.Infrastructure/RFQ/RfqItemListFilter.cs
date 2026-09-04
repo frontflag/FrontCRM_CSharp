@@ -63,7 +63,8 @@ internal static partial class RfqItemListFilter
             }
             else if (RfqItemListDataScopeRules.ShouldApplyJobPageScope(summary))
             {
-                if (summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
+                var isCommerce = BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary);
+                if (!isCommerce && summary.SaleDataScope == 4 && summary.PurchaseDataScope == 4)
                 {
                     q = q.Where(_ => false);
                 }
@@ -76,8 +77,8 @@ internal static partial class RfqItemListFilter
                     var protectionPoolEnabled = RfqDemandProtectionRules.CanParticipateInProtectionPool(summary);
 
                     HashSet<string>? saleAllow = null;
-                    if (summary.SaleDataScope == 2 || summary.SaleDataScope == 3)
-                        saleAllow = await dataPermission.GetAllowedUserIdsForDataScopeAsync(
+                    if (isCommerce || summary.SaleDataScope == 2 || summary.SaleDataScope == 3)
+                        saleAllow = await dataPermission.GetSaleScopeAllowUserIdsAsync(
                             summary,
                             includeChildren: summary.SaleDataScope == 3,
                             cancellationToken);
@@ -93,14 +94,19 @@ internal static partial class RfqItemListFilter
 
                     q = q.Where(x =>
                         (
-                            summary.SaleDataScope != 4 &&
-                            (
-                                (summary.SaleDataScope == 1 && x.Rfq.SalesUserId != null && x.Rfq.SalesUserId == uid) ||
-                                ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3) &&
-                                 saleAllow != null &&
-                                 x.Rfq.SalesUserId != null &&
-                                 saleAllow.Contains(x.Rfq.SalesUserId))
-                            )
+                            isCommerce
+                                ? saleAllow != null
+                                  && saleAllow.Count > 0
+                                  && x.Rfq.SalesUserId != null
+                                  && saleAllow.Contains(x.Rfq.SalesUserId)
+                                : summary.SaleDataScope != 4 &&
+                                  (
+                                      (summary.SaleDataScope == 1 && x.Rfq.SalesUserId != null && x.Rfq.SalesUserId == uid) ||
+                                      ((summary.SaleDataScope == 2 || summary.SaleDataScope == 3) &&
+                                       saleAllow != null &&
+                                       x.Rfq.SalesUserId != null &&
+                                       saleAllow.Contains(x.Rfq.SalesUserId))
+                                  )
                         )
                         ||
                         (

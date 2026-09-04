@@ -1,3 +1,4 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Purchase;
@@ -14,7 +15,8 @@ namespace CRM.Core.Tests.Services;
 public sealed class DataPermissionServiceTests
 {
     private static DataPermissionService CreateSut(
-        IRbacService? rbacService = null) =>
+        IRbacService? rbacService = null,
+        ISysRelationMapService? relationMapService = null) =>
         new(
             rbacService ?? Substitute.For<IRbacService>(),
             Substitute.For<IRepository<RbacDepartment>>(),
@@ -25,7 +27,8 @@ public sealed class DataPermissionServiceTests
             Substitute.For<IRepository<RFQItem>>(),
             Substitute.For<IRepository<CustomerInfo>>(),
             Substitute.For<IRepository<VendorInfo>>(),
-            Substitute.For<IPurchaseQuoterPoolService>());
+            Substitute.For<IPurchaseQuoterPoolService>(),
+            relationMapService ?? Substitute.For<ISysRelationMapService>());
 
     [Fact]
     public async Task FilterVendorsAsync_sys_admin_not_cleared_when_purchase_scope_is_none()
@@ -35,6 +38,7 @@ public sealed class DataPermissionServiceTests
         {
             UserId = "admin",
             IsSysAdmin = true,
+            HasBizDataBypass = true,
             PurchaseDataScope = 4
         });
 
@@ -157,6 +161,7 @@ public sealed class DataPermissionServiceTests
                 new() { Id = "role-emp", RoleCode = "DEPT_EMPLOYEE", RoleName = "部门员工" }
             });
 
+        var relationMap = Substitute.For<ISysRelationMapService>();
         var sut = new DataPermissionService(
             rbac,
             deptRepo,
@@ -167,7 +172,8 @@ public sealed class DataPermissionServiceTests
             Substitute.For<IRepository<RFQItem>>(),
             Substitute.For<IRepository<CustomerInfo>>(),
             Substitute.For<IRepository<VendorInfo>>(),
-            Substitute.For<IPurchaseQuoterPoolService>());
+            Substitute.For<IPurchaseQuoterPoolService>(),
+            relationMap);
 
         var source = new List<SellOrder>
         {
@@ -179,5 +185,101 @@ public sealed class DataPermissionServiceTests
 
         Assert.Single(result);
         Assert.Equal("so-king", result[0].Id);
+    }
+
+    [Fact]
+    public async Task FilterCustomersAsync_commerce_assistant_sees_mapped_salesperson_customers_only()
+    {
+        const string assistantId = "ceci";
+        const string mappedSalesId = "alinaxiao";
+
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync(assistantId).Returns(new UserPermissionSummaryDto
+        {
+            UserId = assistantId,
+            IdentityType = 4,
+            SaleDataScope = 3,
+            HasBizDataBypass = false
+        });
+
+        var relationMap = Substitute.For<ISysRelationMapService>();
+        relationMap
+            .GetMappedDestIdsAsync(SysRelationMapTypeCode.SalesAssistantToSalesperson, assistantId)
+            .Returns(new[] { mappedSalesId });
+
+        var sut = CreateSut(rbac, relationMap);
+        var source = new List<CustomerInfo>
+        {
+            new() { Id = "c1", CustomerCode = "C001", SalesUserId = mappedSalesId },
+            new() { Id = "c2", CustomerCode = "C002", SalesUserId = "other-sales" }
+        };
+
+        var result = await sut.FilterCustomersAsync(assistantId, source);
+
+        Assert.Single(result);
+        Assert.Equal("c1", result[0].Id);
+    }
+
+    [Fact]
+    public async Task FilterCustomersAsync_commerce_assistant_with_empty_mapping_sees_no_customers()
+    {
+        const string assistantId = "ceci";
+
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync(assistantId).Returns(new UserPermissionSummaryDto
+        {
+            UserId = assistantId,
+            IdentityType = 4,
+            SaleDataScope = 3
+        });
+
+        var relationMap = Substitute.For<ISysRelationMapService>();
+        relationMap
+            .GetMappedDestIdsAsync(SysRelationMapTypeCode.SalesAssistantToSalesperson, assistantId)
+            .Returns(Array.Empty<string>());
+
+        var sut = CreateSut(rbac, relationMap);
+        var source = new List<CustomerInfo>
+        {
+            new() { Id = "c1", CustomerCode = "C001", SalesUserId = "alinaxiao" }
+        };
+
+        var result = await sut.FilterCustomersAsync(assistantId, source);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task FilterSalesOrdersAsync_commerce_assistant_sees_mapped_sales_or_assistor_orders()
+    {
+        const string assistantId = "ceci";
+        const string mappedSalesId = "alinaxiao";
+
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync(assistantId).Returns(new UserPermissionSummaryDto
+        {
+            UserId = assistantId,
+            IdentityType = 4,
+            SaleDataScope = 4
+        });
+
+        var relationMap = Substitute.For<ISysRelationMapService>();
+        relationMap
+            .GetMappedDestIdsAsync(SysRelationMapTypeCode.SalesAssistantToSalesperson, assistantId)
+            .Returns(new[] { mappedSalesId });
+
+        var sut = CreateSut(rbac, relationMap);
+        var source = new List<SellOrder>
+        {
+            new() { Id = "so-mapped", SalesUserId = mappedSalesId },
+            new() { Id = "so-assistor", SalesUserId = "other", Assistor = assistantId },
+            new() { Id = "so-hidden", SalesUserId = "other", Assistor = "someone-else" }
+        };
+
+        var result = await sut.FilterSalesOrdersAsync(assistantId, source);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, x => x.Id == "so-mapped");
+        Assert.Contains(result, x => x.Id == "so-assistor");
     }
 }

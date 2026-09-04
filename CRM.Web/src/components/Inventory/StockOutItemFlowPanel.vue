@@ -45,6 +45,106 @@
             <div v-else class="so-item-flow-cards">
               <article v-for="card in station.cards" :key="card.id" class="so-item-flow-card">
                 <div class="so-item-flow-kv">
+                  <template v-if="station.key === 'receivable'">
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('stockOutItemList.flowPanel.fields.docNo') }}：</span>
+                      <span class="so-item-flow-kv__value">
+                        <router-link
+                          v-if="card.docRoute"
+                          class="link-text"
+                          :to="toRouteLocation(card.docRoute)"
+                        >
+                          {{ card.docNo }}
+                        </router-link>
+                        <template v-else>{{ card.docNo }}</template>
+                      </span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.status') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
+                    </div>
+                    <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('stockOutItemList.flowPanel.fields.receivableAmount') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.unitPriceText }}</span>
+                    </div>
+                    <div v-if="card.verifiedToBeText" class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('stockOutItemList.flowPanel.fields.verifiedToBe') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.verifiedToBeText }}</span>
+                    </div>
+                    <div v-if="card.receivableScopeNote" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
+                      <span class="so-item-flow-kv__label">{{ t('stockOutItemList.flowPanel.fields.receivableScope') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.receivableScopeNote }}</span>
+                    </div>
+                    <div
+                      v-if="card.linkedStockOutItemCodes?.length"
+                      class="so-item-flow-kv__cell so-item-flow-kv__cell--full"
+                    >
+                      <span class="so-item-flow-kv__label">{{ t('stockOutItemList.flowPanel.fields.linkedStockOutItemCodes') }}：</span>
+                      <span class="so-item-flow-kv__value">
+                        <template v-for="(code, idx) in card.linkedStockOutItemCodes" :key="code">
+                          <router-link
+                            v-if="!maskSale"
+                            class="link-text"
+                            :to="{ name: 'StockOutItemList', query: { highlight: code } }"
+                          >
+                            {{ code }}
+                          </router-link>
+                          <template v-else>{{ code }}</template>
+                          <span v-if="idx < card.linkedStockOutItemCodes.length - 1">、</span>
+                        </template>
+                      </span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t(card.createdAtLabelKey) }}：</span>
+                      <span class="so-item-flow-kv__value">{{ formatStockOutItemFlowCardDate(card.createdAt) }}</span>
+                    </div>
+                    <div v-if="card.showCustomer" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
+                      <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.customerName') }}：</span>
+                      <FlowPartyLink
+                        :text="card.customerName || '—'"
+                        :to="customerTo(card.customerId, maskSale)"
+                      />
+                    </div>
+                  </template>
+                  <template v-else-if="station.key === 'receiptWriteOff'">
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('stockOutItemList.flowPanel.fields.docNo') }}：</span>
+                      <span class="so-item-flow-kv__value">
+                        <router-link
+                          v-if="card.docRoute"
+                          class="link-text"
+                          :to="toRouteLocation(card.docRoute)"
+                        >
+                          {{ card.docNo }}
+                        </router-link>
+                        <template v-else>{{ card.docNo }}</template>
+                      </span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.status') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.statusText || '—' }}</span>
+                    </div>
+                    <div v-if="card.unitPriceText" class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t('stockOutItemList.flowPanel.fields.writeOffAmount') }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.unitPriceText }}</span>
+                    </div>
+                    <div class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t(card.createdAtLabelKey) }}：</span>
+                      <span class="so-item-flow-kv__value">{{ formatStockOutItemFlowCardDate(card.createdAt) }}</span>
+                    </div>
+                    <div v-if="card.showPerson" class="so-item-flow-kv__cell">
+                      <span class="so-item-flow-kv__label">{{ t(card.personRoleKey) }}：</span>
+                      <span class="so-item-flow-kv__value">{{ card.personName || '—' }}</span>
+                    </div>
+                    <div v-if="card.showCustomer" class="so-item-flow-kv__cell so-item-flow-kv__cell--full">
+                      <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.customerName') }}：</span>
+                      <FlowPartyLink
+                        :text="card.customerName || '—'"
+                        :to="customerTo(card.customerId, maskSale)"
+                      />
+                    </div>
+                  </template>
+                  <template v-else>
                   <div class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ t('inventoryStockItemList.flowPanel.fields.docNo') }}：</span>
                     <span class="so-item-flow-kv__value">
@@ -206,6 +306,7 @@
                       <span class="so-item-flow-kv__label">{{ t(card.qtyLabelKey) }}：</span>
                       <span class="so-item-flow-kv__value">{{ card.qtyText }}</span>
                     </div>
+                  </template>
                   </template>
                 </div>
               </article>

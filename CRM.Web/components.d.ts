@@ -245,6 +245,7 @@ declare module 'vue' {
     StockInBatchEditDialog: typeof import('./src/components/Inventory/StockInBatchEditDialog.vue')['default']
     StockInBatchImportDialog: typeof import('./src/components/Inventory/StockInBatchImportDialog.vue')['default']
     StockInBatchPanel: typeof import('./src/components/Inventory/StockInBatchPanel.vue')['default']
+    StockInFlowPanel: typeof import('./src/components/Inventory/StockInFlowPanel.vue')['default']
     StockInOpsPanel: typeof import('./src/components/Inventory/StockInOpsPanel.vue')['default']
     StockInSearchPanel: typeof import('./src/components/Inventory/StockInSearchPanel.vue')['default']
     StockItemFlowPanel: typeof import('./src/components/Inventory/StockItemFlowPanel.vue')['default']

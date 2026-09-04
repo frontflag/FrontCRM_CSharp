@@ -92,8 +92,38 @@ public class StockItemFlowService : IStockItemFlowService
 
         await FillPurchaseAsync(dto, entity, row, cancellationToken);
         await FillStockInAndQcAsync(dto, entity, cancellationToken);
-        await FillDownstreamThisLayerAsync(dto, id, row, cancellationToken);
+        var downstream = await CollectDownstreamSliceAsync(id, row, cancellationToken);
+        ApplyDownstreamSlice(dto, downstream);
+        if (!string.IsNullOrWhiteSpace(row.CustomerId))
+        {
+            var customers = await LoadCustomersAsync(new List<string> { row.CustomerId.Trim() });
+            dto.StockItem.CustomerCode = CustomerCodeOf(customers, row.CustomerId);
+        }
         return dto;
+    }
+
+    /// <inheritdoc />
+    public Task<StockItemFlowDownstreamSliceDto> GetDownstreamSliceAsync(
+        string stockItemId,
+        InventoryStockItemListRowDto row,
+        CancellationToken cancellationToken = default) =>
+        CollectDownstreamSliceAsync(stockItemId, row, cancellationToken);
+
+    private static void ApplyDownstreamSlice(StockItemFlowAggregatesDto dto, StockItemFlowDownstreamSliceDto slice)
+    {
+        dto.StockOutNotifies = slice.StockOutNotifies;
+        dto.Packings = slice.Packings;
+        dto.StockOuts = slice.StockOuts;
+    }
+
+    private async Task<StockItemFlowDownstreamSliceDto> CollectDownstreamSliceAsync(
+        string stockItemId,
+        InventoryStockItemListRowDto row,
+        CancellationToken cancellationToken)
+    {
+        var slice = new StockItemFlowDownstreamSliceDto();
+        await FillDownstreamIntoSliceAsync(slice, stockItemId, row, cancellationToken);
+        return slice;
     }
 
     private static StockItemFlowDocDto MapStockItemStation(InventoryStockItemListRowDto row)
@@ -239,8 +269,8 @@ public class StockItemFlowService : IStockItemFlowService
         };
     }
 
-    private async Task FillDownstreamThisLayerAsync(
-        StockItemFlowAggregatesDto dto,
+    private async Task FillDownstreamIntoSliceAsync(
+        StockItemFlowDownstreamSliceDto dto,
         string stockItemId,
         InventoryStockItemListRowDto row,
         CancellationToken cancellationToken)
@@ -302,6 +332,19 @@ public class StockItemFlowService : IStockItemFlowService
             ? new List<StockOutItem>()
             : (await _stockOutItemRepo.FindAsync(i => outItemIds.Contains(i.Id) && !i.IsDeleted)).ToList();
         var outItemMap = outItems.ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+
+        // 移库虚拟出库等：明细直挂 StockItemId，无 stock_out_item_extend，流程站需一并展示。
+        var directOutItems = (await _stockOutItemRepo.FindAsync(i =>
+                i.StockItemId == stockItemId && !i.IsDeleted)).ToList();
+        foreach (var line in directOutItems)
+        {
+            if (!outItemMap.ContainsKey(line.Id))
+            {
+                outItems.Add(line);
+                outItemMap[line.Id] = line;
+            }
+        }
+
         var stockOutIds = outItems
             .Select(i => i.StockOutId?.Trim())
             .Where(x => !string.IsNullOrEmpty(x))
@@ -329,7 +372,7 @@ public class StockItemFlowService : IStockItemFlowService
             AddId(customerIds, p.CustomerId);
         var customers = await LoadCustomersAsync(customerIds);
 
-        dto.StockItem.CustomerCode = CustomerCodeOf(customers, row.CustomerId);
+        var customerCode = CustomerCodeOf(customers, row.CustomerId);
 
         var outTraceNotifyIds = new List<string>();
         foreach (var n in notifies)
@@ -372,7 +415,7 @@ public class StockItemFlowService : IStockItemFlowService
                     Status = n.Status,
                     CreateTime = n.CreateTime,
                     CustomerName = CustomerNameOf(customers, n.CustomerId) ?? row.CustomerName,
-                    CustomerCode = CustomerCodeOf(customers, n.CustomerId) ?? dto.StockItem.CustomerCode,
+                    CustomerCode = CustomerCodeOf(customers, n.CustomerId) ?? customerCode,
                     PersonName = packing != null
                         ? UserDisplay(users, packing.SalesId) ?? row.SalespersonName
                         : row.SalespersonName,
@@ -404,7 +447,7 @@ public class StockItemFlowService : IStockItemFlowService
                     Status = p.Status,
                     CreateTime = p.CreateTime,
                     CustomerName = CustomerNameOf(customers, p.CustomerId) ?? row.CustomerName,
-                    CustomerCode = CustomerCodeOf(customers, p.CustomerId) ?? dto.StockItem.CustomerCode,
+                    CustomerCode = CustomerCodeOf(customers, p.CustomerId) ?? customerCode,
                     PersonName = UserDisplay(users, p.SalesId) ?? row.SalespersonName,
                     Qty = layerQty,
                     StockOutType = p.StockOutType
@@ -426,15 +469,23 @@ public class StockItemFlowService : IStockItemFlowService
                         return string.Equals(item.StockOutId?.Trim(), s.Id, StringComparison.OrdinalIgnoreCase);
                     })
                     .Sum(ex => ex.QtyStockOut);
+                if (layerQty == 0)
+                {
+                    layerQty = outItems
+                        .Where(i => string.Equals(i.StockOutId?.Trim(), s.Id, StringComparison.OrdinalIgnoreCase))
+                        .Sum(i => i.ActualQty > 0 ? i.ActualQty : i.Quantity);
+                }
                 var doc = new StockItemFlowDocDto
                 {
                     Id = s.Id,
                     DocCode = s.StockOutCode,
                     Status = s.Status,
                     CreateTime = s.CreateTime,
-                    CustomerName = row.CustomerName,
-                    CustomerCode = dto.StockItem.CustomerCode,
-                    PersonName = UserDisplay(users, s.CreateByUserId) ?? row.SalespersonName,
+                    CustomerName = s.StockOutType == StockOutTypeCode.Transfer ? null : row.CustomerName,
+                    CustomerCode = s.StockOutType == StockOutTypeCode.Transfer ? null : customerCode,
+                    PersonName = s.StockOutType == StockOutTypeCode.Transfer
+                        ? null
+                        : UserDisplay(users, s.CreateByUserId) ?? row.SalespersonName,
                     Qty = layerQty,
                     StockOutType = s.StockOutType
                 };

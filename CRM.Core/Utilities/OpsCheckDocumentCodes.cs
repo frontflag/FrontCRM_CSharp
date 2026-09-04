@@ -30,6 +30,28 @@ public static class OpsCheckDocumentCodes
         return Missing;
     }
 
+    /// <summary>
+    /// 错误原因槽位：单据单号（客商编码）。主键为空为「空」；无业务编码时「单号缺失」。永不输出 GUID。
+    /// </summary>
+    public static string FormatDocPartySlot(string? documentCode, string? partyId, string? partyCode)
+    {
+        var doc = ForSuggestion(documentCode);
+        if (string.IsNullOrWhiteSpace(partyId))
+            return $"{doc}（空）";
+        return $"{doc}（{ForSuggestion(partyCode)}）";
+    }
+
+    public static string FormatDocPartySlot(
+        string? documentCode,
+        string? partyId,
+        IReadOnlyDictionary<string, string?> codesById)
+    {
+        string? code = null;
+        if (!string.IsNullOrWhiteSpace(partyId) && codesById.TryGetValue(partyId.Trim(), out var found))
+            code = found;
+        return FormatDocPartySlot(documentCode, partyId, code);
+    }
+
     public static List<string> FilterCodes(IEnumerable<string?>? codes) =>
         (codes ?? Array.Empty<string?>())
             .Where(IsUsableCode)

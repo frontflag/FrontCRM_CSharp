@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using CRM.API.Debug;
 using CRM.API.Models.DTOs;
 using CRM.API.Services;
 using CRM.Core.Constants;
@@ -98,6 +99,10 @@ namespace CRM.API.Controllers
         {
             /// <summary>供界面展示：仅数据库名（奇数位保留、偶数位为 *），不含 Host/Port/账号密码。</summary>
             public string DatabaseConnectionDisplay { get; set; } = string.Empty;
+
+            /// <summary>后端 API 构建版本（与前端 FRONTEND_DEBUG_VERSION 分开维护，便于核对 API 是否为本次构建）。</summary>
+            public string BackendDebugVersion { get; set; } = string.Empty;
+
             public List<DebugItemDto> Items { get; set; } = new();
         }
 
@@ -294,6 +299,7 @@ namespace CRM.API.Controllers
             var page = new DebugPageDto
             {
                 DatabaseConnectionDisplay = MaskConnectionStringForDebugDisplay(rawCs),
+                BackendDebugVersion = BackendDebugConstants.Version,
                 Items = items
             };
 

@@ -138,6 +138,12 @@ namespace CRM.Core.Interfaces
             bool includeChildren,
             CancellationToken cancellationToken = default);
 
+        /// <summary>销售侧数据范围允许的业务员用户 Id（商务部为 type=100 映射列表）。</summary>
+        Task<HashSet<string>> GetSaleScopeAllowUserIdsAsync(
+            UserPermissionSummaryDto summary,
+            bool includeChildren,
+            CancellationToken cancellationToken = default);
+
         Task<IReadOnlyList<FinanceReceipt>> FilterFinanceReceiptsAsync(string userId, IEnumerable<FinanceReceipt> source);
         Task<IReadOnlyList<FinancePayment>> FilterFinancePaymentsAsync(string userId, IEnumerable<FinancePayment> source);
         Task<IReadOnlyList<FinanceSellInvoice>> FilterFinanceSellInvoicesAsync(string userId, IEnumerable<FinanceSellInvoice> source);

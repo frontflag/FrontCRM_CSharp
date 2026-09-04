@@ -19,10 +19,16 @@ public static class BusinessDepartmentRules
     }
 
     /// <summary>
-    /// 商务部销售助理：主部门 <see cref="UserPermissionSummaryDto.SaleDataScope"/> = 4 时，仅可见 <c>assistor</c> 为自己的销售订单（与采购助理 + PurchaseDataScope=4 对称）。
+    /// 商务部（IdentityType=4）且非业务 bypass：销售侧数据范围由 <c>sys_relation_map</c> type=100 映射业务员决定，忽略主部门 SaleDataScope。
+    /// </summary>
+    public static bool UseCommerceAssistantMappedSalespersonScope(UserPermissionSummaryDto summary) =>
+        summary.IdentityType == 4 && !summary.HasBizDataBypass;
+
+    /// <summary>
+    /// 历史命名：销售看板「跟单专属」个人层。与 <see cref="UseCommerceAssistantMappedSalespersonScope"/> 对齐（不再仅限 SaleDataScope=4）。
     /// </summary>
     public static bool UseSellOrderAssistorOnlyScope(UserPermissionSummaryDto summary) =>
-        summary.IdentityType == 4 && summary.SaleDataScope == 4;
+        UseCommerceAssistantMappedSalespersonScope(summary);
 
     /// <summary>
     /// 采购助理跟单：<c>PurchaseDataScope = 4</c> 时，仅可见 <c>assistor</c> 为自己的采购订单（与 <see cref="DataPermissionService.ApplyPurchaseOrderDataScopeAsync"/> 一致）。

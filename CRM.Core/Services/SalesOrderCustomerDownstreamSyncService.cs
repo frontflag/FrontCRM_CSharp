@@ -316,6 +316,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
                 CustomerId = receivable.CustomerId?.Trim(),
                 CustomerName = receivable.CustomerName?.Trim(),
                 IsMismatch = !CustomerIdsMatch(targetId, receivable.CustomerId)
+                    || !NamesMatch(receivable.CustomerName, bundle.TargetCustomerName)
             });
         }
 
@@ -535,11 +536,17 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
         foreach (var receivable in bundle.Receivables)
         {
-            if (CustomerIdsMatch(targetId, receivable.CustomerId))
+            var idMismatch = !CustomerIdsMatch(targetId, receivable.CustomerId);
+            var nameMismatch = !string.IsNullOrWhiteSpace(bundle.TargetCustomerName)
+                && !NamesMatch(receivable.CustomerName, bundle.TargetCustomerName);
+
+            if (!idMismatch && !nameMismatch)
                 continue;
 
-            if (receivable.VerifiedDone > 0m
-                || receivable.VerificationStatus > FinanceVerificationStatusCode.Pending)
+            var writtenOff = receivable.VerifiedDone > 0m
+                || receivable.VerificationStatus > FinanceVerificationStatusCode.Pending;
+
+            if (writtenOff && idMismatch)
             {
                 if (!allowRefreshCompleted)
                 {
@@ -724,7 +731,9 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
     {
         if (cust == null)
             return null;
-        var zh = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+        var zh = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.NickName : cust.OfficialName;
+        if (string.IsNullOrWhiteSpace(zh))
+            zh = cust.CustomerName;
         return string.IsNullOrWhiteSpace(zh) ? null : zh.Trim();
     }
 

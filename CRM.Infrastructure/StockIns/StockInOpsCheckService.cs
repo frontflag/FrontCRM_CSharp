@@ -192,6 +192,24 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
                 x => (VendorId: (string?)x.VendorId, Code: (string?)x.PurchaseOrderCode),
                 StringComparer.OrdinalIgnoreCase);
 
+        var allVendorIds = purchaseNotices.Select(n => n.VendorId)
+            .Concat(purchaseStockIns.Select(s => s.VendorId))
+            .Concat(purchaseOrders.Values.Select(v => v.VendorId))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var vendorCodes = allVendorIds.Count == 0
+            ? new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.Vendors.AsNoTracking()
+                .Where(v => allVendorIds.Contains(v.Id))
+                .Select(v => new { v.Id, v.Code })
+                .ToListAsync(cancellationToken))
+            .ToDictionary(v => v.Id, v => (string?)v.Code, StringComparer.OrdinalIgnoreCase);
+
+        string VendorSlot(string? docCode, string? vendorId) =>
+            OpsCheckDocumentCodes.FormatDocPartySlot(documentCode: docCode, vendorId, vendorCodes);
+
         var siById = purchaseStockIns.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
         var itemsByStockIn = purchaseItems
             .GroupBy(x => x.StockInId, StringComparer.OrdinalIgnoreCase)
@@ -362,7 +380,7 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
                     relatedSi != null ? siById[relatedSi].StockInCode : poCode,
                     relatedSi != null ? "StockInDetail" : "PurchaseOrderDetail",
                     relatedSi != null ? Params(relatedSi) : (string.IsNullOrWhiteSpace(notice.PurchaseOrderId) ? null : Params(notice.PurchaseOrderId)),
-                    $"供应商主键不一致：到货通知 {Norm(notice.VendorId)} / 入库 {string.Join("、", distinctPosted.Select(id => Norm(siById[id].VendorId)))} / 采购订单 {Norm(poVendorId)}。",
+                    $"供应商主键不一致：到货通知 {VendorSlot(notice.NoticeCode, notice.VendorId)} / 入库 {string.Join("、", distinctPosted.Select(id => VendorSlot(siById[id].StockInCode, siById[id].VendorId)))} / 采购订单 {VendorSlot(poCode, poVendorId)}。",
                     StockInOpsCheckSuggestions.VendorMismatch(
                         poCode,
                         relatedSi != null ? siById[relatedSi].StockInCode : null,
@@ -412,7 +430,7 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
                 poId, poCode,
                 string.IsNullOrWhiteSpace(poId) ? null : "PurchaseOrderDetail",
                 string.IsNullOrWhiteSpace(poId) ? null : Params(poId),
-                $"供应商主键不一致：入库 {Norm(si.VendorId)} / 采购订单 {Norm(poVendorId)}。",
+                $"供应商主键不一致：入库 {VendorSlot(si.StockInCode, si.VendorId)} / 采购订单 {VendorSlot(poCode, poVendorId)}。",
                 StockInOpsCheckSuggestions.VendorMismatch(poCode, si.StockInCode, noticeCode: null));
         }
 
@@ -597,9 +615,6 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
 
     private static string FirstCode(string? invoiceCode, string? invoiceNo, string id) =>
         OpsCheckDocumentCodes.ForSuggestion(invoiceCode, invoiceNo);
-
-    private static string Norm(string? id) =>
-        string.IsNullOrWhiteSpace(id) ? "空" : id.Trim();
 
     private static void Add(Dictionary<string, List<string>> map, string key, string value)
     {

@@ -52,6 +52,9 @@ public static class SalesAnalyticsScopeValidator
         if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
             return companyTabVisible ? "全公司" : "可见范围";
 
+        if (BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
+            return "映射业务员可见范围";
+
         if (BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
             return "跟单可见范围";
 
@@ -207,10 +210,13 @@ public static class SalesAnalyticsScopeValidator
         if (summary.HasBizDataBypass || summary.SaleDataScope == 0)
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        if (summary.SaleDataScope == 1 || BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
+        if (BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
+            return await dataPermission.GetSaleScopeAllowUserIdsAsync(summary, includeChildren: false, cancellationToken);
+
+        if (summary.SaleDataScope == 1)
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase) { summary.UserId };
 
-        return await dataPermission.GetAllowedUserIdsForDataScopeAsync(
+        return await dataPermission.GetSaleScopeAllowUserIdsAsync(
             summary,
             includeChildren: summary.SaleDataScope == 3,
             cancellationToken);

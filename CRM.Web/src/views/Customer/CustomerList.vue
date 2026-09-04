@@ -372,6 +372,7 @@
           <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
         </svg>
         <p>{{ t('customerList.empty') }}</p>
+        <p v-if="showCommerceEmptyHint" class="empty-hint">{{ t('customerList.emptyCommerceHint') }}</p>
         <template v-if="canWriteSaleData && canSubmitAudit">
           <div class="btn-split-group empty-split">
             <button type="button" class="btn-success" @click="handleCreate">{{ t('customerList.create') }}</button>
@@ -495,6 +496,9 @@ function isPartyStatusMuted(c: Customer) {
   return !!(c.disenableStatus || c.blackList);
 }
 const authStore = useAuthStore();
+const showCommerceEmptyHint = computed(
+  () => (authStore.user?.identityType ?? 0) === 4 && !authStore.user?.hasBizDataBypass
+);
 const { canWriteSaleData } = useDepartmentDataReadOnly();
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask();
 const customerDict = useCustomerDictStore();
@@ -1792,6 +1796,14 @@ html[data-theme='dark'] .cu-filter-tabs__item:not(.is-active) {
 
   svg { margin-bottom: 16px; opacity: 0.4; }
   p { margin: 0 0 16px; font-size: 14px; }
+  .empty-hint {
+    max-width: 420px;
+    text-align: center;
+    font-size: 13px;
+    color: $text-secondary;
+    margin-top: -8px;
+    margin-bottom: 16px;
+  }
 }
 
 // ---- 分页 ----
