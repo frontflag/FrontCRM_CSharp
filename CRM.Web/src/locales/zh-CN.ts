@@ -3051,7 +3051,9 @@ const zhCN = {
   customerQuoteDraftList: {
     title: '客户报价单草稿',
     count: '共 {count} 条',
+    backToQuotes: '返回客户报价单',
     basket: '复选篮子',
+    clearBasket: '清空篮子',
     basketTitle: '草稿复选篮子',
     basketEmpty: '篮子里暂无记录。勾选列表行即可加入，翻页后仍保留。',
     basketSummary: '共 {count} 条，可生成客户报价单 v1',

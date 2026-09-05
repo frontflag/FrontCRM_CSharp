@@ -3077,7 +3077,9 @@ const enUS = {
   customerQuoteDraftList: {
     title: 'Customer Quote Drafts',
     count: '{count} total',
+    backToQuotes: 'Back to customer quotes',
     basket: 'Selection basket',
+    clearBasket: 'Clear basket',
     basketTitle: 'Draft selection basket',
     basketEmpty: 'No rows selected. Check rows in the list; selections persist across pages.',
     basketSummary: '{count} selected — generate customer quote v1',
