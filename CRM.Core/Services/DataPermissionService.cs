@@ -25,6 +25,8 @@ namespace CRM.Core.Services
         private readonly IRepository<RFQItem> _rfqItemRepo;
         private readonly IRepository<CustomerInfo> _customerRepo;
         private readonly IRepository<VendorInfo> _vendorRepo;
+        private readonly IRepository<SellOrder> _sellOrderRepo;
+        private readonly IRepository<FinanceReceiptItem> _receiptItemRepo;
         private readonly IPurchaseQuoterPoolService _purchaseQuoterPoolService;
         private readonly ISysRelationMapService _relationMapService;
         private readonly Dictionary<string, HashSet<string>> _commerceMappedSalesCache = new(StringComparer.OrdinalIgnoreCase);
@@ -39,6 +41,8 @@ namespace CRM.Core.Services
             IRepository<RFQItem> rfqItemRepo,
             IRepository<CustomerInfo> customerRepo,
             IRepository<VendorInfo> vendorRepo,
+            IRepository<SellOrder> sellOrderRepo,
+            IRepository<FinanceReceiptItem> receiptItemRepo,
             IPurchaseQuoterPoolService purchaseQuoterPoolService,
             ISysRelationMapService relationMapService)
         {
@@ -51,6 +55,8 @@ namespace CRM.Core.Services
             _rfqItemRepo = rfqItemRepo;
             _customerRepo = customerRepo;
             _vendorRepo = vendorRepo;
+            _sellOrderRepo = sellOrderRepo;
+            _receiptItemRepo = receiptItemRepo;
             _purchaseQuoterPoolService = purchaseQuoterPoolService;
             _relationMapService = relationMapService;
         }
@@ -150,6 +156,8 @@ namespace CRM.Core.Services
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.HasBizDataBypass) return source.ToList();
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
+                return source.ToList();
 
             var list = source.ToList();
             var ids = list.Select(x => x.Id).Distinct().ToList();
@@ -315,6 +323,8 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
+                return payments;
             if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return payments;
             if (summary.PurchaseDataScope == 4)
@@ -352,6 +362,8 @@ namespace CRM.Core.Services
                 return financeScoped;
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
+                return invoices;
             if (summary.HasBizDataBypass || IsFinanceDepartmentIdentity(summary.IdentityType) || summary.PurchaseDataScope == 0)
                 return invoices;
             if (summary.PurchaseDataScope == 4)
@@ -376,6 +388,8 @@ namespace CRM.Core.Services
         public async Task<IQueryable<FinanceReceipt>> ApplyFinanceReceiptListDataScopeAsync(
             string? userId,
             IQueryable<FinanceReceipt> receipts,
+            IQueryable<SellOrder>? sellOrders = null,
+            IQueryable<FinanceReceiptItem>? receiptItems = null,
             CancellationToken cancellationToken = default)
         {
             _ = cancellationToken;
@@ -383,7 +397,7 @@ namespace CRM.Core.Services
                 return receipts;
 
             var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
-                userId, receipts, r => r.CreateByUserId, cancellationToken);
+                userId, receipts, r => r.CreateByUserId, cancellationToken, allowCommerceAssistantReceiptBypass: true);
             if (financeHandled)
                 return financeScoped;
 
@@ -393,6 +407,23 @@ namespace CRM.Core.Services
             if (BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
             {
                 var mapped = (await GetCommerceAssistantMappedSalesUserIdsAsync(userId)).ToList();
+                var uid = userId.Trim();
+                if (sellOrders != null && receiptItems != null)
+                {
+                    if (mapped.Count == 0)
+                    {
+                        return receipts.Where(r =>
+                            receiptItems.Any(i => i.FinanceReceiptId == r.Id && i.SellOrderId != null &&
+                                sellOrders.Any(so => so.Id == i.SellOrderId && so.Assistor == uid)));
+                    }
+
+                    return receipts.Where(r =>
+                        (r.SalesUserId != null && mapped.Contains(r.SalesUserId))
+                        || receiptItems.Any(i => i.FinanceReceiptId == r.Id && i.SellOrderId != null &&
+                            sellOrders.Any(so => so.Id == i.SellOrderId &&
+                                (so.Assistor == uid || (so.SalesUserId != null && mapped.Contains(so.SalesUserId))))));
+                }
+
                 if (mapped.Count == 0)
                     return receipts.Where(_ => false);
                 return receipts.Where(r => r.SalesUserId != null && mapped.Contains(r.SalesUserId));
@@ -400,9 +431,9 @@ namespace CRM.Core.Services
             if (IsSaleDataScopeDenied(summary))
                 return receipts.Where(_ => false);
 
-            var uid = userId.Trim();
+            var uidSale = userId.Trim();
             if (summary.SaleDataScope == 1)
-                return receipts.Where(r => r.SalesUserId == uid);
+                return receipts.Where(r => r.SalesUserId == uidSale);
 
             var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
             return receipts.Where(r => r.SalesUserId != null && allowUserIds.Contains(r.SalesUserId));
@@ -412,6 +443,7 @@ namespace CRM.Core.Services
         public async Task<IQueryable<FinanceReceivable>> ApplyFinanceReceivableListDataScopeAsync(
             string? userId,
             IQueryable<FinanceReceivable> receivables,
+            IQueryable<SellOrder>? sellOrders = null,
             CancellationToken cancellationToken = default)
         {
             _ = cancellationToken;
@@ -419,7 +451,7 @@ namespace CRM.Core.Services
                 return receivables;
 
             var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
-                userId, receivables, r => r.CreateByUserId, cancellationToken);
+                userId, receivables, r => r.CreateByUserId, cancellationToken, allowCommerceAssistantReceiptBypass: true);
             if (financeHandled)
                 return financeScoped;
 
@@ -429,6 +461,21 @@ namespace CRM.Core.Services
             if (BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
             {
                 var mapped = (await GetCommerceAssistantMappedSalesUserIdsAsync(userId)).ToList();
+                var uid = userId.Trim();
+                if (sellOrders != null)
+                {
+                    if (mapped.Count == 0)
+                    {
+                        return receivables.Where(r =>
+                            sellOrders.Any(so => so.Id == r.SellOrderId && so.Assistor == uid));
+                    }
+
+                    return receivables.Where(r =>
+                        (r.SalesUserId != null && mapped.Contains(r.SalesUserId))
+                        || sellOrders.Any(so => so.Id == r.SellOrderId &&
+                            (so.Assistor == uid || (so.SalesUserId != null && mapped.Contains(so.SalesUserId)))));
+                }
+
                 if (mapped.Count == 0)
                     return receivables.Where(_ => false);
                 return receivables.Where(r => r.SalesUserId != null && mapped.Contains(r.SalesUserId));
@@ -436,9 +483,9 @@ namespace CRM.Core.Services
             if (IsSaleDataScopeDenied(summary))
                 return receivables.Where(_ => false);
 
-            var uid = userId.Trim();
+            var uidSale = userId.Trim();
             if (summary.SaleDataScope == 1)
-                return receivables.Where(r => r.SalesUserId == uid);
+                return receivables.Where(r => r.SalesUserId == uidSale);
 
             var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
             return receivables.Where(r => r.SalesUserId != null && allowUserIds.Contains(r.SalesUserId));
@@ -455,7 +502,7 @@ namespace CRM.Core.Services
                 return advances;
 
             var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
-                userId, advances, a => a.CreateByUserId, cancellationToken);
+                userId, advances, a => a.CreateByUserId, cancellationToken, allowCommerceAssistantReceiptBypass: true);
             if (financeHandled)
                 return financeScoped;
 
@@ -492,7 +539,7 @@ namespace CRM.Core.Services
                 return invoices;
 
             var (financeHandled, financeScoped) = await ApplyFinanceDepartmentScopeIfNeededAsync(
-                userId, invoices, inv => inv.CreateByUserId, cancellationToken);
+                userId, invoices, inv => inv.CreateByUserId, cancellationToken, allowCommerceAssistantReceiptBypass: true);
             if (financeHandled)
                 return financeScoped;
 
@@ -593,6 +640,8 @@ namespace CRM.Core.Services
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.HasBizDataBypass)
+                return query;
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
                 return query;
 
             var isCommerce = BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary);
@@ -702,6 +751,8 @@ namespace CRM.Core.Services
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.HasBizDataBypass)
                 return quotes;
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
+                return quotes;
 
             var isCommerce = BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary);
             if (!isCommerce && (summary.SaleDataScope == 0 || summary.PurchaseDataScope == 0))
@@ -785,6 +836,8 @@ namespace CRM.Core.Services
 
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.HasBizDataBypass)
+                return query;
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
                 return query;
 
             var saleOpen = summary.SaleDataScope == 0;
@@ -1304,7 +1357,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceReceipt>> FilterFinanceReceiptsAsync(string userId, IEnumerable<FinanceReceipt> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4
+                && !CommerceAssistantFinanceAccessRules.ShouldBypassFinanceDataScopeDenial(summary))
                 return Array.Empty<FinanceReceipt>();
             if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
                 return await FilterByFinanceCreatorAsync(userId, source, r => r.CreateByUserId, summary);
@@ -1314,8 +1368,15 @@ namespace CRM.Core.Services
             if (BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
             {
                 var mapped = await GetCommerceAssistantMappedSalesUserIdsAsync(userId);
-                if (mapped.Count == 0) return Array.Empty<FinanceReceipt>();
-                return source.Where(x => !string.IsNullOrWhiteSpace(x.SalesUserId) && mapped.Contains(x.SalesUserId!)).ToList();
+                var uid = userId.Trim();
+                var result = new List<FinanceReceipt>();
+                foreach (var receipt in source)
+                {
+                    if (await CommerceAssistantCanAccessReceiptAsync(receipt, mapped, uid))
+                        result.Add(receipt);
+                }
+
+                return result;
             }
             if (IsSaleDataScopeDenied(summary)) return Array.Empty<FinanceReceipt>();
 
@@ -1330,7 +1391,8 @@ namespace CRM.Core.Services
         private async Task<IReadOnlyList<FinanceReceivable>> FilterFinanceReceivablesAsync(string userId, IEnumerable<FinanceReceivable> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4
+                && !CommerceAssistantFinanceAccessRules.ShouldBypassFinanceDataScopeDenial(summary))
                 return Array.Empty<FinanceReceivable>();
             if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
                 return await FilterByFinanceCreatorAsync(userId, source, r => r.CreateByUserId, summary);
@@ -1340,8 +1402,15 @@ namespace CRM.Core.Services
             if (BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
             {
                 var mapped = await GetCommerceAssistantMappedSalesUserIdsAsync(userId);
-                if (mapped.Count == 0) return Array.Empty<FinanceReceivable>();
-                return source.Where(x => !string.IsNullOrWhiteSpace(x.SalesUserId) && mapped.Contains(x.SalesUserId!)).ToList();
+                var uid = userId.Trim();
+                var result = new List<FinanceReceivable>();
+                foreach (var receivable in source)
+                {
+                    if (await CommerceAssistantCanAccessReceivableAsync(receivable, mapped, uid))
+                        result.Add(receivable);
+                }
+
+                return result;
             }
             if (IsSaleDataScopeDenied(summary)) return Array.Empty<FinanceReceivable>();
 
@@ -1356,6 +1425,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePayment>> FilterFinancePaymentsAsync(string userId, IEnumerable<FinancePayment> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
+                return source.ToList();
             if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
                 return Array.Empty<FinancePayment>();
             if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
@@ -1386,7 +1457,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinanceSellInvoice>> FilterFinanceSellInvoicesAsync(string userId, IEnumerable<FinanceSellInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
+            if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4
+                && !CommerceAssistantFinanceAccessRules.ShouldBypassFinanceDataScopeDenial(summary))
                 return Array.Empty<FinanceSellInvoice>();
             if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
                 return await FilterByFinanceCreatorAsync(userId, source, inv => inv.CreateByUserId, summary);
@@ -1433,6 +1505,8 @@ namespace CRM.Core.Services
         public async Task<IReadOnlyList<FinancePurchaseInvoice>> FilterFinancePurchaseInvoicesAsync(string userId, IEnumerable<FinancePurchaseInvoice> source)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (PurchaseOpsSharedListScopeRules.UsesSharedListScope(summary))
+                return source.ToList();
             if (!summary.HasBizDataBypass && summary.FinanceDataScope == 4)
                 return Array.Empty<FinancePurchaseInvoice>();
             if (!summary.HasBizDataBypass && summary.FinanceDataScope is >= 1 and <= 3)
@@ -1520,13 +1594,19 @@ namespace CRM.Core.Services
             string userId,
             IQueryable<T> query,
             System.Linq.Expressions.Expression<Func<T, string?>> createByUserIdSelector,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            bool allowCommerceAssistantReceiptBypass = false)
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
             if (summary.HasBizDataBypass)
                 return (false, query);
             if (summary.FinanceDataScope == 4)
+            {
+                if (allowCommerceAssistantReceiptBypass
+                    && CommerceAssistantFinanceAccessRules.ShouldBypassFinanceDataScopeDenial(summary))
+                    return (false, query);
                 return (true, query.Where(_ => false));
+            }
             if (summary.FinanceDataScope is >= 1 and <= 3)
             {
                 var scoped = await ApplyFinanceCreatorUserScopeAsync(userId, query, createByUserIdSelector, cancellationToken);
@@ -1950,6 +2030,54 @@ namespace CRM.Core.Services
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             _commerceMappedSalesCache[key] = set;
             return set;
+        }
+
+        private async Task<bool> CommerceAssistantCanAccessReceiptAsync(
+            FinanceReceipt receipt,
+            HashSet<string> mapped,
+            string uid)
+        {
+            if (!string.IsNullOrWhiteSpace(receipt.SalesUserId) && mapped.Contains(receipt.SalesUserId))
+                return true;
+
+            var items = await _receiptItemRepo.FindAsync(i =>
+                i.FinanceReceiptId == receipt.Id && !i.IsDeleted && i.SellOrderId != null);
+            var sellOrderIds = items
+                .Select(i => i.SellOrderId!)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (sellOrderIds.Count == 0)
+                return false;
+
+            var orders = await _sellOrderRepo.FindAsync(o => sellOrderIds.Contains(o.Id));
+            if (mapped.Count == 0)
+                return orders.Any(so => IsSellOrderAssistor(so, uid));
+
+            return orders.Any(so =>
+                IsSellOrderAssistor(so, uid)
+                || (!string.IsNullOrWhiteSpace(so.SalesUserId) && mapped.Contains(so.SalesUserId)));
+        }
+
+        private async Task<bool> CommerceAssistantCanAccessReceivableAsync(
+            FinanceReceivable receivable,
+            HashSet<string> mapped,
+            string uid)
+        {
+            if (!string.IsNullOrWhiteSpace(receivable.SalesUserId) && mapped.Contains(receivable.SalesUserId))
+                return true;
+            if (string.IsNullOrWhiteSpace(receivable.SellOrderId))
+                return false;
+
+            var orders = await _sellOrderRepo.FindAsync(o => o.Id == receivable.SellOrderId);
+            var order = orders.FirstOrDefault();
+            if (order == null)
+                return false;
+            if (mapped.Count == 0)
+                return IsSellOrderAssistor(order, uid);
+
+            return IsSellOrderAssistor(order, uid)
+                || (!string.IsNullOrWhiteSpace(order.SalesUserId) && mapped.Contains(order.SalesUserId));
         }
 
         private static bool IsSaleDataScopeUnrestricted(UserPermissionSummaryDto summary) =>

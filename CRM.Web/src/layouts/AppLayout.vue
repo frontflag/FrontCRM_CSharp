@@ -1782,6 +1782,8 @@ import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
 import { canAccessInventoryOpsCheck } from '@/utils/inventoryOpsCheckAccess'
 import { canAccessStockingPurchaseList } from '@/utils/stockingPurchaseListAccess'
+import { canAccessPurchaseOpsPaymentMenus } from '@/utils/purchaseOpsFinanceAccess'
+import { canAccessCommerceAssistantReceiptMenus } from '@/utils/commerceAssistantFinanceAccess'
 import { canAccessRfqItemReference } from '@/utils/rfqItemReferenceAccess'
 import {
   collapsedSidebarMenuGroups,
@@ -3878,9 +3880,11 @@ const showLogisticsMenus = computed(() => {
   return (authStore.user?.logisticsDataScope ?? 0) !== 4
 })
 
-/** 付款管理/收款管理：主部门 FinanceDataScope=4 时整组隐藏 */
+/** 付款管理/收款管理：主部门 FinanceDataScope=4 时整组隐藏；采购运营仍可见付款侧、商务助理仍可见收款侧 */
 const showFinanceMenus = computed(() => {
   if (isSysAdmin.value || hasBizDataBypass.value) return true
+  if (canAccessPurchaseOpsPaymentMenus(authStore.user)) return true
+  if (canAccessCommerceAssistantReceiptMenus(authStore.user)) return true
   return (authStore.user?.financeDataScope ?? 0) !== 4
 })
 

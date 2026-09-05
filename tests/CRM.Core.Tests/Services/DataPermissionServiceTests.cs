@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customer;
+using CRM.Core.Models.Finance;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
@@ -27,6 +28,8 @@ public sealed class DataPermissionServiceTests
             Substitute.For<IRepository<RFQItem>>(),
             Substitute.For<IRepository<CustomerInfo>>(),
             Substitute.For<IRepository<VendorInfo>>(),
+            Substitute.For<IRepository<SellOrder>>(),
+            Substitute.For<IRepository<FinanceReceiptItem>>(),
             Substitute.For<IPurchaseQuoterPoolService>(),
             relationMapService ?? Substitute.For<ISysRelationMapService>());
 
@@ -172,6 +175,8 @@ public sealed class DataPermissionServiceTests
             Substitute.For<IRepository<RFQItem>>(),
             Substitute.For<IRepository<CustomerInfo>>(),
             Substitute.For<IRepository<VendorInfo>>(),
+            Substitute.For<IRepository<SellOrder>>(),
+            Substitute.For<IRepository<FinanceReceiptItem>>(),
             Substitute.For<IPurchaseQuoterPoolService>(),
             relationMap);
 
@@ -281,5 +286,107 @@ public sealed class DataPermissionServiceTests
         Assert.Equal(2, result.Count);
         Assert.Contains(result, x => x.Id == "so-mapped");
         Assert.Contains(result, x => x.Id == "so-assistor");
+    }
+
+    [Fact]
+    public async Task FilterRFQsAsync_purchase_ops_operator_sees_all_rfqs_without_assigned_purchaser()
+    {
+        const string opsId = "cecip";
+
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync(opsId).Returns(new UserPermissionSummaryDto
+        {
+            UserId = opsId,
+            IdentityType = 3,
+            SaleDataScope = 4,
+            PurchaseDataScope = 3,
+            RoleCodes = new[] { "DEPT_EMPLOYEE", "purchase_ops_operator" }
+        });
+
+        var sut = CreateSut(rbac);
+        var source = new List<RFQListItem>
+        {
+            new() { Id = "rfq-1" },
+            new() { Id = "rfq-2" }
+        };
+
+        var result = await sut.FilterRFQsAsync(opsId, source);
+
+        Assert.Equal(2, result.Count);
+    }
+
+    [Fact]
+    public async Task FilterFinanceReceiptsAsync_commerce_assistant_finance_scope_none_still_sees_mapped_and_assistor()
+    {
+        const string assistantId = "cecis";
+        const string mappedSalesId = "alina";
+
+        var rbac = Substitute.For<IRbacService>();
+        rbac.GetUserPermissionSummaryAsync(assistantId).Returns(new UserPermissionSummaryDto
+        {
+            UserId = assistantId,
+            IdentityType = 4,
+            FinanceDataScope = 4,
+            SaleDataScope = 4,
+            RoleCodes = new[] { "DEPT_EMPLOYEE" }
+        });
+
+        var relationMap = Substitute.For<ISysRelationMapService>();
+        relationMap.GetMappedDestIdsAsync(SysRelationMapTypeCode.SalesAssistantToSalesperson, assistantId)
+            .Returns(new[] { mappedSalesId });
+
+        var receiptItemRepo = Substitute.For<IRepository<FinanceReceiptItem>>();
+        receiptItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<FinanceReceiptItem, bool>>>())
+            .Returns(call =>
+            {
+                var expr = call.Arg<System.Linq.Expressions.Expression<Func<FinanceReceiptItem, bool>>>();
+                var items = new List<FinanceReceiptItem>
+                {
+                    new() { FinanceReceiptId = "rc-assistor", SellOrderId = "so-assistor", IsDeleted = false }
+                };
+                var fn = expr.Compile();
+                return items.Where(fn).ToList();
+            });
+
+        var sellOrderRepo = Substitute.For<IRepository<SellOrder>>();
+        sellOrderRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<SellOrder, bool>>>())
+            .Returns(call =>
+            {
+                var expr = call.Arg<System.Linq.Expressions.Expression<Func<SellOrder, bool>>>();
+                var orders = new List<SellOrder>
+                {
+                    new() { Id = "so-assistor", Assistor = assistantId, SalesUserId = "other" }
+                };
+                var fn = expr.Compile();
+                return orders.Where(fn).ToList();
+            });
+
+        var sut = new DataPermissionService(
+            rbac,
+            Substitute.For<IRepository<RbacDepartment>>(),
+            Substitute.For<IRepository<RbacUserDepartment>>(),
+            Substitute.For<IRepository<RbacUserRole>>(),
+            Substitute.For<IRepository<RbacRole>>(),
+            Substitute.For<IRepository<RFQ>>(),
+            Substitute.For<IRepository<RFQItem>>(),
+            Substitute.For<IRepository<CustomerInfo>>(),
+            Substitute.For<IRepository<VendorInfo>>(),
+            sellOrderRepo,
+            receiptItemRepo,
+            Substitute.For<IPurchaseQuoterPoolService>(),
+            relationMap);
+
+        var source = new List<FinanceReceipt>
+        {
+            new() { Id = "rc-mapped", SalesUserId = mappedSalesId },
+            new() { Id = "rc-assistor", SalesUserId = "other" },
+            new() { Id = "rc-hidden", SalesUserId = "stranger" }
+        };
+
+        var result = await sut.FilterFinanceReceiptsAsync(assistantId, source);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(result, x => x.Id == "rc-mapped");
+        Assert.Contains(result, x => x.Id == "rc-assistor");
     }
 }

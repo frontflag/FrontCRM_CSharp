@@ -34,7 +34,11 @@ public sealed class FinanceFreightForwarderPayableListQuery : IFinanceFreightFor
                         || r.Status == FinanceReceiptStatusCode.LegacyApproved);
 
         q = await _dataPermissionService.ApplyFinanceReceiptListDataScopeAsync(
-            request.CurrentUserId, q, cancellationToken);
+            request.CurrentUserId,
+            q,
+            _db.SellOrders.AsNoTracking(),
+            _db.FinanceReceiptItems.AsNoTracking(),
+            cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.Keyword))
         {

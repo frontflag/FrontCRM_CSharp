@@ -27,7 +27,8 @@ internal static class SalesAnalyticsTodoReceivable
         // 与列表看板「待核销应收款」一致：Σ verified_to_be（仅待核销过滤不改变合计）
         var q = db.FinanceReceivables.AsNoTracking()
             .Where(r => !r.IsDeleted && r.VerifiedToBe > 0m);
-        q = await dataPermission.ApplyFinanceReceivableListDataScopeAsync(userId, q, cancellationToken);
+        q = await dataPermission.ApplyFinanceReceivableListDataScopeAsync(
+            userId, q, db.SellOrders.AsNoTracking(), cancellationToken);
         q = ApplyViewLens(db, q, scope);
 
         var rows = await (

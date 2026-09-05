@@ -169,18 +169,23 @@ namespace CRM.Core.Interfaces
 
         /// <summary>
         /// 将收款单列表销售数据范围套用到 <see cref="IQueryable{FinanceReceipt}"/>（与 <see cref="FilterFinanceReceiptsAsync"/> 一致：主表 <c>SalesUserId</c>，财务部不按业务员收窄）。
+        /// <paramref name="sellOrders"/> / <paramref name="receiptItems"/> 可选：商务助理跟单时按明细关联销售订单 <c>Assistor</c> 扩展可见范围。
         /// </summary>
         Task<IQueryable<FinanceReceipt>> ApplyFinanceReceiptListDataScopeAsync(
             string? userId,
             IQueryable<FinanceReceipt> receipts,
+            IQueryable<SellOrder>? sellOrders = null,
+            IQueryable<FinanceReceiptItem>? receiptItems = null,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 将应收款列表销售数据范围套用到 <see cref="IQueryable{FinanceReceivable}"/>（主表 <c>SalesUserId</c>）。
+        /// <paramref name="sellOrders"/> 可选：商务助理跟单时按 <c>SellOrderId</c> 关联 <c>Assistor</c> 扩展可见范围。
         /// </summary>
         Task<IQueryable<FinanceReceivable>> ApplyFinanceReceivableListDataScopeAsync(
             string? userId,
             IQueryable<FinanceReceivable> receivables,
+            IQueryable<SellOrder>? sellOrders = null,
             CancellationToken cancellationToken = default);
 
         Task<IQueryable<FinanceCustomerAdvance>> ApplyFinanceCustomerAdvanceListDataScopeAsync(

@@ -221,7 +221,8 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
     {
         var userId = scope.Summary.UserId;
         var q = _db.FinanceReceivables.AsNoTracking().Where(r => !r.IsDeleted);
-        q = await _dataPermission.ApplyFinanceReceivableListDataScopeAsync(userId, q, cancellationToken);
+        q = await _dataPermission.ApplyFinanceReceivableListDataScopeAsync(
+            userId, q, _db.SellOrders.AsNoTracking(), cancellationToken);
         q = ApplyReceivableViewLens(q, scope);
 
         var rows = await (
@@ -339,7 +340,12 @@ public sealed class FinanceAnalyticsQuery : IFinanceAnalyticsQuery
         CancellationToken cancellationToken)
     {
         var q = _db.FinanceReceipts.AsNoTracking().Where(r => !r.IsDeleted && r.Status == ReceiptReceived);
-        q = await _dataPermission.ApplyFinanceReceiptListDataScopeAsync(userId, q, cancellationToken);
+        q = await _dataPermission.ApplyFinanceReceiptListDataScopeAsync(
+            userId,
+            q,
+            _db.SellOrders.AsNoTracking(),
+            _db.FinanceReceiptItems.AsNoTracking(),
+            cancellationToken);
         q = ApplyReceiptViewLens(q, scope);
         q = q.Where(r => r.ReceiptDate >= dateFrom && r.ReceiptDate < dateEnd);
 

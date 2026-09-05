@@ -65,6 +65,7 @@ public sealed partial class FinanceReceivableListQuery : IFinanceReceivableListQ
         q = await _dataPermission.ApplyFinanceReceivableListDataScopeAsync(
             currentUserId,
             q,
+            _db.SellOrders.AsNoTracking(),
             cancellationToken);
         return await q.FirstOrDefaultAsync(cancellationToken);
     }
@@ -81,6 +82,7 @@ public sealed partial class FinanceReceivableListQuery : IFinanceReceivableListQ
         scopedReceivables = await _dataPermission.ApplyFinanceReceivableListDataScopeAsync(
             request.CurrentUserId,
             scopedReceivables,
+            _db.SellOrders.AsNoTracking(),
             cancellationToken);
 
         var q = from w in _db.FinanceReceivableWriteOffs.AsNoTracking()
@@ -159,6 +161,7 @@ public sealed partial class FinanceReceivableListQuery : IFinanceReceivableListQ
         q = await _dataPermission.ApplyFinanceReceivableListDataScopeAsync(
             request.CurrentUserId,
             q,
+            _db.SellOrders.AsNoTracking(),
             cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(request.CustomerId))

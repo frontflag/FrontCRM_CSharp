@@ -20,6 +20,8 @@ internal static class FinanceReceiptListFilter
         q = await dataPermission.ApplyFinanceReceiptListDataScopeAsync(
             request?.CurrentUserId,
             q,
+            db.SellOrders.AsNoTracking(),
+            db.FinanceReceiptItems.AsNoTracking(),
             cancellationToken);
 
         if (request == null)

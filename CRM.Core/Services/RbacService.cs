@@ -1,6 +1,7 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Rbac;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services
 {
@@ -189,6 +190,16 @@ namespace CRM.Core.Services
                 AddPermissionCodeIfMissing(permissionCodes, "purchase.amount.read");
             }
 
+            // 采购运营职员：付款/进项发票菜单与列表（主部门 FinanceDataScope=4 时仍须可见付款管理）
+            if (!hasManagementAccessEarly
+                && purchaseScope != 4
+                && roleCodes.Any(c =>
+                    string.Equals(c?.Trim(), PurchaseOpsSharedListScopeRules.PurchaseOpsOperatorRoleCode, StringComparison.OrdinalIgnoreCase)))
+            {
+                AddPermissionCodeIfMissing(permissionCodes, "finance-payment.read");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-purchase-invoice.read");
+            }
+
             // 主部门身份为销售（IdentityType=1）时合并客户读写：DEPT_EMPLOYEE 种子常仅有 customer.read，
             // 无 customer.write 时「新建客户」路由与 API 会被拒绝。
             // 同理合并销售订单读写：种子中 DEPT_EMPLOYEE 常仅有 sales-order.read，无 write 则无法进入「新建销售订单」路由与写接口。
@@ -215,6 +226,9 @@ namespace CRM.Core.Services
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.read");
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.write");
                 AddPermissionCodeIfMissing(permissionCodes, "rfq.create");
+                // 商务助理：收款侧只读（主部门 FinanceDataScope=4 时仍须菜单与列表；不写付款/进项）
+                AddPermissionCodeIfMissing(permissionCodes, "finance-receipt.read");
+                AddPermissionCodeIfMissing(permissionCodes, "finance-sell-invoice.read");
             }
 
             // 主部门为财务（5，含 IdentityType=0 时按部门名称推断为财务）：DEPT_EMPLOYEE 种子常仅有 finance-*.read，
