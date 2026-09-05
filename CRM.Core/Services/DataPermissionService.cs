@@ -611,6 +611,38 @@ namespace CRM.Core.Services
                 || x.Assistor == userId);
         }
 
+        /// <inheritdoc />
+        public async Task<IQueryable<CustomerQuote>> ApplyCustomerQuoteListDataScopeAsync(
+            string? userId,
+            IQueryable<CustomerQuote> query,
+            CancellationToken cancellationToken = default)
+        {
+            _ = cancellationToken;
+            if (string.IsNullOrWhiteSpace(userId))
+                return query;
+
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            if (summary.HasBizDataBypass)
+                return query;
+            if (BusinessDepartmentRules.UseCommerceAssistantMappedSalespersonScope(summary))
+            {
+                var mapped = (await GetCommerceAssistantMappedSalesUserIdsAsync(userId)).ToList();
+                if (mapped.Count == 0)
+                    return query.Where(_ => false);
+                return query.Where(x => x.SalesUserId != null && mapped.Contains(x.SalesUserId));
+            }
+
+            if (summary.SaleDataScope == 0)
+                return query;
+            if (summary.SaleDataScope == 4)
+                return query.Where(_ => false);
+            if (summary.SaleDataScope == 1)
+                return query.Where(x => x.SalesUserId == userId);
+
+            var allowUserIds = await GetAllowedUserIdsAsync(summary, includeChildren: summary.SaleDataScope == 3);
+            return query.Where(x => x.SalesUserId != null && allowUserIds.Contains(x.SalesUserId));
+        }
+
         private static bool IsSellOrderAssistor(SellOrder order, string userId) =>
             !string.IsNullOrWhiteSpace(order.Assistor)
             && string.Equals(order.Assistor.Trim(), userId, StringComparison.OrdinalIgnoreCase);

@@ -651,6 +651,25 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/RFQ/QuoteDetail.vue'),
         meta: { requiresAuth: true, title: '报价单详情' }
       },
+      // 客户报价单（M1：草稿 / 列表 / 编辑）
+      {
+        path: 'customer-quote-drafts',
+        name: 'CustomerQuoteDraftList',
+        component: () => import('@/views/Sales/CustomerQuoteDraftList.vue'),
+        meta: { requiresAuth: true, title: '客户报价单草稿', permission: 'customer-quote.read' }
+      },
+      {
+        path: 'customer-quotes',
+        name: 'CustomerQuoteList',
+        component: () => import('@/views/Sales/CustomerQuoteList.vue'),
+        meta: { requiresAuth: true, title: '客户报价单', permission: 'customer-quote.read' }
+      },
+      {
+        path: 'customer-quotes/:id/edit',
+        name: 'CustomerQuoteEdit',
+        component: () => import('@/views/Sales/CustomerQuoteEdit.vue'),
+        meta: { requiresAuth: true, title: '编辑客户报价单', permission: 'customer-quote.read' }
+      },
       // 采购订单 / 采购申请（meta.permission 与 RbacService 销售主部门剥离一致）
       {
         path: 'purchase-orders',

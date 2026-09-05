@@ -74,6 +74,9 @@ namespace CRM.Infrastructure.Data
         // ===== 报价模块 =====
         public DbSet<Quote> Quotes { get; set; } = null!;
         public DbSet<QuoteItem> QuoteItems { get; set; } = null!;
+        public DbSet<CustomerQuoteDraft> CustomerQuoteDrafts { get; set; } = null!;
+        public DbSet<CustomerQuote> CustomerQuotes { get; set; } = null!;
+        public DbSet<CustomerQuoteItem> CustomerQuoteItems { get; set; } = null!;
 
         // ===== 销售订单模块 =====
         public DbSet<SellOrder> SellOrders { get; set; } = null!;
@@ -280,6 +283,40 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.QuoteId);
             });
 
+            modelBuilder.Entity<CustomerQuoteDraft>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("CustomerQuoteDraftId");
+                entity.HasIndex(e => e.SourceQuoteItemId).IsUnique();
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+            });
+
+            modelBuilder.Entity<CustomerQuote>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("CustomerQuoteId");
+                entity.HasIndex(e => new { e.CustomerQuoteCode, e.VersionNo }).IsUnique();
+                entity.Property(e => e.ProfitFactor).HasColumnType("numeric(8,2)").HasDefaultValue(1.00m);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasMany(e => e.Items)
+                    .WithOne(i => i.CustomerQuote)
+                    .HasForeignKey(i => i.CustomerQuoteId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CustomerQuoteItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("CustomerQuoteItemId");
+                entity.Property(e => e.Quantity).HasColumnType("numeric(18,4)");
+                entity.Property(e => e.PurchasePrice).HasColumnType("numeric(18,6)");
+                entity.Property(e => e.SendPrice).HasColumnType("numeric(18,6)");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+            });
+
             // ===== 销售订单模块配置 =====
             modelBuilder.Entity<SellOrder>(entity =>
             {
@@ -483,6 +520,9 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<RFQItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<Quote>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<QuoteItem>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<CustomerQuoteDraft>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<CustomerQuote>().HasQueryFilter(e => !e.IsDeleted);
+            modelBuilder.Entity<CustomerQuoteItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<SellOrder>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<SellOrderItem>().HasQueryFilter(e => !e.IsDeleted);
             modelBuilder.Entity<PurchaseOrder>().HasQueryFilter(e => !e.IsDeleted);

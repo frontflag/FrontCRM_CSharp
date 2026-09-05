@@ -38,6 +38,7 @@ namespace CRM.Core.Interfaces
         public const string Vendor = "Vendor";               // 供应商 VEN
         public const string RFQ = "RFQ";                     // 询价/需求 RFQ
         public const string Quotation = "Quotation";         // 报价 QUO
+        public const string CustomerQuote = "CustomerQuote"; // 客户报价单 CQ
         public const string SalesOrder = "SalesOrder";       // 销售订单 SO
         public const string PurchaseOrder = "PurchaseOrder"; // 采购订单 PO
         public const string StockIn = "StockIn";             // 入库 STI

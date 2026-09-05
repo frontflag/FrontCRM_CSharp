@@ -487,6 +487,18 @@
               class="submenu-item"
               active-class="active"
             >{{ t('layout.menu.salesOrderItems') }}</router-link>
+            <router-link
+              v-if="hasPermission('customer-quote.read')"
+              to="/customer-quotes"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.customerQuotes') }}</router-link>
+            <router-link
+              v-if="hasPermission('customer-quote.read')"
+              to="/customer-quote-drafts"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.customerQuoteDrafts') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 

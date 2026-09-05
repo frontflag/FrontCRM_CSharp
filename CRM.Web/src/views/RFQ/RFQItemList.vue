@@ -770,6 +770,16 @@
                       {{ t('quoteList.actions.delete') }}
                     </el-button>
                     <el-button
+                      v-if="!isRfqItemReference && canAddCustomerQuoteDraft"
+                      class="action-btn"
+                      link
+                      size="small"
+                      :loading="dockRowCustomerQuoteQuoteId === resolveQuoteRowId(row)"
+                      @click.stop="handleDockRowAddCustomerQuoteDraft(row)"
+                    >
+                      {{ t('rfqItemList.dockQuotes.addCustomerQuoteDraft') }}
+                    </el-button>
+                    <el-button
                       v-if="!isRfqItemReference"
                       class="action-btn action-btn--warning"
                       link
@@ -802,6 +812,12 @@
                         @click.stop="handleDeleteDockQuote(row)"
                       >
                         <span class="op-more-item op-more-item--danger">{{ t('quoteList.actions.delete') }}</span>
+                      </el-dropdown-item>
+                      <el-dropdown-item
+                        v-if="!isRfqItemReference && canAddCustomerQuoteDraft"
+                        @click.stop="handleDockRowAddCustomerQuoteDraft(row)"
+                      >
+                        <span class="op-more-item">{{ t('rfqItemList.dockQuotes.addCustomerQuoteDraft') }}</span>
                       </el-dropdown-item>
                       <el-dropdown-item v-if="!isRfqItemReference" @click.stop="handleDockRowGenerateSalesOrder(row)">
                         <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.dockQuotes.genSalesOrder') }}</span>
@@ -1043,6 +1059,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
 import { rfqApi, type RfqItemDeletedQuoteRow, splitRfqDeletedQuoteMultiline, splitRfqDeletedQuoteAlignLines, formatRfqDeletedQuotePriceLine } from '@/api/rfq'
 import { quoteApi } from '@/api/quote'
+import { customerQuoteApi } from '@/api/customerQuote'
 import { buildLinkAlertFieldsFromItem, fetchLinkedRfqItemRecord } from '@/utils/rfqLinkedItemSummary'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { RFQItemStatus, type RFQItem } from '@/types/rfq'
@@ -1135,6 +1152,7 @@ const canOpenRfqItemReference = computed(
   () => authStore.hasPermission('rfq.read') && canAccessRfqItemReference(authStore.user)
 )
 const canEditRfq = computed(() => authStore.hasPermission('rfq.write'))
+const canAddCustomerQuoteDraft = computed(() => authStore.hasPermission('customer-quote.write'))
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
@@ -1860,6 +1878,7 @@ const expandDeletedQuotesAfterDelete = ref(false)
 let deletedQuotesBoundItemId = ''
 /** 正在预检并跳转生成销售订单的报价行 id（行内按钮 loading） */
 const dockRowSalesOrderQuoteId = ref<string | null>(null)
+const dockRowCustomerQuoteQuoteId = ref<string | null>(null)
 
 /** 每条需求明细对应的报价单数量（报价头 rfqItemId 与明细 id 一致） */
 const quoteRecordCountByRfqItemId = ref<Record<string, number>>({})
@@ -2651,6 +2670,26 @@ async function handleCopyDockQuote(row: Record<string, unknown>) {
     return
   }
   ElMessage.error(t('quoteList.actions.copyFailed'))
+}
+
+async function handleDockRowAddCustomerQuoteDraft(row: Record<string, unknown>) {
+  if (isRfqItemReference.value) return
+  const id = resolveQuoteRowId(row)
+  if (!id) {
+    ElMessage.warning('无法识别报价主键')
+    return
+  }
+  dockRowCustomerQuoteQuoteId.value = id
+  try {
+    const result = await customerQuoteApi.addDraft({ quoteId: id })
+    const count = Array.isArray(result) ? result.length : 1
+    ElMessage.success(t('rfqItemList.dockQuotes.addCustomerQuoteDraftSuccess', { count }))
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || t('rfqItemList.dockQuotes.addCustomerQuoteDraftFailed'))
+  } finally {
+    dockRowCustomerQuoteQuoteId.value = null
+  }
 }
 
 async function handleDockRowGenerateSalesOrder(row: Record<string, unknown>) {

@@ -55,6 +55,12 @@ namespace CRM.Core.Interfaces
             IQueryable<SellOrder> query,
             CancellationToken cancellationToken = default);
 
+        /// <summary>客户报价单列表：按 <see cref="CustomerQuote.SalesUserId"/> 套用销售数据范围。</summary>
+        Task<IQueryable<CustomerQuote>> ApplyCustomerQuoteListDataScopeAsync(
+            string? userId,
+            IQueryable<CustomerQuote> query,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// 将需求主表列表数据范围套用到 <see cref="IQueryable{RFQ}"/>（与 <see cref="FilterRFQsAsync"/> 规则一致：
         /// 销售数据范围命中主表业务员，或采购数据范围命中该需求下任一条明细的分配采购员）。

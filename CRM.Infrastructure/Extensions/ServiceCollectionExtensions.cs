@@ -7,6 +7,7 @@ using CRM.Infrastructure.SalesOrders;
 using CRM.Infrastructure.Quotes;
 using CRM.Infrastructure.Customs;
 using CRM.Infrastructure.Customers;
+using CRM.Infrastructure.CustomerQuotes;
 using CRM.Infrastructure.Vendors;
 using CRM.Infrastructure.PurchaseRequisitions;
 using CRM.Infrastructure.Logistics;
@@ -99,6 +100,7 @@ namespace CRM.Infrastructure.Extensions
 
             // 注册流水号服务和错误日志服务
             services.AddScoped<ISerialNumberService, SerialNumberService>();
+            services.AddScoped<ICustomerQuoteService, CustomerQuoteService>();
             services.AddScoped<IBatchGlobalNumberService, BatchGlobalNumberService>();
             services.AddScoped<ISellOrderExtendLineSeqService, SellOrderExtendLineSeqService>();
             services.AddScoped<IPurchaseOrderExtendLineSeqService, PurchaseOrderExtendLineSeqService>();
