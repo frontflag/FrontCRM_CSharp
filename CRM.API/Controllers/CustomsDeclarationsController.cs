@@ -70,20 +70,8 @@ public class CustomsDeclarationsController : ControllerBase
             var codeQ = (declarationCode ?? string.Empty).Trim();
             var sorQ = (stockOutRequestId ?? string.Empty).Trim();
 
-            var dq = _db.CustomsDeclarations.AsNoTracking();
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!string.IsNullOrWhiteSpace(userId))
-            {
-                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
-                if (!CustomsModuleAccessRules.BypassLogisticsDataScopeForCustomsList(summary))
-                {
-                    dq = await _dataPermissionService.ApplyLogisticsCreatorUserScopeAsync(
-                        userId,
-                        dq,
-                        d => d.CreateByUserId,
-                        CancellationToken.None);
-                }
-            }
+            var dq = await BuildReadableDeclarationsQueryAsync(userId);
 
             if (!string.IsNullOrEmpty(codeQ))
                 dq = dq.Where(d => EF.Functions.ILike(d.DeclarationCode, $"%{codeQ}%"));
@@ -184,12 +172,12 @@ public class CustomsDeclarationsController : ControllerBase
         if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
             return StatusCode(403, ApiResponse<CustomsDeclarationDetailViewDto>.Fail("当前账号无权访问报关模块", 403));
 
-        var key = id.Trim();
-        var row = await _db.CustomsDeclarations.AsNoTracking()
-            .Include(x => x.Items.Where(i => !i.IsDeleted))
-            .FirstOrDefaultAsync(x => x.Id == key);
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var (row, notFoundMessage) = await LoadReadableDeclarationAsync(id, userId);
         if (row == null)
-            return NotFound(ApiResponse<CustomsDeclarationDetailViewDto>.Fail("报关单不存在", 404));
+            return NotFound(ApiResponse<CustomsDeclarationDetailViewDto>.Fail(notFoundMessage ?? "报关单不存在", 404));
+
+        var key = row.Id;
 
         var broker = await _db.CustomsBrokers.AsNoTracking()
             .IgnoreQueryFilters()
@@ -652,5 +640,46 @@ public class CustomsDeclarationsController : ControllerBase
             _logger.LogError(ex, "强制删除报关单失败");
             return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
         }
+    }
+
+    /// <summary>可读列表/详情：排除软删，并与列表一致套用物流创建人数据范围。</summary>
+    private async Task<IQueryable<CustomsDeclaration>> BuildReadableDeclarationsQueryAsync(string? userId)
+    {
+        var dq = _db.CustomsDeclarations.AsNoTracking().Where(d => !d.IsDeleted);
+        if (string.IsNullOrWhiteSpace(userId))
+            return dq;
+
+        var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+        if (CustomsModuleAccessRules.BypassLogisticsDataScopeForCustomsList(summary))
+            return dq;
+
+        return await _dataPermissionService.ApplyLogisticsCreatorUserScopeAsync(
+            userId,
+            dq,
+            d => d.CreateByUserId,
+            CancellationToken.None);
+    }
+
+    private async Task<(CustomsDeclaration? Row, string? NotFoundMessage)> LoadReadableDeclarationAsync(
+        string id,
+        string? userId)
+    {
+        var key = id.Trim();
+        var dq = await BuildReadableDeclarationsQueryAsync(userId);
+        var row = await dq
+            .Include(x => x.Items.Where(i => !i.IsDeleted))
+            .FirstOrDefaultAsync(x => x.Id == key);
+        if (row != null)
+            return (row, null);
+
+        var tombstone = await _db.CustomsDeclarations.AsNoTracking()
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(x => x.Id == key);
+        if (tombstone == null)
+            return (null, "报关单不存在");
+        if (tombstone.IsDeleted)
+            return (null, "报关单已删除");
+
+        return (null, "报关单不存在或无权查看");
     }
 }

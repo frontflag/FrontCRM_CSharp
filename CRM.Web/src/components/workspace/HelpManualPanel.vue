@@ -360,6 +360,34 @@ watch(
   color: $text-primary;
 }
 
+/* 页面说明：编号单独一列，正文折行与首行文字左对齐 */
+.help-md :deep(.help-desc-list) {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.help-md :deep(.help-desc-item) {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 6px;
+  align-items: start;
+}
+
+.help-md :deep(.help-desc-no) {
+  font-size: 12px;
+  line-height: 1.55;
+  color: $text-secondary;
+  white-space: nowrap;
+}
+
+.help-md :deep(.help-desc-text) {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: $text-secondary;
+}
+
 /* 操作说明 Key:Value — Key 琥珀色 */
 .help-md :deep(.help-kv-key) {
   font-size: 13px;
