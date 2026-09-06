@@ -127,20 +127,10 @@ export const quoteListBoardDefsZh = {
       dataSource: '报价列表',
       text: '按报价上的物料型号汇总报价主单条数，降序取前 10。'
     },
-    mpnByQty: {
-      chart: 'MPN Top10（需求数量）',
-      dataSource: '报价列表',
-      text: '按型号关联需求明细的需求数量汇总，降序取前 10。'
-    },
     brandByQuoteCount: {
       chart: '品牌 Top10（报价条数）',
       dataSource: '报价列表',
       text: '按报价首条行品牌汇总报价主单条数，降序取前 10。'
-    },
-    brandByQty: {
-      chart: '品牌 Top10（需求数量）',
-      dataSource: '报价列表',
-      text: '按首条品牌关联需求明细的需求数量汇总，降序取前 10。'
     }
   }
 }

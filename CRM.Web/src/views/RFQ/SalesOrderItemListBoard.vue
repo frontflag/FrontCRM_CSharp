@@ -76,18 +76,11 @@ interface RankingTableConfig {
 const rankingTablesAll: RankingTableConfig[] = [
   { key: 'customer', titleKey: 'customerByAmount', dataKey: 'customerByAmount', countKind: 'line' },
   { key: 'pnAmount', titleKey: 'pnByAmount', dataKey: 'pnByAmount', countKind: 'line' },
-  { key: 'pnQty', titleKey: 'pnByQty', dataKey: 'pnByQty', countKind: 'qty' },
   { key: 'brandAmount', titleKey: 'brandByAmount', dataKey: 'brandByAmount', countKind: 'line' },
-  { key: 'brandQty', titleKey: 'brandByQty', dataKey: 'brandByQty', countKind: 'qty' },
   { key: 'salesUser', titleKey: 'salesUserByAmount', dataKey: 'salesUserByAmount', countKind: 'line' }
 ]
 
-/** 报表订单 Tab 仅 4 个 Top10（金额/交易频次）；列表看板保留数量维。 */
-const rankingTables = computed(() =>
-  isReportMode.value
-    ? rankingTablesAll.filter((t) => t.countKind === 'line')
-    : rankingTablesAll
-)
+const rankingTables = computed(() => rankingTablesAll)
 
 const maskAmounts = computed(() => dashboard.value?.context.maskAmounts === true)
 
@@ -95,16 +88,11 @@ const effectiveRankingMetricMode = computed<'amount' | 'count'>(() =>
   maskAmounts.value ? 'count' : rankingMetricMode.value
 )
 
-const rankingCountModeLabel = computed(() =>
-  isReportMode.value ? tt('rankings.transactionFrequency') : tt('rankings.lineCount')
-)
+const rankingCountModeLabel = computed(() => tt('rankings.transactionFrequency'))
 
 function rankingQueryParams(): Pick<SalesAnalyticsQuery, 'rankingSort' | 'rankingLineMetric'> {
   if (effectiveRankingMetricMode.value === 'amount') {
     return { rankingSort: 'amount' }
-  }
-  if (isReportMode.value) {
-    return { rankingSort: 'count', rankingLineMetric: 'transactions' }
   }
   return { rankingSort: 'count', rankingLineMetric: 'lines' }
 }
@@ -120,17 +108,15 @@ function rankingRowsFor(config: RankingTableConfig): SalesOrderItemListAnalytics
 
 function rankingCountLabel(kind: RankingCountKind): string {
   if (kind === 'qty') return tt('rankings.qty')
-  if (isReportMode.value) return tt('rankings.transactionFrequency')
-  return tt('rankings.lineCount')
+  return tt('rankings.transactionFrequency')
 }
 
 function rankingMetricHeaderLabel(kind: RankingCountKind): string {
   return effectiveRankingMetricMode.value === 'amount' ? tt('rankings.amount') : rankingCountLabel(kind)
 }
 
-function formatRankingMetric(row: SalesOrderItemListAnalyticsRankingRow, kind: RankingCountKind): string {
+function formatRankingMetric(row: SalesOrderItemListAnalyticsRankingRow): string {
   if (effectiveRankingMetricMode.value === 'amount') return formatMoney(row.amount)
-  if (kind === 'line' && isReportMode.value) return String(row.transactionCount ?? 0)
   return String(row.orderCount ?? 0)
 }
 
@@ -635,7 +621,7 @@ defineExpose({ reload: () => loadData(true) })
                 </button>
               </template>
               <template #default="{ row }">
-                <span class="ranking-metric-value">{{ formatRankingMetric(row, table.countKind) }}</span>
+                <span class="ranking-metric-value">{{ formatRankingMetric(row) }}</span>
               </template>
             </el-table-column>
           </el-table>

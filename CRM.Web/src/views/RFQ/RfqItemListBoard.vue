@@ -391,13 +391,6 @@ defineExpose({ reload: () => loadData(true) })
         </el-table>
       </div>
       <div class="card ranking-panel">
-        <AnalyticsPanelHeader :title="tt('rankings.mpnByQty')" v-bind="def('rankings.mpnByQty')" />
-        <el-table :data="rankings?.mpnByQty ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="tt('rankings.name')" />
-          <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
-        </el-table>
-      </div>
-      <div class="card ranking-panel">
         <AnalyticsPanelHeader
           :title="tt('rankings.brandByLineCount')"
           v-bind="def('rankings.brandByLineCount')"
@@ -405,13 +398,6 @@ defineExpose({ reload: () => loadData(true) })
         <el-table :data="rankings?.brandByLineCount ?? []" size="small" stripe>
           <el-table-column prop="name" :label="tt('rankings.name')" />
           <el-table-column prop="orderCount" :label="tt('rankings.lineCount')" width="100" />
-        </el-table>
-      </div>
-      <div class="card ranking-panel">
-        <AnalyticsPanelHeader :title="tt('rankings.brandByQty')" v-bind="def('rankings.brandByQty')" />
-        <el-table :data="rankings?.brandByQty ?? []" size="small" stripe>
-          <el-table-column prop="name" :label="tt('rankings.name')" />
-          <el-table-column prop="orderCount" :label="tt('rankings.qty')" width="100" />
         </el-table>
       </div>
     </div>

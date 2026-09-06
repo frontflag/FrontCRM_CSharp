@@ -127,20 +127,10 @@ export const quoteListBoardDefsEn = {
       dataSource: 'Quote list',
       text: 'Top 10 MPNs by quote header count.'
     },
-    mpnByQty: {
-      chart: 'Top 10 MPNs (RFQ qty)',
-      dataSource: 'Quote list',
-      text: 'Top 10 MPNs by linked RFQ requested quantity.'
-    },
     brandByQuoteCount: {
       chart: 'Top 10 brands (quotes)',
       dataSource: 'Quote list',
       text: 'Top 10 brands by quote header count (first line brand).'
-    },
-    brandByQty: {
-      chart: 'Top 10 brands (RFQ qty)',
-      dataSource: 'Quote list',
-      text: 'Top 10 brands by linked RFQ requested quantity.'
     }
   }
 }

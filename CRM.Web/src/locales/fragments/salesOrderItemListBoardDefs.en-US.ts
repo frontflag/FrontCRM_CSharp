@@ -126,9 +126,9 @@ export const salesOrderItemListBoardDefsEn = {
       text: 'Amount (or line count) by transaction currency.'
     },
     brandQty: {
-      chart: 'Brand qty',
+      chart: 'Brand transactions',
       dataSource: 'Sales order items',
-      text: 'Quantity summed by brand.'
+      text: 'Line count (transaction frequency) by brand.'
     },
     brandAmount: {
       chart: 'Brand amount (USD)',
@@ -150,32 +150,22 @@ export const salesOrderItemListBoardDefsEn = {
     customerByAmount: {
       chart: 'Top 10 customers (amount)',
       dataSource: 'Sales order items',
-      text: 'Top 10 customers by converted USD (or line count); toggle amount / line count.'
+      text: 'Top 10 customers by converted USD (or transaction count); toggle amount / transactions.'
     },
     pnByAmount: {
       chart: 'Top 10 MPN (amount)',
       dataSource: 'Sales order items',
-      text: 'Top 10 MPNs by converted USD (or line count); toggle amount / line count.'
-    },
-    pnByQty: {
-      chart: 'Top 10 MPN (qty)',
-      dataSource: 'Sales order items',
-      text: 'Top 10 MPNs by quantity; qty column is independent of amount/line toggle.'
+      text: 'Top 10 MPNs by converted USD (or transaction count); toggle amount / transactions.'
     },
     brandByAmount: {
       chart: 'Top 10 brands (amount)',
       dataSource: 'Sales order items',
-      text: 'Top 10 brands by converted USD (or line count); toggle amount / line count.'
-    },
-    brandByQty: {
-      chart: 'Top 10 brands (qty)',
-      dataSource: 'Sales order items',
-      text: 'Top 10 brands by quantity; qty column is independent of amount/line toggle.'
+      text: 'Top 10 brands by converted USD (or transaction count); toggle amount / transactions.'
     },
     salesUserByAmount: {
       chart: 'Top 10 sales reps (amount)',
       dataSource: 'Sales order items',
-      text: 'Top 10 sales users by converted USD (or line count); toggle amount / line count.'
+      text: 'Top 10 sales users by converted USD (or transaction count); toggle amount / transactions.'
     }
   }
 }

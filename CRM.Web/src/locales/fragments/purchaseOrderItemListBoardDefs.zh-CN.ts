@@ -111,9 +111,9 @@ export const purchaseOrderItemListBoardDefsZh = {
       text: '按明细币别汇总金额（或行数）。'
     },
     brandQty: {
-      chart: '品牌数量（Qty）',
+      chart: '品牌交易频次',
       dataSource: '采购订单明细',
-      text: '按品牌汇总明细数量。'
+      text: '按品牌汇总明细行数（交易频次）。'
     },
     brandAmount: {
       chart: '品牌金额（USD）',
@@ -135,32 +135,22 @@ export const purchaseOrderItemListBoardDefsZh = {
     vendorByAmount: {
       chart: '供应商 Top10（金额）',
       dataSource: '采购订单明细',
-      text: '按供应商汇总明细折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
+      text: '按供应商汇总明细折算美元金额（或交易频次）降序前 10；可在金额/交易频次间切换。'
     },
     pnByAmount: {
       chart: '物料 Top10（金额）',
       dataSource: '采购订单明细',
-      text: '按物料型号汇总折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
-    },
-    pnByQty: {
-      chart: '物料 Top10（数量）',
-      dataSource: '采购订单明细',
-      text: '按物料型号汇总数量降序前 10；列显示数量，不受金额/明细数切换影响。'
+      text: '按物料型号汇总折算美元金额（或交易频次）降序前 10；可在金额/交易频次间切换。'
     },
     brandByAmount: {
       chart: '品牌 Top10（金额）',
       dataSource: '采购订单明细',
-      text: '按品牌汇总折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
-    },
-    brandByQty: {
-      chart: '品牌 Top10（数量）',
-      dataSource: '采购订单明细',
-      text: '按品牌汇总数量降序前 10；列显示数量，不受金额/明细数切换影响。'
+      text: '按品牌汇总折算美元金额（或交易频次）降序前 10；可在金额/交易频次间切换。'
     },
     purchaseUserByAmount: {
       chart: '采购员 Top10（金额）',
       dataSource: '采购订单明细',
-      text: '按采购员汇总折算美元金额（或明细数）降序前 10；可在金额/明细数间切换。'
+      text: '按采购员汇总折算美元金额（或交易频次）降序前 10；可在金额/交易频次间切换。'
     }
   }
 }

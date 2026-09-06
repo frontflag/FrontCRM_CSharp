@@ -112,20 +112,10 @@ export const rfqItemListBoardDefsZh = {
       dataSource: '需求明细',
       text: '按物料型号汇总需求明细行数，降序取前 10；空型号显示「未设置」。'
     },
-    mpnByQty: {
-      chart: 'MPN Top10（需求数量）',
-      dataSource: '需求明细',
-      text: '按物料型号汇总明细需求数量，降序取前 10。'
-    },
     brandByLineCount: {
       chart: '品牌 Top10（需求明细数）',
       dataSource: '需求明细',
       text: '按品牌汇总需求明细行数，降序取前 10；空品牌显示「未设置」。'
-    },
-    brandByQty: {
-      chart: '品牌 Top10（需求数量）',
-      dataSource: '需求明细',
-      text: '按品牌汇总明细需求数量，降序取前 10。'
     }
   }
 }

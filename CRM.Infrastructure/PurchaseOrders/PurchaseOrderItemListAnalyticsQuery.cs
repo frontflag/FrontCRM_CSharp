@@ -182,7 +182,7 @@ public sealed partial class PurchaseOrderItemListQuery
             metricRows,
             r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!.Trim(),
             r => string.IsNullOrWhiteSpace(r.Brand) ? "未设置" : r.Brand!.Trim(),
-            r => r.Qty,
+            r => 1m,
             maskAmounts: false,
             useSum: true);
 
@@ -197,7 +197,7 @@ public sealed partial class PurchaseOrderItemListQuery
             metricRows,
             r => string.IsNullOrWhiteSpace(r.DateCode) ? "_unset" : r.DateCode!.Trim(),
             r => string.IsNullOrWhiteSpace(r.DateCode) ? "未设置" : r.DateCode!.Trim(),
-            r => r.Qty,
+            r => 1m,
             maskAmounts: false,
             useSum: true);
 
@@ -224,7 +224,7 @@ public sealed partial class PurchaseOrderItemListQuery
             new() { GroupKey = "stockInProgress", GroupLabel = "入库进度" + progressSuffix, Items = stockInItems },
             new() { GroupKey = "invoiceProgress", GroupLabel = "开票进度" + progressSuffix, Items = invoiceItems },
             new() { GroupKey = "currency", GroupLabel = "币别构成" + progressSuffix, Items = currencyItems },
-            new() { GroupKey = "brandQty", GroupLabel = "品牌数量" + (progressSuffix.Length > 0 ? "（成单 Qty）" : "（Qty）"), Items = brandQtyItems },
+            new() { GroupKey = "brandQty", GroupLabel = "品牌交易频次" + (progressSuffix.Length > 0 ? "（成单）" : string.Empty), Items = brandQtyItems },
             new() { GroupKey = "brandAmount", GroupLabel = "品牌金额" + (progressSuffix.Length > 0 ? "（成单 USD）" : "（USD）"), Items = brandAmountItems },
             new() { GroupKey = "dateCode", GroupLabel = "生产日期/DC" + progressSuffix, Items = dateCodeItems },
             new() { GroupKey = "purchaseUser", GroupLabel = "采购员" + (progressSuffix.Length > 0 ? "（成单 USD）" : "（USD）"), Items = purchaseUserItems }

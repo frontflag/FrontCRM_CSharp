@@ -112,20 +112,10 @@ export const rfqItemListBoardDefsEn = {
       dataSource: 'RFQ items',
       text: 'Top 10 MPNs by RFQ line count; empty as Unset.'
     },
-    mpnByQty: {
-      chart: 'Top 10 MPNs (by quantity)',
-      dataSource: 'RFQ items',
-      text: 'Top 10 MPNs by requested quantity.'
-    },
     brandByLineCount: {
       chart: 'Top 10 brands (by lines)',
       dataSource: 'RFQ items',
       text: 'Top 10 brands by RFQ line count; empty as Unset.'
-    },
-    brandByQty: {
-      chart: 'Top 10 brands (by quantity)',
-      dataSource: 'RFQ items',
-      text: 'Top 10 brands by requested quantity.'
     }
   }
 }
