@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using CRM.Core.Interfaces;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Models.Quote;
 
@@ -57,6 +58,10 @@ public class CustomerQuote : BaseGuidEntity, ISoftDeletable
     [Column("sent_by_email")]
     public bool SentByEmail { get; set; }
 
+    [StringLength(2000)]
+    [Column("remark")]
+    public string? Remark { get; set; }
+
     [StringLength(36)]
     [Column("previous_version_id")]
     public string? PreviousVersionId { get; set; }
@@ -79,7 +84,14 @@ public class CustomerQuote : BaseGuidEntity, ISoftDeletable
     public string? SalesUserName { get; set; }
 
     [NotMapped]
-    public string DisplayCode => $"{CustomerQuoteCode}-{VersionNo}";
+    public string? CreateByUserName { get; set; }
+
+    /// <summary>列表摘要：未删明细行数。</summary>
+    [NotMapped]
+    public int ItemCount { get; set; }
+
+    [NotMapped]
+    public string DisplayCode => CustomerQuoteGenerateRules.FormatDisplayCode(CustomerQuoteCode, VersionNo);
 
     public virtual ICollection<CustomerQuoteItem> Items { get; set; } = new List<CustomerQuoteItem>();
 }

@@ -62,7 +62,7 @@
     <div class="table-wrapper customer-quote-list-table-scroll" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="customer-quote-list-v2"
+        column-layout-key="customer-quote-list-v4"
         :columns="tableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -71,13 +71,31 @@
         highlight-current-row
         @row-dblclick="openEdit"
       >
-        <template #col-displayCode="{ row }">
-          <span class="quote-code-cell">{{ displayCode(row) }}</span>
-        </template>
         <template #col-status="{ row }">
           <el-tag effect="dark" size="small" :type="statusTagType(row.status)">
             {{ statusText(row.status) }}
           </el-tag>
+        </template>
+        <template #col-displayCode="{ row }">
+          <span class="quote-code-cell">{{ displayCode(row) }}</span>
+        </template>
+        <template #col-contactEmail="{ row }">
+          {{ dash(row.contactEmail) }}
+        </template>
+        <template #col-itemCount="{ row }">
+          {{ Number(row.itemCount ?? 0) }}
+        </template>
+        <template #col-sentAt="{ row }">
+          <template v-for="p in [formatDateTimeParts(row.sentAt)]" :key="`st-${row.id}`">
+            <span v-if="p" class="crm-quote-create-time">
+              <span class="crm-quote-create-time__ymd">{{ p.date }}</span>
+              <span class="crm-quote-create-time__hm">{{ p.time }}</span>
+            </span>
+            <span v-else>—</span>
+          </template>
+        </template>
+        <template #col-sentByEmail="{ row }">
+          {{ row.sentByEmail ? t('customerQuoteList.sentYes') : t('customerQuoteList.sentNo') }}
         </template>
         <template #col-createTime="{ row }">
           <template v-for="p in [formatDateTimeParts(row.createTime)]" :key="`ct-${row.id}`">
@@ -88,14 +106,74 @@
             <span v-else>—</span>
           </template>
         </template>
-        <template #col-profitFactor="{ row }">
-          {{ Number(row.profitFactor ?? 1).toFixed(2) }}
+        <template #col-createByUserName="{ row }">
+          {{ dash(row.createByUserName) }}
+        </template>
+        <template #col-actions-header>
+          <div class="list-op-col-header--icon-only">
+            <button
+              type="button"
+              class="op-col-toggle-btn list-op-col-toggle"
+              :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+              @click.stop="toggleOpCol"
+            >
+              {{ opColExpanded ? '>' : '<' }}
+            </button>
+          </div>
         </template>
         <template #col-actions="{ row }">
-          <div class="action-btns" @click.stop @dblclick.stop>
-            <el-button class="action-btn action-btn--primary" link type="primary" size="small" @click.stop="openEdit(row)">
-              {{ canEdit(row) ? t('common.edit') : t('common.view') }}
-            </el-button>
+          <div @click.stop @dblclick.stop>
+            <div v-if="opColExpanded" class="action-btns">
+              <button type="button" class="action-btn action-btn--primary" @click.stop="openEdit(row)">
+                {{ canEdit(row) ? t('common.edit') : t('common.view') }}
+              </button>
+              <button
+                v-if="canWrite"
+                type="button"
+                class="action-btn action-btn--danger"
+                :disabled="!canMutateUnsent(row) || mutatingId === row.id"
+                @click.stop="handleDelete(row)"
+              >
+                {{ t('customerQuoteList.delete') }}
+              </button>
+              <button
+                v-if="canWrite"
+                type="button"
+                class="action-btn action-btn--primary"
+                :disabled="!canMutateUnsent(row) || mutatingId === row.id"
+                @click.stop="handleMarkSent(row)"
+              >
+                {{ t('customerQuoteList.markSent') }}
+              </button>
+            </div>
+            <el-dropdown v-else trigger="click" placement="bottom-end">
+              <div class="op-more-dropdown-trigger">
+                <button type="button" class="op-more-trigger">...</button>
+              </div>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item @click.stop="openEdit(row)">
+                    <span class="op-more-item op-more-item--primary">
+                      {{ canEdit(row) ? t('common.edit') : t('common.view') }}
+                    </span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canWrite"
+                    :disabled="!canMutateUnsent(row) || mutatingId === row.id"
+                    @click.stop="handleDelete(row)"
+                  >
+                    <span class="op-more-item op-more-item--danger">{{ t('customerQuoteList.delete') }}</span>
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canWrite"
+                    :disabled="!canMutateUnsent(row) || mutatingId === row.id"
+                    @click.stop="handleMarkSent(row)"
+                  >
+                    <span class="op-more-item op-more-item--primary">{{ t('customerQuoteList.markSent') }}</span>
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </div>
         </template>
       </CrmDataTable>
@@ -135,7 +213,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Setting } from '@element-plus/icons-vue'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -143,6 +221,11 @@ import { customerQuoteApi, type CustomerQuoteRow } from '@/api/customerQuote'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { formatCustomerQuoteDisplayCode } from '@/utils/customerQuoteDisplay'
+import {
+  LIST_OP_COL_COLLAPSED_WIDTH,
+  LIST_OP_COL_EXPANDED_MIN_WIDTH
+} from '@/constants/listOpColumnSpec'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -150,6 +233,7 @@ const authStore = useAuthStore()
 const canWrite = computed(() => authStore.hasPermission('customer-quote.write'))
 
 const loading = ref(false)
+const mutatingId = ref<string | null>(null)
 const rows = ref<CustomerQuoteRow[]>([])
 const keyword = ref('')
 const statusFilter = ref<number | undefined>(undefined)
@@ -158,26 +242,45 @@ const totalCount = computed(() => pageInfo.value.total)
 const dataTableRef = ref<InstanceType<typeof CrmDataTable> | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 
+const opColExpanded = ref(false)
+const OP_COL_EXPANDED_WIDTH = 248
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() =>
+  opColExpanded.value ? LIST_OP_COL_EXPANDED_MIN_WIDTH : LIST_OP_COL_COLLAPSED_WIDTH
+)
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+
 const tableColumns = computed((): CrmTableColumnDef[] => [
-  { key: 'displayCode', label: t('customerQuoteList.colCode'), minWidth: 140 },
   { key: 'status', label: t('customerQuoteList.colStatus'), width: 100 },
+  { key: 'displayCode', label: t('customerQuoteList.colCode'), minWidth: 140 },
   { key: 'customerName', label: t('customerQuoteList.colCustomer'), minWidth: 140, prop: 'customerName' },
   { key: 'contactName', label: t('customerQuoteList.colContact'), width: 100, prop: 'contactName' },
+  { key: 'contactEmail', label: t('customerQuoteList.colContactEmail'), minWidth: 160, prop: 'contactEmail' },
   { key: 'salesUserName', label: t('customerQuoteList.colSales'), width: 100, prop: 'salesUserName' },
-  { key: 'profitFactor', label: t('customerQuoteList.colProfitFactor'), width: 100, align: 'right' },
+  { key: 'itemCount', label: t('customerQuoteList.colItemSummary'), width: 100, align: 'right', prop: 'itemCount' },
+  { key: 'sentAt', label: t('customerQuoteList.colSentAt'), width: 140 },
+  { key: 'sentByEmail', label: t('customerQuoteList.colSentByEmail'), width: 88 },
   { key: 'createTime', label: t('customerQuoteList.colCreateTime'), width: 140 },
+  { key: 'createByUserName', label: t('customerQuoteList.colCreateBy'), width: 110, prop: 'createByUserName' },
   {
     key: 'actions',
     label: t('customerQuoteList.colActions'),
-    width: 88,
+    width: opColWidth.value,
+    minWidth: opColMinWidth.value,
     fixed: 'right',
+    hideable: false,
+    pinned: 'end',
+    reorderable: false,
     className: 'op-col',
-    labelClassName: 'op-col'
+    labelClassName: 'op-col',
+    resizable: false
   }
 ])
 
 function displayCode(row: CustomerQuoteRow) {
-  return row.displayCode || `${row.customerQuoteCode}-${row.versionNo}`
+  return formatCustomerQuoteDisplayCode(row.customerQuoteCode, row.versionNo)
 }
 
 function statusText(status: number) {
@@ -194,6 +297,15 @@ function statusTagType(status: number) {
 
 function canEdit(row: CustomerQuoteRow) {
   return canWrite.value && row.status === 0
+}
+
+function canMutateUnsent(row: CustomerQuoteRow) {
+  return canWrite.value && row.status === 0
+}
+
+function dash(v?: string | null) {
+  const s = v?.trim()
+  return s ? s : '—'
 }
 
 function formatDateTimeParts(v?: string | null) {
@@ -249,6 +361,42 @@ function handlePageChange(val: number) {
 
 function openEdit(row: CustomerQuoteRow) {
   void router.push({ name: 'CustomerQuoteEdit', params: { id: row.id } })
+}
+
+async function handleDelete(row: CustomerQuoteRow) {
+  if (!canMutateUnsent(row)) return
+  try {
+    await ElMessageBox.confirm(t('customerQuoteList.deleteConfirm'), t('common.confirm'), {
+      type: 'warning'
+    })
+    mutatingId.value = row.id
+    await customerQuoteApi.deleteQuote(row.id)
+    ElMessage.success(t('customerQuoteList.deleteSuccess'))
+    await loadData()
+  } catch (e) {
+    if (e === 'cancel') return
+    ElMessage.error(getApiErrorMessage(e, t('customerQuoteList.deleteFailed')))
+  } finally {
+    mutatingId.value = null
+  }
+}
+
+async function handleMarkSent(row: CustomerQuoteRow) {
+  if (!canMutateUnsent(row)) return
+  try {
+    await ElMessageBox.confirm(t('customerQuoteList.markSentConfirm'), t('common.confirm'), {
+      type: 'warning'
+    })
+    mutatingId.value = row.id
+    await customerQuoteApi.markSent(row.id)
+    ElMessage.success(t('customerQuoteList.markSentSuccess'))
+    await loadData()
+  } catch (e) {
+    if (e === 'cancel') return
+    ElMessage.error(getApiErrorMessage(e, t('customerQuoteList.markSentFailed')))
+  } finally {
+    mutatingId.value = null
+  }
 }
 
 onMounted(() => {
@@ -376,7 +524,7 @@ onMounted(() => {
 }
 
 .status-select {
-  width: 120px;
+  width: 140px;
 
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;

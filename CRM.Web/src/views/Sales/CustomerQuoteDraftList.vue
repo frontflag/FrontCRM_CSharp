@@ -178,6 +178,7 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { customerQuoteApi, type CustomerQuoteDraftRow } from '@/api/customerQuote'
 import { useAuthStore } from '@/stores/auth'
 import { useCustomerQuoteDraftBasketStore } from '@/stores/customerQuoteDraftBasket'
+import { assertDraftsSameCustomerAndSales } from '@/utils/customerQuotePrefill'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -336,9 +337,15 @@ async function handleGenerate() {
     ElMessage.warning(t('customerQuoteDraftList.generateEmpty'))
     return
   }
-  const customerIds = new Set(basketItems.value.map((x) => x.customerId || '').filter(Boolean))
-  if (customerIds.size > 1) {
-    ElMessage.error(t('customerQuoteDraftList.generateDifferentCustomer'))
+  const compat = assertDraftsSameCustomerAndSales(basketItems.value)
+  if (!compat.ok) {
+    ElMessage.error(
+      t(
+        compat.reason === 'sales'
+          ? 'customerQuoteDraftList.generateDifferentSales'
+          : 'customerQuoteDraftList.generateDifferentCustomer'
+      )
+    )
     return
   }
   generating.value = true

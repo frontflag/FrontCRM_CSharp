@@ -670,6 +670,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Sales/CustomerQuoteEdit.vue'),
         meta: { requiresAuth: true, title: '编辑客户报价单', permission: 'customer-quote.read' }
       },
+      {
+        path: 'customer-quotes/:id/preview',
+        name: 'CustomerQuotePreview',
+        component: () => import('@/views/Sales/CustomerQuoteReportPage.vue'),
+        meta: { requiresAuth: true, title: '客户报价单预览', permission: 'customer-quote.read' }
+      },
       // 采购订单 / 采购申请（meta.permission 与 RbacService 销售主部门剥离一致）
       {
         path: 'purchase-orders',

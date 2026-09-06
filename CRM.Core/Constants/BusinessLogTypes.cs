@@ -19,6 +19,7 @@ public static class BusinessLogTypes
 
     public const string Quote = "Quote";
     public const string QuoteItem = "QuoteItem";
+    public const string CustomerQuote = "CustomerQuote";
     public const string Rfq = "Rfq";
     public const string RfqItem = "RfqItem";
     public const string SalesOrder = "SalesOrder";

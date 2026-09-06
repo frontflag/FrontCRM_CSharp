@@ -1,8 +1,11 @@
+using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Quote;
 using CRM.Core.Models.RFQ;
+using CRM.Core.Services;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,17 +17,20 @@ public class CustomerQuoteService : ICustomerQuoteService
     private readonly ISerialNumberService _serialNumberService;
     private readonly IRbacService _rbacService;
     private readonly IDataPermissionService _dataPermission;
+    private readonly ILogOperationAppendService _logOperationAppend;
 
     public CustomerQuoteService(
         ApplicationDbContext db,
         ISerialNumberService serialNumberService,
         IRbacService rbacService,
-        IDataPermissionService dataPermission)
+        IDataPermissionService dataPermission,
+        ILogOperationAppendService logOperationAppend)
     {
         _db = db;
         _serialNumberService = serialNumberService;
         _rbacService = rbacService;
         _dataPermission = dataPermission;
+        _logOperationAppend = logOperationAppend;
     }
 
     public async Task<(IReadOnlyList<CustomerQuoteDraft> Items, int Total)> GetDraftsPagedAsync(
@@ -117,9 +123,9 @@ public class CustomerQuoteService : ICustomerQuoteService
         if (drafts.Count != ids.Count)
             throw new InvalidOperationException("部分草稿不存在或无权操作");
 
-        var customerIds = drafts.Select(d => d.CustomerId).Where(c => !string.IsNullOrWhiteSpace(c)).Distinct().ToList();
-        if (customerIds.Count > 1)
-            throw new InvalidOperationException("请选择同一家客户的草稿");
+        CustomerQuoteGenerateRules.AssertDraftsSameCustomerAndSalesUser(
+            drafts.Select(d => d.CustomerId),
+            drafts.Select(d => d.SalesUserId));
 
         foreach (var d in drafts)
         {
@@ -129,8 +135,9 @@ public class CustomerQuoteService : ICustomerQuoteService
 
         var code = await _serialNumberService.GenerateNextAsync(ModuleCodes.CustomerQuote);
         var groupId = Guid.NewGuid().ToString();
-        var first = drafts[0];
-        var contact = await ResolvePrimaryContactAsync(first.CustomerId, cancellationToken);
+        var customerId = CustomerQuoteGenerateRules.FirstNonEmpty(drafts.Select(d => d.CustomerId));
+        var salesUserId = CustomerQuoteGenerateRules.FirstNonEmpty(drafts.Select(d => d.SalesUserId));
+        var contact = await ResolvePrimaryContactAsync(customerId, cancellationToken);
 
         var header = new CustomerQuote
         {
@@ -138,11 +145,11 @@ public class CustomerQuoteService : ICustomerQuoteService
             CustomerQuoteCode = code,
             VersionNo = 1,
             Status = CustomerQuoteStatus.Unsent,
-            CustomerId = first.CustomerId,
+            CustomerId = customerId,
             CustomerContactId = contact?.Id,
             ContactName = contact?.ContactName,
             ContactEmail = contact?.Email,
-            SalesUserId = first.SalesUserId,
+            SalesUserId = salesUserId,
             ProfitFactor = 1.00m,
             CreateByUserId = uid,
             ModifyByUserId = uid
@@ -210,6 +217,7 @@ public class CustomerQuoteService : ICustomerQuoteService
             .ToListAsync(cancellationToken);
 
         await HydrateQuoteHeaderDisplayAsync(items, cancellationToken);
+        await HydrateQuoteListSummariesAsync(items, cancellationToken);
         return (items, total);
     }
 
@@ -254,6 +262,8 @@ public class CustomerQuoteService : ICustomerQuoteService
             header.ContactEmail = request.ContactEmail.Trim();
         if (request.ProfitFactor.HasValue)
             header.ProfitFactor = Math.Round(request.ProfitFactor.Value, 2);
+        if (request.Remark != null)
+            header.Remark = TruncateRemark(request.Remark);
 
         if (request.Items != null)
         {
@@ -309,6 +319,226 @@ public class CustomerQuoteService : ICustomerQuoteService
         header.ModifyTime = DateTime.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
         return (await GetQuoteByIdAsync(uid, header.Id, cancellationToken))!;
+    }
+
+    public async Task<(CustomerQuote Quote, CustomerQuoteBillTo BillTo)> GetReportDataAsync(
+        string? userId,
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var quote = await GetQuoteByIdAsync(userId, id, cancellationToken)
+            ?? throw new KeyNotFoundException("客户报价单不存在或无权查看");
+
+        var billTo = new CustomerQuoteBillTo
+        {
+            Company = quote.CustomerName,
+            Attn = quote.ContactName,
+            Email = quote.ContactEmail
+        };
+
+        if (!string.IsNullOrWhiteSpace(quote.CustomerId))
+        {
+            var cust = await _db.Customers.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Id == quote.CustomerId, cancellationToken);
+            if (cust != null)
+            {
+                billTo.Company = string.IsNullOrWhiteSpace(cust.OfficialName) ? quote.CustomerName : cust.OfficialName;
+                billTo.CompanyEn = cust.EnglishOfficialName;
+            }
+
+            var addr = await _db.CustomerAddresses.AsNoTracking()
+                .Where(a => !a.IsDeleted && a.CustomerId == quote.CustomerId)
+                .OrderByDescending(a => a.IsDefault)
+                .ThenByDescending(a => a.AddressType)
+                .ThenBy(a => a.CreateTime)
+                .FirstOrDefaultAsync(cancellationToken);
+            billTo.Address = FormatCustomerAddress(addr);
+        }
+
+        if (!string.IsNullOrWhiteSpace(quote.CustomerContactId))
+        {
+            var contact = await _db.CustomerContacts.AsNoTracking()
+                .FirstOrDefaultAsync(
+                    c => !c.IsDeleted && c.Id == quote.CustomerContactId,
+                    cancellationToken);
+            if (contact != null)
+            {
+                if (string.IsNullOrWhiteSpace(billTo.Attn))
+                    billTo.Attn = contact.ContactName;
+                billTo.Tel = FirstNonEmpty(contact.Mobile, contact.Tel);
+                if (string.IsNullOrWhiteSpace(billTo.Email))
+                    billTo.Email = contact.Email;
+                if (string.IsNullOrWhiteSpace(billTo.Address))
+                    billTo.Address = contact.Address;
+            }
+        }
+
+        return (quote, billTo);
+    }
+
+    public async Task<CustomerQuote> MarkSentByEmailAsync(
+        string userId,
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var uid = userId.Trim();
+        var header = await _db.CustomerQuotes
+            .FirstOrDefaultAsync(c => c.Id == id.Trim() && !c.IsDeleted, cancellationToken)
+            ?? throw new KeyNotFoundException("客户报价单不存在");
+
+        if (!await CanAccessQuoteAsync(uid, header, cancellationToken))
+            throw new UnauthorizedAccessException("无权发送该客户报价单");
+
+        CustomerQuoteSendRules.ApplySentByEmail(header, DateTime.UtcNow);
+        header.ModifyByUserId = uid;
+        header.ModifyTime = DateTime.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken);
+        return (await GetQuoteByIdAsync(uid, header.Id, cancellationToken))!;
+    }
+
+    public async Task<CustomerQuote> MarkSentAsync(
+        string userId,
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var uid = userId.Trim();
+        var header = await _db.CustomerQuotes
+            .FirstOrDefaultAsync(c => c.Id == id.Trim() && !c.IsDeleted, cancellationToken)
+            ?? throw new KeyNotFoundException("客户报价单不存在");
+
+        if (!await CanAccessQuoteAsync(uid, header, cancellationToken))
+            throw new UnauthorizedAccessException("无权操作该客户报价单");
+
+        CustomerQuoteSendRules.ApplyMarkSent(header, DateTime.UtcNow);
+        header.ModifyByUserId = uid;
+        header.ModifyTime = DateTime.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken);
+        return (await GetQuoteByIdAsync(uid, header.Id, cancellationToken))!;
+    }
+
+    public async Task DeleteQuoteAsync(string userId, string id, CancellationToken cancellationToken = default)
+    {
+        var uid = userId.Trim();
+        var header = await _db.CustomerQuotes
+            .FirstOrDefaultAsync(c => c.Id == id.Trim() && !c.IsDeleted, cancellationToken)
+            ?? throw new KeyNotFoundException("客户报价单不存在");
+
+        if (!await CanAccessQuoteAsync(uid, header, cancellationToken))
+            throw new UnauthorizedAccessException("无权删除该客户报价单");
+        if (!CustomerQuoteSendRules.CanDelete(header.Status))
+            throw new InvalidOperationException(CustomerQuoteSendRules.OnlyUnsentCanDeleteMessage);
+
+        header.IsDeleted = true;
+        header.ModifyByUserId = uid;
+        header.ModifyTime = DateTime.UtcNow;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AppendActionLogAsync(
+        string userId,
+        string id,
+        string actionType,
+        string? remark,
+        CancellationToken cancellationToken = default)
+    {
+        var uid = userId.Trim();
+        var header = await _db.CustomerQuotes
+            .FirstOrDefaultAsync(c => c.Id == id.Trim() && !c.IsDeleted, cancellationToken)
+            ?? throw new KeyNotFoundException("客户报价单不存在");
+
+        if (!await CanAccessQuoteAsync(uid, header, cancellationToken))
+            throw new UnauthorizedAccessException("无权操作该客户报价单");
+        if (!CustomerQuoteActionLogRules.IsDisplayAction(actionType))
+            throw new InvalidOperationException(CustomerQuoteActionLogRules.InvalidActionMessage);
+
+        var operatorName = await ResolveOperatorLoginNameAsync(uid, cancellationToken);
+        var note = string.IsNullOrWhiteSpace(remark) ? null : TruncateRemark(remark);
+        await _logOperationAppend.AppendAsync(
+            BusinessLogTypes.CustomerQuote,
+            header.Id,
+            header.DisplayCode,
+            actionType,
+            uid,
+            operatorName,
+            actionType,
+            note,
+            null,
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<CustomerQuoteActionLogRow>> GetActionLogsAsync(
+        string? userId,
+        string id,
+        CancellationToken cancellationToken = default)
+    {
+        var header = await _db.CustomerQuotes.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == id.Trim() && !c.IsDeleted, cancellationToken);
+        if (header == null)
+            throw new KeyNotFoundException("客户报价单不存在");
+        if (!await CanAccessQuoteAsync(userId, header, cancellationToken))
+            throw new UnauthorizedAccessException("无权查看该客户报价单");
+
+        var rows = await _db.OperationLogs.AsNoTracking()
+            .Where(o => o.BizType == BusinessLogTypes.CustomerQuote
+                        && o.RecordId == header.Id
+                        && (o.ActionType == CustomerQuoteActionLogRules.Print
+                            || o.ActionType == CustomerQuoteActionLogRules.Export
+                            || o.ActionType == CustomerQuoteActionLogRules.SendEmail))
+            .OrderByDescending(o => o.OperationTime)
+            .Take(200)
+            .Select(o => new CustomerQuoteActionLogRow
+            {
+                Id = o.Id,
+                OperationTime = o.OperationTime,
+                OperatorUserName = o.OperatorUserName,
+                ActionType = o.ActionType,
+                Remark = o.Reason
+            })
+            .ToListAsync(cancellationToken);
+        return rows;
+    }
+
+    private async Task<string> ResolveOperatorLoginNameAsync(string userId, CancellationToken cancellationToken)
+    {
+        var user = await _db.Users.AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        return EntityLookupService.FormatUserLoginName(user) ?? userId;
+    }
+
+    private static string? TruncateRemark(string? value)
+    {
+        var t = value?.Trim();
+        if (string.IsNullOrEmpty(t))
+            return null;
+        return t.Length <= 2000 ? t : t[..2000];
+    }
+
+    private static string? FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values)
+        {
+            var t = v?.Trim();
+            if (!string.IsNullOrEmpty(t))
+                return t;
+        }
+
+        return null;
+    }
+
+    private static string? FormatCustomerAddress(CustomerAddress? addr)
+    {
+        if (addr == null) return null;
+        var parts = new[]
+        {
+            addr.CountryName,
+            addr.Province,
+            addr.City,
+            addr.Area,
+            addr.Address,
+            string.IsNullOrWhiteSpace(addr.ZipCode) ? null : addr.ZipCode.Trim()
+        };
+        var text = string.Join(" ", parts.Select(p => p?.Trim()).Where(p => !string.IsNullOrEmpty(p)));
+        return string.IsNullOrWhiteSpace(text) ? null : text;
     }
 
     private async Task<CustomerQuoteDraft> AddDraftCoreAsync(
@@ -475,7 +705,7 @@ public class CustomerQuoteService : ICustomerQuoteService
             if (d.CustomerId != null && customers.TryGetValue(d.CustomerId, out var cust))
                 d.CustomerName = cust.CustomerName;
             if (d.SalesUserId != null && users.TryGetValue(d.SalesUserId, out var su))
-                d.SalesUserName = su.RealName ?? su.UserName;
+                d.SalesUserName = EntityLookupService.FormatUserLoginName(su);
             if (d.PurchaseUserId != null && users.TryGetValue(d.PurchaseUserId, out var pu))
                 d.PurchaseUserName = pu.RealName ?? pu.UserName;
         }
@@ -488,7 +718,12 @@ public class CustomerQuoteService : ICustomerQuoteService
         var customers = await _db.Customers.AsNoTracking()
             .Where(c => customerIds.Contains(c.Id))
             .ToDictionaryAsync(c => c.Id, cancellationToken);
-        var userIds = items.Select(i => i.SalesUserId).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+        var userIds = items
+            .SelectMany(i => new[] { i.SalesUserId, i.CreateByUserId })
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct()
+            .ToList();
         var users = await _db.Users.AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, cancellationToken);
@@ -498,8 +733,27 @@ public class CustomerQuoteService : ICustomerQuoteService
             if (q.CustomerId != null && customers.TryGetValue(q.CustomerId, out var cust))
                 q.CustomerName = cust.CustomerName;
             if (q.SalesUserId != null && users.TryGetValue(q.SalesUserId, out var su))
-                q.SalesUserName = su.RealName ?? su.UserName;
+                q.SalesUserName = EntityLookupService.FormatUserLoginName(su);
+            if (q.CreateByUserId != null && users.TryGetValue(q.CreateByUserId, out var cu))
+                q.CreateByUserName = EntityLookupService.FormatUserLoginName(cu);
         }
+    }
+
+    private async Task HydrateQuoteListSummariesAsync(
+        IReadOnlyList<CustomerQuote> items,
+        CancellationToken cancellationToken)
+    {
+        var ids = items.Select(i => i.Id).ToList();
+        if (ids.Count == 0) return;
+
+        var counts = await _db.CustomerQuoteItems.AsNoTracking()
+            .Where(i => ids.Contains(i.CustomerQuoteId) && !i.IsDeleted)
+            .GroupBy(i => i.CustomerQuoteId)
+            .Select(g => new { Id = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.Id, x => x.Count, cancellationToken);
+
+        foreach (var q in items)
+            q.ItemCount = counts.GetValueOrDefault(q.Id);
     }
 
     private async Task HydrateQuoteItemUsersAsync(IEnumerable<CustomerQuoteItem> items, CancellationToken cancellationToken)

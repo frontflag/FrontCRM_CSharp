@@ -47,6 +47,44 @@ public interface ICustomerQuoteService
         string userId,
         string id,
         CancellationToken cancellationToken = default);
+
+    Task<(CustomerQuote Quote, CustomerQuoteBillTo BillTo)> GetReportDataAsync(
+        string? userId,
+        string id,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomerQuote> MarkSentByEmailAsync(
+        string userId,
+        string id,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomerQuote> MarkSentAsync(
+        string userId,
+        string id,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteQuoteAsync(string userId, string id, CancellationToken cancellationToken = default);
+
+    Task AppendActionLogAsync(
+        string userId,
+        string id,
+        string actionType,
+        string? remark,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CustomerQuoteActionLogRow>> GetActionLogsAsync(
+        string? userId,
+        string id,
+        CancellationToken cancellationToken = default);
+}
+
+public class CustomerQuoteActionLogRow
+{
+    public string Id { get; set; } = string.Empty;
+    public DateTime OperationTime { get; set; }
+    public string? OperatorUserName { get; set; }
+    public string ActionType { get; set; } = string.Empty;
+    public string? Remark { get; set; }
 }
 
 public class UpdateCustomerQuoteRequest
@@ -55,6 +93,7 @@ public class UpdateCustomerQuoteRequest
     public string? ContactName { get; set; }
     public string? ContactEmail { get; set; }
     public decimal? ProfitFactor { get; set; }
+    public string? Remark { get; set; }
     public List<UpdateCustomerQuoteItemRequest>? Items { get; set; }
 }
 

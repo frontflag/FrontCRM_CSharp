@@ -377,7 +377,7 @@
         <div class="menu-section-label" v-if="!isCollapsed">{{ t('layout.sections.rfq') }}</div>
 
         <SidebarMenuGroupFlyout
-          v-if="hasPermission('rfq.read')"
+          v-if="hasPermission('rfq.read') || hasPermission('customer-quote.read')"
           :collapsed="isCollapsed"
           :expanded="openGroups.rfqs"
           @toggle="toggleGroup('rfqs')"
@@ -409,14 +409,37 @@
             </svg>
           </template>
           <template #submenu>
-            <router-link to="/rfq" class="submenu-item" active-class="active" exact>{{ t('layout.menu.rfqList') }}</router-link>
-            <router-link to="/rfq-items" class="submenu-item" active-class="active">{{ t('layout.menu.rfqItems') }}</router-link>
+            <router-link
+              v-if="hasPermission('rfq.read')"
+              to="/rfq"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.rfqList') }}</router-link>
+            <router-link
+              v-if="hasPermission('rfq.read')"
+              to="/rfq-items"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.rfqItems') }}</router-link>
             <router-link
               v-if="showRfqItemReferenceMenu"
               to="/rfq-item-reference"
               class="submenu-item"
               active-class="active"
             >{{ t('layout.menu.rfqItemReference') }}</router-link>
+            <router-link
+              v-if="hasPermission('customer-quote.read')"
+              to="/customer-quote-drafts"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.customerQuoteDrafts') }}</router-link>
+            <router-link
+              v-if="hasPermission('customer-quote.read')"
+              to="/customer-quotes"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.customerQuotes') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -487,18 +510,6 @@
               class="submenu-item"
               active-class="active"
             >{{ t('layout.menu.salesOrderItems') }}</router-link>
-            <router-link
-              v-if="hasPermission('customer-quote.read')"
-              to="/customer-quotes"
-              class="submenu-item"
-              active-class="active"
-            >{{ t('layout.menu.customerQuotes') }}</router-link>
-            <router-link
-              v-if="hasPermission('customer-quote.read')"
-              to="/customer-quote-drafts"
-              class="submenu-item"
-              active-class="active"
-            >{{ t('layout.menu.customerQuoteDrafts') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -3635,6 +3646,8 @@ const pageTitleMap: Record<string, string> = {
   '/pn': 'layout.menu.rfqItems',
   '/rfq-items': 'layout.menu.rfqItems',
   '/rfq-item-reference': 'layout.menu.rfqItemReference',
+  '/customer-quotes': 'layout.menu.customerQuotes',
+  '/customer-quote-drafts': 'layout.menu.customerQuoteDrafts',
   '/quotes': 'layout.menu.quoteList',
   '/quotes/create': 'layout.menu.quoteManagement',
   '/purchase-orders': 'layout.menu.purchaseOrders',
@@ -3687,6 +3700,10 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '物料列表': 'layout.menu.rfqItems',
   '需求明细': 'layout.menu.rfqItems',
   '需求参考': 'layout.menu.rfqItemReference',
+  '客户报价单': 'layout.menu.customerQuotes',
+  '客户报价单草稿': 'layout.menu.customerQuoteDrafts',
+  '编辑客户报价单': 'layout.menu.customerQuotes',
+  '客户报价单预览': 'layout.menu.customerQuotes',
   '新建需求': 'rfqHome.create',
   'RFQ 详情': 'rfqDetail.title',
   '编辑需求': 'rfqDetail.edit',
@@ -3985,7 +4002,10 @@ watch(
       p.startsWith('/rfqs/') ||
       p === '/rfq-items' ||
       p === '/rfq-item-reference' ||
-      p === '/pn'
+      p === '/pn' ||
+      p === '/customer-quotes' ||
+      p.startsWith('/customer-quotes/') ||
+      p === '/customer-quote-drafts'
     ) {
       openGroups.value.rfqs = true
     }
