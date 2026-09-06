@@ -870,6 +870,12 @@
                 class="submenu-item"
                 active-class="active"
               >{{ t('layout.menu.freightForwarderPayables') }}</router-link>
+              <router-link
+                v-if="hasPermission('finance-receipt.read')"
+                to="/finance/receivable-statements"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.receivableStatements') }}</router-link>
             </template>
           </SidebarMenuGroupFlyout>
 
@@ -3568,6 +3574,7 @@ const pageTitleMap: Record<string, string> = {
   '/approval-desktop': 'approvalDesktop.title',
   '/quote-desktop': 'quoteDesktop.title',
   '/finance/receipt-write-off-desktop': 'receiptWriteOffDesktop.title',
+  '/finance/receivable-statements': 'layout.menu.receivableStatements',
   '/finance/purchase-invoice-write-off-desktop': 'purchaseInvoiceWriteOffDesktop.title',
   '/finance/sell-invoice-write-off-desktop': 'sellInvoiceWriteOffDesktop.title',
   '/custome': 'layout.menu.customers',
@@ -3797,6 +3804,9 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '付款单详情': 'rfqItemList.actions.detail',
   '收款管理': 'layout.menu.receiptRecords',
   '收款单详情': 'rfqItemList.actions.detail',
+  '客户对账单': 'layout.menu.receivableStatements',
+  '客户对账单详情': 'financeReceivableStatement.detailTitle',
+  '客户对账单报表': 'layout.menu.receivableStatements',
   '进项发票': 'layout.menu.purchaseInvoices',
   '进项发票详情': 'rfqItemList.actions.detail',
   '销项发票': 'layout.menu.sellInvoices',
@@ -4057,6 +4067,9 @@ watch(
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs' || p === '/system/export-logs') {
       openGroups.value.systemLogs = true
+    }
+    if (p === '/finance/receivable-statements' || p.startsWith('/finance/receivable-statements/')) {
+      openGroups.value.financeReceipts = true
     }
     if (p === '/finance/stock-accumulated' || p.startsWith('/finance/stock-accumulated/')) {
       openGroups.value.financeInventoryReports = true

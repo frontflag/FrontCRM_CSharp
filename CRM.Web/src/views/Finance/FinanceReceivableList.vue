@@ -1,6 +1,17 @@
 <template>
   <div class="finance-page">
-    <h1 class="finance-list-page-title">{{ t('financeReceivableList.pageTitle') }}</h1>
+    <div class="recv-list-page-header">
+      <h1 class="finance-list-page-title">{{ t('financeReceivableList.pageTitle') }}</h1>
+      <div class="recv-list-page-header__actions">
+        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
+          {{ t('financeReceivableList.filters.export') }}
+        </button>
+        <button type="button" class="btn-quote-desktop" @click="goStatements">
+          <span>{{ t('financeReceivableList.filters.statement') }}</span>
+          <el-icon class="btn-quote-desktop__arrow"><ArrowRight /></el-icon>
+        </button>
+      </div>
+    </div>
 
     <div class="search-bar">
       <div class="search-left">
@@ -62,11 +73,6 @@
               : t('financeReceivableList.filters.boardView')
           }}
         </el-button>
-      </div>
-      <div class="search-right">
-        <button type="button" class="btn-export" :disabled="exporting" @click="() => void handleExport()">
-          {{ t('financeReceivableList.filters.export') }}
-        </button>
       </div>
     </div>
 
@@ -262,7 +268,7 @@
 import { reactive, ref, computed, watch, inject, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Search, Setting } from '@element-plus/icons-vue'
+import { ArrowRight, Search, Setting } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { financeReceivableApi, type FinanceReceivable } from '@/api/financeReceivable'
 import type { FinanceReceivableListAnalyticsQuery } from '@/api/financeReceivableAnalytics'
@@ -619,6 +625,10 @@ watch(
   { deep: true, immediate: true }
 )
 
+function goStatements() {
+  void router.push({ name: 'FinanceReceivableStatementList' })
+}
+
 function openDetail(row: FinanceReceivable) {
   router.push({ name: 'FinanceReceivableDetail', params: { id: row.id } })
 }
@@ -639,6 +649,51 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 @import './finance-common.scss';
+
+.recv-list-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recv-list-page-header__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* 与 /rfq-items「进入报价桌面」同款 */
+.btn-quote-desktop {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 18px;
+  border: none;
+  border-radius: 10px;
+  background: #eaf5ff;
+  color: #1a2332;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Noto Sans SC', sans-serif;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+
+  &:hover {
+    background: #ddefff;
+    color: #0f172a;
+  }
+
+  &:active {
+    background: #d0e8ff;
+  }
+
+  &__arrow {
+    font-size: 14px;
+  }
+}
 
 .filter-date-range {
   width: 260px;

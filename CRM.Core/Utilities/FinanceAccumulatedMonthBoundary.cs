@@ -64,6 +64,10 @@ public static class FinanceAccumulatedMonthBoundary
         return $"{local.Year:0000}-{local.Month:00}";
     }
 
+    /// <summary>将时间戳转为显示时区日历日（CreateTime 等按 UTC 解释）。</summary>
+    public static DateOnly ToDisplayDate(DateTime timestamp, string? timeZoneId = null) =>
+        DateOnly.FromDateTime(ToDisplayLocal(timestamp, timeZoneId));
+
     public static DateTime MonthStartUtc(int year, int month, string? timeZoneId = null)
     {
         if (month < 1 || month > 12)

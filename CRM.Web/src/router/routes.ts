@@ -1191,6 +1191,24 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '应收款详情', permission: 'finance-receipt.read' }
       },
       {
+        path: 'finance/receivable-statements',
+        name: 'FinanceReceivableStatementList',
+        component: () => import('@/views/Finance/FinanceReceivableStatementList.vue'),
+        meta: { requiresAuth: true, title: '客户对账单', permission: 'finance-receipt.read' }
+      },
+      {
+        path: 'finance/receivable-statements/:customerId/:currency/preview',
+        name: 'FinanceReceivableStatementPreview',
+        component: () => import('@/views/Finance/FinanceReceivableStatementReportPage.vue'),
+        meta: { requiresAuth: true, title: '客户对账单报表', permission: 'finance-receipt.read' }
+      },
+      {
+        path: 'finance/receivable-statements/:customerId/:currency',
+        name: 'FinanceReceivableStatementDetail',
+        component: () => import('@/views/Finance/FinanceReceivableStatementDetail.vue'),
+        meta: { requiresAuth: true, title: '客户对账单详情', permission: 'finance-receipt.read' }
+      },
+      {
         path: 'finance/customer-advances',
         name: 'FinanceCustomerAdvanceList',
         component: () => import('@/views/Finance/FinanceCustomerAdvanceList.vue'),
