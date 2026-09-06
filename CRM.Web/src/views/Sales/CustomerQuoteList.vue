@@ -62,7 +62,7 @@
     <div class="table-wrapper customer-quote-list-table-scroll" v-loading="loading">
       <CrmDataTable
         ref="dataTableRef"
-        column-layout-key="customer-quote-list-v4"
+        column-layout-key="customer-quote-list-v6"
         :columns="tableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -78,6 +78,9 @@
         </template>
         <template #col-displayCode="{ row }">
           <span class="quote-code-cell">{{ displayCode(row) }}</span>
+        </template>
+        <template #col-versionNo="{ row }">
+          {{ versionText(row) }}
         </template>
         <template #col-contactEmail="{ row }">
           {{ dash(row.contactEmail) }}
@@ -222,6 +225,7 @@ import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatCustomerQuoteDisplayCode } from '@/utils/customerQuoteDisplay'
+import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
 import {
   LIST_OP_COL_COLLAPSED_WIDTH,
   LIST_OP_COL_EXPANDED_MIN_WIDTH
@@ -252,18 +256,54 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
-const tableColumns = computed((): CrmTableColumnDef[] => [
-  { key: 'status', label: t('customerQuoteList.colStatus'), width: 100 },
-  { key: 'displayCode', label: t('customerQuoteList.colCode'), minWidth: 140 },
-  { key: 'customerName', label: t('customerQuoteList.colCustomer'), minWidth: 140, prop: 'customerName' },
-  { key: 'contactName', label: t('customerQuoteList.colContact'), width: 100, prop: 'contactName' },
-  { key: 'contactEmail', label: t('customerQuoteList.colContactEmail'), minWidth: 160, prop: 'contactEmail' },
-  { key: 'salesUserName', label: t('customerQuoteList.colSales'), width: 100, prop: 'salesUserName' },
-  { key: 'itemCount', label: t('customerQuoteList.colItemSummary'), width: 100, align: 'right', prop: 'itemCount' },
-  { key: 'sentAt', label: t('customerQuoteList.colSentAt'), width: 140 },
-  { key: 'sentByEmail', label: t('customerQuoteList.colSentByEmail'), width: 88 },
-  { key: 'createTime', label: t('customerQuoteList.colCreateTime'), width: 140 },
-  { key: 'createByUserName', label: t('customerQuoteList.colCreateBy'), width: 110, prop: 'createByUserName' },
+function headerMin(label: string, extra?: { align?: 'left' | 'center' | 'right'; extra?: number }) {
+  return estimateListColumnHeaderMinWidth(label, extra)
+}
+
+function headerFixed(
+  label: string,
+  contentFloor: number,
+  extra?: { align?: 'left' | 'center' | 'right' }
+) {
+  const w = Math.max(contentFloor, headerMin(label, extra))
+  return { width: w, minWidth: w, ...(extra?.align ? { align: extra.align } : {}) }
+}
+
+function headerFlex(
+  label: string,
+  contentFloor: number,
+  extra?: { align?: 'left' | 'center' | 'right' }
+) {
+  const w = Math.max(contentFloor, headerMin(label, extra))
+  return { minWidth: w, ...(extra?.align ? { align: extra.align } : {}) }
+}
+
+const tableColumns = computed((): CrmTableColumnDef[] => {
+  const colStatus = t('customerQuoteList.colStatus')
+  const colCode = t('customerQuoteList.colCode')
+  const colVersion = t('customerQuoteList.colVersion')
+  const colCustomer = t('customerQuoteList.colCustomer')
+  const colContact = t('customerQuoteList.colContact')
+  const colContactEmail = t('customerQuoteList.colContactEmail')
+  const colSales = t('customerQuoteList.colSales')
+  const colItemSummary = t('customerQuoteList.colItemSummary')
+  const colSentAt = t('customerQuoteList.colSentAt')
+  const colSentByEmail = t('customerQuoteList.colSentByEmail')
+  const colCreateTime = t('customerQuoteList.colCreateTime')
+  const colCreateBy = t('customerQuoteList.colCreateBy')
+  return [
+  { key: 'status', label: colStatus, ...headerFixed(colStatus, 100) },
+  { key: 'displayCode', label: colCode, ...headerFlex(colCode, 160) },
+  { key: 'versionNo', label: colVersion, ...headerFixed(colVersion, 80, { align: 'center' }) },
+  { key: 'customerName', label: colCustomer, ...headerFlex(colCustomer, 200), prop: 'customerName' },
+  { key: 'contactName', label: colContact, ...headerFixed(colContact, 100), prop: 'contactName' },
+  { key: 'contactEmail', label: colContactEmail, ...headerFlex(colContactEmail, 160), prop: 'contactEmail' },
+  { key: 'salesUserName', label: colSales, ...headerFixed(colSales, 100), prop: 'salesUserName' },
+  { key: 'itemCount', label: colItemSummary, ...headerFixed(colItemSummary, 120, { align: 'right' }), prop: 'itemCount' },
+  { key: 'sentAt', label: colSentAt, ...headerFixed(colSentAt, 160) },
+  { key: 'sentByEmail', label: colSentByEmail, ...headerFixed(colSentByEmail, 120) },
+  { key: 'createTime', label: colCreateTime, ...headerFixed(colCreateTime, 160) },
+  { key: 'createByUserName', label: colCreateBy, ...headerFixed(colCreateBy, 110), prop: 'createByUserName' },
   {
     key: 'actions',
     label: t('customerQuoteList.colActions'),
@@ -277,10 +317,16 @@ const tableColumns = computed((): CrmTableColumnDef[] => [
     labelClassName: 'op-col',
     resizable: false
   }
-])
+  ]
+})
 
 function displayCode(row: CustomerQuoteRow) {
   return formatCustomerQuoteDisplayCode(row.customerQuoteCode, row.versionNo)
+}
+
+function versionText(row: CustomerQuoteRow) {
+  const v = Number(row.versionNo)
+  return Number.isFinite(v) && v > 0 ? String(v) : '—'
 }
 
 function statusText(status: number) {

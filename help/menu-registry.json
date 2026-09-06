@@ -21,6 +21,8 @@
     { "id": "MENU_RFQ_RECYCLE", "label": "需求(回收站)", "routeNames": ["RFQRecycleBin"], "pathPrefixes": ["/rfqlist/recycle-bin"] },
     { "id": "MENU_RFQ_ITEMS", "label": "需求明细", "routeNames": ["PnList", "RFQItemList"], "pathPrefixes": ["/pn", "/rfq-items"] },
     { "id": "MENU_RFQ_ITEM_REFERENCE", "label": "需求参考", "routeNames": ["RFQItemReference"], "pathPrefixes": ["/rfq-item-reference"] },
+    { "id": "MENU_CUSTOMER_QUOTE_DRAFTS", "label": "客户报价单草稿", "routeNames": ["CustomerQuoteDraftList"], "pathPrefixes": ["/customer-quote-drafts"] },
+    { "id": "MENU_CUSTOMER_QUOTES", "label": "客户报价单", "routeNames": ["CustomerQuoteList", "CustomerQuoteEdit", "CustomerQuotePreview"], "pathPrefixes": ["/customer-quotes"] },
     { "id": "MENU_BOM", "label": "BOM 快速报价", "routeNames": ["BOMList", "BOMCreate", "BOMDetail"], "pathPrefixes": ["/boms"] },
     { "id": "MENU_QUOTE_LIST", "label": "报价列表", "routeNames": ["QuoteList", "QuoteCreate", "QuoteEdit", "QuoteDetail"], "pathPrefixes": ["/quotes"] },
 
