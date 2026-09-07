@@ -7331,14 +7331,20 @@ const enUS = {
       unit: {
         days: 'days'
       },
+      currency: {
+        convertedUsd: 'Converted USD'
+      },
       trendUnit: {
         qty: 'PCS',
-        originalCaption: 'Unit: {currency}'
+        layers: 'entries',
+        originalCaption: 'Unit: {currency}',
+        convertedUsdCaption: 'Unit: converted USD'
       },
       breakdown: {
         metricMode: 'Breakdown metric',
         qty: 'Qty',
         amount: 'Amount',
+        layers: 'Entries',
         stockType: 'Stock type',
         warehouse: 'Warehouse',
         salesUser: 'Salesperson',
@@ -7348,11 +7354,16 @@ const enUS = {
         metricMode: 'Ranking metric',
         qty: 'Qty',
         amount: 'Amount',
+        layers: 'Entries',
         name: 'Name',
         customerByQty: 'Top10 customers',
         salesUserByQty: 'Top10 salespeople',
         materialByQty: 'Top10 materials',
         brandByQty: 'Top10 brands',
+        customerByLayer: 'Top10 customers',
+        salesUserByLayer: 'Top10 salespeople',
+        materialByLayer: 'Top10 materials',
+        brandByLayer: 'Top10 brands',
         customerByAmount: 'Top10 customers',
         salesUserByAmount: 'Top10 salespeople',
         materialByAmount: 'Top10 materials',
@@ -7756,14 +7767,20 @@ const enUS = {
       unit: {
         days: 'days'
       },
+      currency: {
+        convertedUsd: 'Converted USD'
+      },
       trendUnit: {
         qty: 'PCS',
-        originalCaption: 'Unit: {currency}'
+        layers: 'entries',
+        originalCaption: 'Unit: {currency}',
+        convertedUsdCaption: 'Unit: converted USD'
       },
       breakdown: {
         metricMode: 'Breakdown metric',
         qty: 'Qty',
         amount: 'Amount',
+        layers: 'Entries',
         stockType: 'Stock type',
         warehouse: 'Warehouse',
         salesUser: 'Salesperson',
@@ -7773,11 +7790,16 @@ const enUS = {
         metricMode: 'Ranking metric',
         qty: 'Qty',
         amount: 'Amount',
+        layers: 'Entries',
         name: 'Name',
         customerByQty: 'Top 10 customers',
         salesUserByQty: 'Top 10 salespersons',
         materialByQty: 'Top 10 materials',
         brandByQty: 'Top 10 brands',
+        customerByLayer: 'Top 10 customers',
+        salesUserByLayer: 'Top 10 salespersons',
+        materialByLayer: 'Top 10 materials',
+        brandByLayer: 'Top 10 brands',
         customerByAmount: 'Top 10 customers',
         salesUserByAmount: 'Top 10 salespersons',
         materialByAmount: 'Top 10 materials',

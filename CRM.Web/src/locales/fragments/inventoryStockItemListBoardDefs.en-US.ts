@@ -38,12 +38,12 @@ export const inventoryStockItemListBoardDefsEn = {
     stockType: {
       chart: 'Stock type',
       dataSource: 'Stock items',
-      text: 'Customer / stocking / sample mix. Amount mode is per original currency.'
+      text: 'Customer / stocking / sample mix. Switch qty (PCS), amount (original currency or converted USD), or inventory entries (filtered row count). Dropdown USD is USD-original rows only; Converted USD sums all currencies after converting at stock-in USD unit price.'
     },
     warehouse: {
       chart: 'Warehouse',
       dataSource: 'Stock items',
-      text: 'On-hand qty or original-currency amount by warehouse.'
+      text: 'On-hand qty, original-currency amount, converted USD, or inventory entries by warehouse.'
     },
     salesUser: {
       chart: 'Salesperson',
@@ -77,25 +77,45 @@ export const inventoryStockItemListBoardDefsEn = {
       dataSource: 'Stock items',
       text: 'Purchase brand on-hand PCS. Click a row to return to the list.'
     },
+    customerByLayer: {
+      chart: 'Top10 customers (entries)',
+      dataSource: 'Stock items',
+      text: 'By filtered stock-item row count (one row = 1); stocking goes to "No customer / stocking". Cleared rows count if the current filter includes them. Click a row to return to the list; row count should match.'
+    },
+    salesUserByLayer: {
+      chart: 'Top10 salespeople (entries)',
+      dataSource: 'Stock items',
+      text: 'By filtered stock-item row count. Click a row to return to the list.'
+    },
+    materialByLayer: {
+      chart: 'Top10 materials (entries)',
+      dataSource: 'Stock items',
+      text: 'Model + brand by filtered row count. Click a row to return to the list.'
+    },
+    brandByLayer: {
+      chart: 'Top10 brands (entries)',
+      dataSource: 'Stock items',
+      text: 'Purchase brand by filtered row count. Click a row to return to the list.'
+    },
     customerByAmount: {
       chart: 'Top10 customers (amount)',
       dataSource: 'Stock items',
-      text: 'On-hand amount by customer and original currency. Click a row to return to the list for that currency.'
+      text: 'On-hand amount by customer in original currency or converted USD. Original-currency drill keeps that currency; converted USD does not filter by original currency.'
     },
     salesUserByAmount: {
       chart: 'Top10 salespeople (amount)',
       dataSource: 'Stock items',
-      text: 'On-hand amount by salesperson and original currency. Click a row to return to the list for that currency.'
+      text: 'On-hand amount by salesperson in original currency or converted USD. Original-currency drill keeps that currency; converted USD does not filter by original currency.'
     },
     materialByAmount: {
       chart: 'Top10 materials (amount)',
       dataSource: 'Stock items',
-      text: 'Model + brand on-hand amount by original currency. Click a row to return to the list for that currency.'
+      text: 'Model + brand on-hand amount in original currency or converted USD. Original-currency drill keeps that currency; converted USD does not filter by original currency.'
     },
     brandByAmount: {
       chart: 'Top10 brands (amount)',
       dataSource: 'Stock items',
-      text: 'Brand on-hand amount by original currency. Click a row to return to the list for that currency.'
+      text: 'Brand on-hand amount in original currency or converted USD. Original-currency drill keeps that currency; converted USD does not filter by original currency.'
     }
   }
 }

@@ -19,6 +19,10 @@ import {
   type InventoryOnHandListAnalyticsTrendPoint
 } from '@/api/inventoryOnHandAnalytics'
 import { listAmountCurrencyDockClass } from '@/utils/moneyFormat'
+import {
+  isInventoryBoardConvertedUsd,
+  appendInventoryBoardConvertedUsdOption
+} from '@/utils/inventoryBoardConvertedUsd'
 import { useAuthStore } from '@/stores/auth'
 import {
   buildRankingStockItemDrillRoute,
@@ -40,32 +44,36 @@ const dashboard = ref<InventoryOnHandListAnalyticsDashboard | null>(null)
 const trends = ref<InventoryOnHandListAnalyticsTrendPoint[]>([])
 const breakdowns = ref<InventoryOnHandListAnalyticsBreakdownGroup[]>([])
 const rankings = ref<InventoryOnHandListAnalyticsRankings | null>(null)
-const breakdownMetricMode = ref<'qty' | 'amount'>('qty')
-const rankingMetricMode = ref<'qty' | 'amount'>('qty')
+type BoardMetricMode = 'qty' | 'amount' | 'layers'
+
+const breakdownMetricMode = ref<BoardMetricMode>('qty')
+const rankingMetricMode = ref<BoardMetricMode>('qty')
 const amountCurrencyKey = ref('1')
 
 const maskAmounts = computed(() => dashboard.value?.context.maskAmounts === true)
-const effectiveBreakdownMetricMode = computed<'qty' | 'amount'>(() =>
-  maskAmounts.value ? 'qty' : breakdownMetricMode.value
+const effectiveBreakdownMetricMode = computed<BoardMetricMode>(() =>
+  maskAmounts.value && breakdownMetricMode.value === 'amount' ? 'qty' : breakdownMetricMode.value
 )
-const effectiveRankingMetricMode = computed<'qty' | 'amount'>(() =>
-  maskAmounts.value ? 'qty' : rankingMetricMode.value
+const effectiveRankingMetricMode = computed<BoardMetricMode>(() =>
+  maskAmounts.value && rankingMetricMode.value === 'amount' ? 'qty' : rankingMetricMode.value
 )
 
 const currencyOptions = computed(() => {
-  const lines = dashboard.value?.snapshot.currencyLines ?? []
-  return lines.map((line) => ({
+  if (maskAmounts.value || !dashboard.value) return []
+  const lines = (dashboard.value.snapshot.currencyLines ?? []).map((line) => ({
     key: line.currencyKey,
     label: line.currencyLabel
   }))
+  return appendInventoryBoardConvertedUsdOption(lines, tt('currency.convertedUsd'))
 })
 
 watch(
   currencyOptions,
   (opts) => {
     if (opts.length === 0) return
-    if (!opts.some((o) => o.key === amountCurrencyKey.value))
-      amountCurrencyKey.value = opts[0]!.key
+    if (opts.some((o) => o.key === amountCurrencyKey.value)) return
+    amountCurrencyKey.value =
+      opts.find((o) => !isInventoryBoardConvertedUsd(o.key))?.key ?? opts[0]!.key
   },
   { immediate: true }
 )
@@ -210,8 +218,16 @@ const breakdownPanels: { key: BreakdownPanelKey; titleKey: string }[] = [
 ]
 
 function breakdownGroupFor(panel: BreakdownPanelKey): InventoryOnHandListAnalyticsBreakdownGroup | null {
-  if (effectiveBreakdownMetricMode.value === 'qty') {
-    return breakdowns.value.find((g) => g.groupKey === panel && !g.currencyKey) ?? null
+  const mode = effectiveBreakdownMetricMode.value
+  if (mode === 'layers') {
+    return breakdowns.value.find((g) => g.groupKey === panel && g.metric === 'layers') ?? null
+  }
+  if (mode === 'qty') {
+    return (
+      breakdowns.value.find(
+        (g) => g.groupKey === panel && !g.currencyKey && (g.metric === 'qty' || !g.metric)
+      ) ?? null
+    )
   }
   return (
     breakdowns.value.find(
@@ -222,7 +238,7 @@ function breakdownGroupFor(panel: BreakdownPanelKey): InventoryOnHandListAnalyti
 
 function breakdownTitle(panel: BreakdownPanelKey): string {
   const base = tt(`breakdown.${panel}`)
-  if (effectiveBreakdownMetricMode.value === 'qty') return base
+  if (effectiveBreakdownMetricMode.value !== 'amount') return base
   const label =
     currencyOptions.value.find((o) => o.key === amountCurrencyKey.value)?.label ?? ''
   return `${base} · ${label}`
@@ -249,13 +265,15 @@ function localizedBreakdownItems(group: InventoryOnHandListAnalyticsBreakdownGro
   }))
 }
 
-function breakdownValueFormat(): 'money' | 'number' | 'originalCurrency' {
-  if (effectiveBreakdownMetricMode.value === 'qty') return 'number'
-  return 'originalCurrency'
+function breakdownValueFormat(): 'money' | 'number' | 'originalCurrency' | 'amount' {
+  if (effectiveBreakdownMetricMode.value === 'amount') return 'amount'
+  return 'number'
 }
 
 function breakdownUnitCaption(_panel: BreakdownPanelKey): string | undefined {
+  if (effectiveBreakdownMetricMode.value === 'layers') return tt('trendUnit.layers')
   if (effectiveBreakdownMetricMode.value === 'qty') return tt('trendUnit.qty')
+  if (isInventoryBoardConvertedUsd(amountCurrencyKey.value)) return tt('trendUnit.convertedUsdCaption')
   const label =
     currencyOptions.value.find((o) => o.key === amountCurrencyKey.value)?.label ?? ''
   return tt('trendUnit.originalCaption', { currency: label })
@@ -264,10 +282,13 @@ function breakdownUnitCaption(_panel: BreakdownPanelKey): string | undefined {
 interface RankingPanelConfig {
   key: string
   qtyKey: keyof InventoryOnHandListAnalyticsRankings
+  layerKey: keyof InventoryOnHandListAnalyticsRankings
   amountKey: keyof InventoryOnHandListAnalyticsRankings
   titleQty: string
+  titleLayer: string
   titleAmount: string
   defQty: string
+  defLayer: string
   defAmount: string
 }
 
@@ -275,37 +296,49 @@ const rankingPanels: RankingPanelConfig[] = [
   {
     key: 'customer',
     qtyKey: 'customerByQty',
+    layerKey: 'customerByLayer',
     amountKey: 'customerByAmount',
     titleQty: 'customerByQty',
+    titleLayer: 'customerByLayer',
     titleAmount: 'customerByAmount',
     defQty: 'rankings.customerByQty',
+    defLayer: 'rankings.customerByLayer',
     defAmount: 'rankings.customerByAmount'
   },
   {
     key: 'salesUser',
     qtyKey: 'salesUserByQty',
+    layerKey: 'salesUserByLayer',
     amountKey: 'salesUserByAmount',
     titleQty: 'salesUserByQty',
+    titleLayer: 'salesUserByLayer',
     titleAmount: 'salesUserByAmount',
     defQty: 'rankings.salesUserByQty',
+    defLayer: 'rankings.salesUserByLayer',
     defAmount: 'rankings.salesUserByAmount'
   },
   {
     key: 'material',
     qtyKey: 'materialByQty',
+    layerKey: 'materialByLayer',
     amountKey: 'materialByAmount',
     titleQty: 'materialByQty',
+    titleLayer: 'materialByLayer',
     titleAmount: 'materialByAmount',
     defQty: 'rankings.materialByQty',
+    defLayer: 'rankings.materialByLayer',
     defAmount: 'rankings.materialByAmount'
   },
   {
     key: 'brand',
     qtyKey: 'brandByQty',
+    layerKey: 'brandByLayer',
     amountKey: 'brandByAmount',
     titleQty: 'brandByQty',
+    titleLayer: 'brandByLayer',
     titleAmount: 'brandByAmount',
     defQty: 'rankings.brandByQty',
+    defLayer: 'rankings.brandByLayer',
     defAmount: 'rankings.brandByAmount'
   }
 ]
@@ -316,40 +349,50 @@ function rankingRowsFor(panel: RankingPanelConfig): InventoryOnHandListAnalytics
     const data = rankings.value[panel.qtyKey] as InventoryOnHandListAnalyticsRankingRow[] | undefined
     return Array.isArray(data) ? data : []
   }
+  if (effectiveRankingMetricMode.value === 'layers') {
+    const data = rankings.value[panel.layerKey] as InventoryOnHandListAnalyticsRankingRow[] | undefined
+    return Array.isArray(data) ? data : []
+  }
   const facets = rankings.value[panel.amountKey] as InventoryOnHandListAnalyticsRankingFacet[]
   const facet = facets?.find((f) => f.currencyKey === amountCurrencyKey.value)
   return facet?.rows ?? []
 }
 
 function rankingTitle(panel: RankingPanelConfig): string {
-  const base = tt(
-    effectiveRankingMetricMode.value === 'qty' ? `rankings.${panel.titleQty}` : `rankings.${panel.titleAmount}`
-  )
-  if (effectiveRankingMetricMode.value === 'qty') return base
+  const mode = effectiveRankingMetricMode.value
+  const titleKey =
+    mode === 'qty' ? panel.titleQty : mode === 'layers' ? panel.titleLayer : panel.titleAmount
+  const base = tt(`rankings.${titleKey}`)
+  if (mode !== 'amount') return base
   const label =
     currencyOptions.value.find((o) => o.key === amountCurrencyKey.value)?.label ?? ''
   return `${base} · ${label}`
 }
 
 function rankingDef(panel: RankingPanelConfig) {
-  return effectiveRankingMetricMode.value === 'qty'
-    ? def(panel.defQty)
-    : def(panel.defAmount)
+  const mode = effectiveRankingMetricMode.value
+  if (mode === 'qty') return def(panel.defQty)
+  if (mode === 'layers') return def(panel.defLayer)
+  return def(panel.defAmount)
 }
 
 function rankingMetricHeaderLabel(): string {
-  return effectiveRankingMetricMode.value === 'amount'
-    ? tt('rankings.amount')
-    : tt('rankings.qty')
+  if (effectiveRankingMetricMode.value === 'amount') return tt('rankings.amount')
+  if (effectiveRankingMetricMode.value === 'layers') return tt('rankings.layers')
+  return tt('rankings.qty')
 }
 
 function formatRankingMetric(row: InventoryOnHandListAnalyticsRankingRow): string {
-  if (effectiveRankingMetricMode.value === 'amount') {
-    const label =
-      currencyOptions.value.find((o) => o.key === amountCurrencyKey.value)?.label ?? ''
-    return formatOriginalMoney(row.amount, label)
-  }
   return String(row.orderCount ?? 0)
+}
+
+function rankingAmountCurrencyLabel(): string {
+  return currencyOptions.value.find((o) => o.key === amountCurrencyKey.value)?.label ?? ''
+}
+
+function rankingAmountDockClass(): string {
+  if (isInventoryBoardConvertedUsd(amountCurrencyKey.value)) return listAmountCurrencyDockClass(2)
+  return listAmountCurrencyDockClass(Number(amountCurrencyKey.value))
 }
 
 function buildQuery(): InventoryOnHandListAnalyticsQuery {
@@ -426,9 +469,10 @@ defineExpose({ reload: loadData })
     <div class="breakdown-section">
       <div class="rankings-toolbar">
         <span class="rankings-toolbar-label">{{ tt('breakdown.metricMode') }}</span>
-        <el-radio-group v-model="breakdownMetricMode" size="small" :disabled="maskAmounts">
+        <el-radio-group v-model="breakdownMetricMode" size="small">
+          <el-radio-button v-if="!maskAmounts" value="amount">{{ tt('breakdown.amount') }}</el-radio-button>
+          <el-radio-button value="layers">{{ tt('breakdown.layers') }}</el-radio-button>
           <el-radio-button value="qty">{{ tt('breakdown.qty') }}</el-radio-button>
-          <el-radio-button value="amount">{{ tt('breakdown.amount') }}</el-radio-button>
         </el-radio-group>
         <el-select
           v-if="effectiveBreakdownMetricMode === 'amount' && currencyOptions.length"
@@ -461,9 +505,10 @@ defineExpose({ reload: loadData })
     <div class="rankings-section">
       <div class="rankings-toolbar">
         <span class="rankings-toolbar-label">{{ tt('rankings.metricMode') }}</span>
-        <el-radio-group v-model="rankingMetricMode" size="small" :disabled="maskAmounts">
+        <el-radio-group v-model="rankingMetricMode" size="small">
+          <el-radio-button v-if="!maskAmounts" value="amount">{{ tt('rankings.amount') }}</el-radio-button>
+          <el-radio-button value="layers">{{ tt('rankings.layers') }}</el-radio-button>
           <el-radio-button value="qty">{{ tt('rankings.qty') }}</el-radio-button>
-          <el-radio-button value="amount">{{ tt('rankings.amount') }}</el-radio-button>
         </el-radio-group>
         <el-select
           v-if="effectiveRankingMetricMode === 'amount' && currencyOptions.length"
@@ -499,21 +544,24 @@ defineExpose({ reload: loadData })
                 <span class="ranking-name-cell">{{ row.name }}</span>
               </template>
             </el-table-column>
-            <el-table-column width="168" align="right" class-name="ranking-metric-col">
+            <el-table-column width="188" align="right" class-name="ranking-metric-col">
               <template #header>
                 <span>{{ rankingMetricHeaderLabel() }}</span>
               </template>
               <template #default="{ row }">
                 <span
-                  class="ranking-metric-value"
-                  :class="
-                    effectiveRankingMetricMode === 'amount'
-                      ? listAmountCurrencyDockClass(Number(amountCurrencyKey))
-                      : undefined
-                  "
+                  v-if="effectiveRankingMetricMode === 'amount'"
+                  class="dock-tier-price-line ranking-metric-value"
                 >
-                  {{ formatRankingMetric(row) }}
+                  <span class="dock-tier-amt-int">{{ formatAmountNumber(row.amount) }}</span>
+                  <template v-if="row.amount != null">
+                    <span class="dock-tier-ccy-gap">&nbsp;</span>
+                    <span :class="['dock-tier-ccy', rankingAmountDockClass()]">{{
+                      rankingAmountCurrencyLabel()
+                    }}</span>
+                  </template>
                 </span>
+                <span v-else class="ranking-metric-value">{{ formatRankingMetric(row) }}</span>
               </template>
             </el-table-column>
           </el-table>

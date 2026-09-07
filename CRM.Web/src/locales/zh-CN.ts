@@ -7308,14 +7308,20 @@ const zhCN = {
       unit: {
         days: '天'
       },
+      currency: {
+        convertedUsd: '折算USD'
+      },
       trendUnit: {
         qty: 'PCS',
-        originalCaption: '单位：{currency}'
+        layers: '条目',
+        originalCaption: '单位：{currency}',
+        convertedUsdCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         metricMode: '分布指标',
         qty: '数量',
         amount: '金额',
+        layers: '库存条目',
         stockType: '库存类型',
         warehouse: '仓库',
         salesUser: '业务员',
@@ -7325,11 +7331,16 @@ const zhCN = {
         metricMode: '排行指标',
         qty: '数量',
         amount: '金额',
+        layers: '库存条目',
         name: '名称',
         customerByQty: 'Top10 客户',
         salesUserByQty: 'Top10 业务员',
         materialByQty: 'Top10 物料',
         brandByQty: 'Top10 品牌',
+        customerByLayer: 'Top10 客户',
+        salesUserByLayer: 'Top10 业务员',
+        materialByLayer: 'Top10 物料',
+        brandByLayer: 'Top10 品牌',
         customerByAmount: 'Top10 客户',
         salesUserByAmount: 'Top10 业务员',
         materialByAmount: 'Top10 物料',
@@ -7737,14 +7748,20 @@ const zhCN = {
       unit: {
         days: '天'
       },
+      currency: {
+        convertedUsd: '折算USD'
+      },
       trendUnit: {
         qty: 'PCS',
-        originalCaption: '单位：{currency}'
+        layers: '条目',
+        originalCaption: '单位：{currency}',
+        convertedUsdCaption: '单位：折算美元（USD）'
       },
       breakdown: {
         metricMode: '分布指标',
         qty: '数量',
         amount: '金额',
+        layers: '库存条目',
         stockType: '库存类型',
         warehouse: '仓库',
         salesUser: '业务员',
@@ -7754,11 +7771,16 @@ const zhCN = {
         metricMode: '排行指标',
         qty: '数量',
         amount: '金额',
+        layers: '库存条目',
         name: '名称',
         customerByQty: 'Top10 客户',
         salesUserByQty: 'Top10 业务员',
         materialByQty: 'Top10 物料',
         brandByQty: 'Top10 品牌',
+        customerByLayer: 'Top10 客户',
+        salesUserByLayer: 'Top10 业务员',
+        materialByLayer: 'Top10 物料',
+        brandByLayer: 'Top10 品牌',
         customerByAmount: 'Top10 客户',
         salesUserByAmount: 'Top10 业务员',
         materialByAmount: 'Top10 物料',

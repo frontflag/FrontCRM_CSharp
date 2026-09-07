@@ -10,10 +10,11 @@ const props = withDefaults(
     items: SalesAnalyticsBreakdownItem[]
     /**
      * money：折算美金（$）；
+     * amount：金额数字（两位小数），无币别后缀；
      * originalCurrency：原币金额 + 右侧系统色币别（label/key 为币别）；
      * number：计数轴（默认）
      */
-    valueFormat?: 'money' | 'number' | 'originalCurrency'
+    valueFormat?: 'money' | 'number' | 'originalCurrency' | 'amount'
     /** 标题行右侧单位说明 */
     unitCaption?: string
     showDefinition?: boolean
@@ -46,6 +47,9 @@ function formatAmountNumber(v: number): string {
 function formatValue(v: number): string {
   if (props.valueFormat === 'money') {
     return `$ ${formatAmountNumber(v)}`
+  }
+  if (props.valueFormat === 'amount') {
+    return formatAmountNumber(v)
   }
   return Number.isInteger(v) ? String(v) : v.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
 }

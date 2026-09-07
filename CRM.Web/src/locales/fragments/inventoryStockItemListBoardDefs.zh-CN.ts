@@ -38,12 +38,12 @@ export const inventoryStockItemListBoardDefsZh = {
     stockType: {
       chart: '库存类型',
       dataSource: '库存明细',
-      text: '客单/备货/样品构成。金额模式为各原币分列。'
+      text: '客单/备货/样品构成。可按数量（PCS）、金额（各原币或折算USD）或库存条目（当前筛选明细行数）查看。金额下拉「USD」只含采购原币为美元的行；「折算USD」把各原币按入库当时折算美金单价换成美元再加总。'
     },
     warehouse: {
       chart: '仓库',
       dataSource: '库存明细',
-      text: '按仓库汇总在库数量或原币金额。'
+      text: '按仓库汇总在库数量、原币金额、折算USD 或库存条目。'
     },
     salesUser: {
       chart: '业务员',
@@ -77,25 +77,45 @@ export const inventoryStockItemListBoardDefsZh = {
       dataSource: '库存明细',
       text: '采购品牌在库 PCS 降序。点击行切回列表。'
     },
+    customerByLayer: {
+      chart: 'Top10 客户（库存条目）',
+      dataSource: '库存明细',
+      text: '按客户库存明细行数（每条计 1）降序；备货归「无客户 / 备货」。含已出清行（若当前筛选包含）。点击行切回列表，条数应与该行一致。'
+    },
+    salesUserByLayer: {
+      chart: 'Top10 业务员（库存条目）',
+      dataSource: '库存明细',
+      text: '按业务员库存明细行数降序。点击行切回列表。'
+    },
+    materialByLayer: {
+      chart: 'Top10 物料（库存条目）',
+      dataSource: '库存明细',
+      text: '型号+品牌库存明细行数降序。点击行切回列表。'
+    },
+    brandByLayer: {
+      chart: 'Top10 品牌（库存条目）',
+      dataSource: '库存明细',
+      text: '采购品牌库存明细行数降序。点击行切回列表。'
+    },
     customerByAmount: {
       chart: 'Top10 客户（金额）',
       dataSource: '库存明细',
-      text: '按客户各原币在库金额降序。点击行切回列表（与当前原币一致）。'
+      text: '按客户各原币或折算USD 在库金额降序。原币档切回列表与当前原币一致；折算USD 档不过滤原币。'
     },
     salesUserByAmount: {
       chart: 'Top10 业务员（金额）',
       dataSource: '库存明细',
-      text: '按业务员各原币在库金额降序。点击行切回列表（与当前原币一致）。'
+      text: '按业务员各原币或折算USD 在库金额降序。原币档切回列表与当前原币一致；折算USD 档不过滤原币。'
     },
     materialByAmount: {
       chart: 'Top10 物料（金额）',
       dataSource: '库存明细',
-      text: '型号+品牌各原币在库金额降序。点击行切回列表（与当前原币一致）。'
+      text: '型号+品牌各原币或折算USD 在库金额降序。原币档切回列表与当前原币一致；折算USD 档不过滤原币。'
     },
     brandByAmount: {
       chart: 'Top10 品牌（金额）',
       dataSource: '库存明细',
-      text: '品牌各原币在库金额降序。点击行切回列表（与当前原币一致）。'
+      text: '品牌各原币或折算USD 在库金额降序。原币档切回列表与当前原币一致；折算USD 档不过滤原币。'
     }
   }
 }

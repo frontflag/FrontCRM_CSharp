@@ -1343,6 +1343,8 @@ namespace CRM.API.Controllers
         {
             MaskRankingNames(data.CustomerByQty);
             MaskRankingNames(data.SalesUserByQty);
+            MaskRankingNames(data.CustomerByLayer);
+            MaskRankingNames(data.SalesUserByLayer);
             foreach (var facet in data.CustomerByAmount)
                 MaskRankingNames(facet.Rows);
             foreach (var facet in data.SalesUserByAmount)

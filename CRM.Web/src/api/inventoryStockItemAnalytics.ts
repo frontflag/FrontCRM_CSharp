@@ -83,7 +83,7 @@ export const inventoryStockItemListAnalyticsApi = {
 export type InventoryStockItemRankingDrillPayload = {
   dimension: 'customer' | 'salesUser' | 'material' | 'brand'
   row: InventoryOnHandListAnalyticsRankingRow
-  metricMode: 'qty' | 'amount'
+  metricMode: 'qty' | 'amount' | 'layers'
   currencyKey?: string
   panelTitle: string
 }

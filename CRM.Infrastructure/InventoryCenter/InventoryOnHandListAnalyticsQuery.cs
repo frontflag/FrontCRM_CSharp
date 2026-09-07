@@ -14,6 +14,9 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
     private const int TopN = 10;
     private const int TrendDefaultMonths = 12;
     private const int StagnantDays = 90;
+    private const string MetricQty = "qty";
+    private const string MetricLayers = "layers";
+    private const string MetricAmount = "amount";
     private static readonly short[] TrendChartCurrencies =
     [
         (short)CurrencyCode.RMB,
@@ -137,7 +140,13 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
             BuildQtyBreakdown("salesUser", "业务员", layers,
                 l => string.IsNullOrWhiteSpace(l.SalespersonId) ? "_unset" : l.SalespersonId!,
                 l => string.IsNullOrWhiteSpace(l.SalespersonName) ? UnsetSalesUser : l.SalespersonName!),
-            BuildAgeBucketQtyBreakdown(layers)
+            BuildAgeBucketQtyBreakdown(layers),
+            BuildLayerBreakdown("stockType", "库存类型", layers, l => l.StockType.ToString(), FormatStockType),
+            BuildLayerBreakdown("warehouse", "仓库", layers, l => string.IsNullOrWhiteSpace(l.WarehouseId) ? "_unset" : l.WarehouseId!, l => l.WarehouseLabel),
+            BuildLayerBreakdown("salesUser", "业务员", layers,
+                l => string.IsNullOrWhiteSpace(l.SalespersonId) ? "_unset" : l.SalespersonId!,
+                l => string.IsNullOrWhiteSpace(l.SalespersonName) ? UnsetSalesUser : l.SalespersonName!),
+            BuildAgeBucketLayerBreakdown(layers)
         };
 
         foreach (var ccy in currencies)
@@ -154,6 +163,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
             groups.Add(BuildAgeBucketAmountBreakdown(inCcy, key, label, maskAmounts));
         }
 
+        AddConvertedUsdAmountGroups(groups, layers, maskAmounts);
         return groups;
     }
 
@@ -180,6 +190,22 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
                 MaterialKey,
                 MaterialLabel),
             BrandByQty = RankQty(
+                layers,
+                l => string.IsNullOrWhiteSpace(l.BrandKey) ? "_unset" : l.BrandKey,
+                l => string.IsNullOrWhiteSpace(l.PurchaseBrand) ? UnsetBrand : l.PurchaseBrand!.Trim()),
+            CustomerByLayer = RankLayers(
+                layers,
+                l => string.IsNullOrWhiteSpace(l.CustomerId) ? "_unset" : l.CustomerId!,
+                l => string.IsNullOrWhiteSpace(l.CustomerId) ? UnsetCustomer : (l.CustomerName ?? l.CustomerId!)),
+            SalesUserByLayer = RankLayers(
+                layers,
+                l => string.IsNullOrWhiteSpace(l.SalespersonId) ? "_unset" : l.SalespersonId!,
+                l => string.IsNullOrWhiteSpace(l.SalespersonName) ? UnsetSalesUser : l.SalespersonName!),
+            MaterialByLayer = RankLayers(
+                layers,
+                MaterialKey,
+                MaterialLabel),
+            BrandByLayer = RankLayers(
                 layers,
                 l => string.IsNullOrWhiteSpace(l.BrandKey) ? "_unset" : l.BrandKey,
                 l => string.IsNullOrWhiteSpace(l.PurchaseBrand) ? UnsetBrand : l.PurchaseBrand!.Trim()),
@@ -222,7 +248,9 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
                          si.QtyRepertory,
                          si.QtyInbound,
                          si.PurchasePrice,
+                         si.PurchasePriceUsd,
                          si.PurchaseCurrency,
+                         si.PurchaseOrderItemId,
                          StockInDate = sin != null && !sin.IsDeleted ? (DateTime?)sin.StockInDate : null
                      };
 
@@ -269,11 +297,22 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
                 QtyRepertory = x.QtyRepertory,
                 QtyInbound = x.QtyInbound,
                 PurchasePrice = x.PurchasePrice,
+                PurchasePriceUsd = x.PurchasePriceUsd,
+                PurchaseOrderItemId = x.PurchaseOrderItemId,
                 Currency = InventoryOnHandCurrency.Normalize(x.PurchaseCurrency),
                 StockInDate = stockInDate,
                 AgeDays = stockInDate.HasValue ? Math.Max(0, (today - stockInDate.Value).Days) : 0
             };
         }).ToList();
+
+        var convertByItem = await InventoryAnalyticsConvertPriceLookup.LoadAsync(
+            _db, layers.Select(l => l.PurchaseOrderItemId), IdChunkSize, cancellationToken);
+        foreach (var layer in layers)
+        {
+            if (!string.IsNullOrWhiteSpace(layer.PurchaseOrderItemId)
+                && convertByItem.TryGetValue(layer.PurchaseOrderItemId, out var convertPrice))
+                layer.ConvertPrice = convertPrice;
+        }
 
         var outs = await LoadOutEventsAsync(layers.Select(l => l.Id).ToList(), cancellationToken);
         return new AnalyticsBundle(layers, outs);
@@ -396,7 +435,22 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         {
             GroupKey = groupKey,
             GroupLabel = groupLabel,
+            Metric = MetricQty,
             Items = BuildBreakdownItems(layers, keySelector, labelSelector, l => l.QtyRepertory)
+        };
+
+    private static InventoryOnHandListAnalyticsBreakdownGroupDto BuildLayerBreakdown(
+        string groupKey,
+        string groupLabel,
+        IReadOnlyList<LayerRow> layers,
+        Func<LayerRow, string> keySelector,
+        Func<LayerRow, string> labelSelector) =>
+        new()
+        {
+            GroupKey = groupKey,
+            GroupLabel = groupLabel,
+            Metric = MetricLayers,
+            Items = BuildBreakdownItems(layers, keySelector, labelSelector, _ => 1m)
         };
 
     private static InventoryOnHandListAnalyticsBreakdownGroupDto BuildAmountBreakdown(
@@ -412,13 +466,54 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         {
             GroupKey = groupKey,
             GroupLabel = groupLabel,
+            Metric = MetricAmount,
             CurrencyKey = currencyKey,
             CurrencyLabel = currencyLabel,
             Items = BuildBreakdownItems(
                 layers,
                 keySelector,
                 labelSelector,
-                l => maskAmounts ? 1m : l.QtyRepertory * l.PurchasePrice)
+                l => AmountValue(l, convertedUsd: false, maskAmounts))
+        };
+
+    private static void AddConvertedUsdAmountGroups(
+        List<InventoryOnHandListAnalyticsBreakdownGroupDto> groups,
+        IReadOnlyList<LayerRow> layers,
+        bool maskAmounts)
+    {
+        var key = InventoryOnHandCurrency.ConvertedUsdKey;
+        var label = InventoryOnHandCurrency.ConvertedUsdLabel;
+        groups.Add(BuildConvertedUsdAmountBreakdown("stockType", "库存类型", key, label, layers,
+            l => l.StockType.ToString(), FormatStockType, maskAmounts));
+        groups.Add(BuildConvertedUsdAmountBreakdown("warehouse", "仓库", key, label, layers,
+            l => string.IsNullOrWhiteSpace(l.WarehouseId) ? "_unset" : l.WarehouseId!, l => l.WarehouseLabel, maskAmounts));
+        groups.Add(BuildConvertedUsdAmountBreakdown("salesUser", "业务员", key, label, layers,
+            l => string.IsNullOrWhiteSpace(l.SalespersonId) ? "_unset" : l.SalespersonId!,
+            l => string.IsNullOrWhiteSpace(l.SalespersonName) ? UnsetSalesUser : l.SalespersonName!, maskAmounts));
+        groups.Add(BuildAgeBucketConvertedUsdAmountBreakdown(layers, key, label, maskAmounts));
+    }
+
+    private static InventoryOnHandListAnalyticsBreakdownGroupDto BuildConvertedUsdAmountBreakdown(
+        string groupKey,
+        string groupLabel,
+        string currencyKey,
+        string currencyLabel,
+        IReadOnlyList<LayerRow> layers,
+        Func<LayerRow, string> keySelector,
+        Func<LayerRow, string> labelSelector,
+        bool maskAmounts) =>
+        new()
+        {
+            GroupKey = groupKey,
+            GroupLabel = groupLabel,
+            Metric = MetricAmount,
+            CurrencyKey = currencyKey,
+            CurrencyLabel = currencyLabel,
+            Items = BuildBreakdownItems(
+                layers,
+                keySelector,
+                labelSelector,
+                l => AmountValue(l, convertedUsd: true, maskAmounts))
         };
 
     private static InventoryOnHandListAnalyticsBreakdownGroupDto BuildAgeBucketQtyBreakdown(IReadOnlyList<LayerRow> layers)
@@ -434,6 +529,25 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         {
             GroupKey = "ageBucket",
             GroupLabel = "库龄分布",
+            Metric = MetricQty,
+            Items = ToBreakdownItems(buckets)
+        };
+    }
+
+    private static InventoryOnHandListAnalyticsBreakdownGroupDto BuildAgeBucketLayerBreakdown(IReadOnlyList<LayerRow> layers)
+    {
+        var buckets = CreateAgeBuckets();
+        foreach (var layer in layers.Where(l => l.StockInDate.HasValue))
+        {
+            var key = InventoryAnalyticsAgeBucket.Classify(layer.AgeDays);
+            buckets[key] = (buckets[key].Label, buckets[key].Qty + 1);
+        }
+
+        return new InventoryOnHandListAnalyticsBreakdownGroupDto
+        {
+            GroupKey = "ageBucket",
+            GroupLabel = "库龄分布",
+            Metric = MetricLayers,
             Items = ToBreakdownItems(buckets)
         };
     }
@@ -448,7 +562,7 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         foreach (var layer in layers.Where(l => l.StockInDate.HasValue))
         {
             var key = InventoryAnalyticsAgeBucket.Classify(layer.AgeDays);
-            var add = maskAmounts ? 1m : layer.QtyRepertory * layer.PurchasePrice;
+            var add = AmountValue(layer, convertedUsd: false, maskAmounts);
             buckets[key] = (buckets[key].Label, buckets[key].Qty + add);
         }
 
@@ -456,6 +570,32 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         {
             GroupKey = "ageBucket",
             GroupLabel = "库龄分布",
+            Metric = MetricAmount,
+            CurrencyKey = currencyKey,
+            CurrencyLabel = currencyLabel,
+            Items = ToBreakdownItems(buckets)
+        };
+    }
+
+    private static InventoryOnHandListAnalyticsBreakdownGroupDto BuildAgeBucketConvertedUsdAmountBreakdown(
+        IReadOnlyList<LayerRow> layers,
+        string currencyKey,
+        string currencyLabel,
+        bool maskAmounts)
+    {
+        var buckets = CreateAgeBuckets();
+        foreach (var layer in layers.Where(l => l.StockInDate.HasValue))
+        {
+            var key = InventoryAnalyticsAgeBucket.Classify(layer.AgeDays);
+            var add = AmountValue(layer, convertedUsd: true, maskAmounts);
+            buckets[key] = (buckets[key].Label, buckets[key].Qty + add);
+        }
+
+        return new InventoryOnHandListAnalyticsBreakdownGroupDto
+        {
+            GroupKey = "ageBucket",
+            GroupLabel = "库龄分布",
+            Metric = MetricAmount,
             CurrencyKey = currencyKey,
             CurrencyLabel = currencyLabel,
             Items = ToBreakdownItems(buckets)
@@ -524,36 +664,77 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
             .Take(TopN)
             .ToList();
 
+    private static List<SalesAnalyticsRankingRowDto> RankLayers(
+        IReadOnlyList<LayerRow> layers,
+        Func<LayerRow, string> keySelector,
+        Func<LayerRow, string> labelSelector) =>
+        layers
+            .GroupBy(keySelector, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Key,
+                Name = labelSelector(g.First()),
+                OrderCount = g.Count(),
+                Amount = null
+            })
+            .OrderByDescending(x => x.OrderCount)
+            .Take(TopN)
+            .ToList();
+
     private static List<InventoryOnHandListAnalyticsRankingFacetDto> FacetRankAmount(
         IReadOnlyList<LayerRow> layers,
         IReadOnlyList<short> currencies,
         bool maskAmounts,
         Func<LayerRow, string> keySelector,
-        Func<LayerRow, string> labelSelector) =>
-        currencies.Select(ccy =>
+        Func<LayerRow, string> labelSelector)
+    {
+        var facets = currencies.Select(ccy =>
         {
             var (key, label) = FormatCurrency(ccy);
             var inCcy = layers.Where(l => l.Currency == ccy).ToList();
-            return new InventoryOnHandListAnalyticsRankingFacetDto
-            {
-                CurrencyKey = key,
-                CurrencyLabel = label,
-                Rows = inCcy
-                    .GroupBy(keySelector, StringComparer.OrdinalIgnoreCase)
-                    .Select(g => new SalesAnalyticsRankingRowDto
-                    {
-                        Id = g.Key,
-                        Name = labelSelector(g.First()),
-                        Amount = maskAmounts
-                            ? null
-                            : Math.Round(g.Sum(x => x.QtyRepertory * x.PurchasePrice), 2, MidpointRounding.AwayFromZero),
-                        OrderCount = g.Sum(x => x.QtyRepertory)
-                    })
-                    .OrderByDescending(x => x.Amount ?? x.OrderCount)
-                    .Take(TopN)
-                    .ToList()
-            };
+            return RankAmountFacet(inCcy, key, label, maskAmounts, convertedUsd: false, keySelector, labelSelector);
         }).ToList();
+        facets.Add(RankAmountFacet(
+            layers,
+            InventoryOnHandCurrency.ConvertedUsdKey,
+            InventoryOnHandCurrency.ConvertedUsdLabel,
+            maskAmounts,
+            convertedUsd: true,
+            keySelector,
+            labelSelector));
+        return facets;
+    }
+
+    private static InventoryOnHandListAnalyticsRankingFacetDto RankAmountFacet(
+        IReadOnlyList<LayerRow> layers,
+        string currencyKey,
+        string currencyLabel,
+        bool maskAmounts,
+        bool convertedUsd,
+        Func<LayerRow, string> keySelector,
+        Func<LayerRow, string> labelSelector) =>
+        new()
+        {
+            CurrencyKey = currencyKey,
+            CurrencyLabel = currencyLabel,
+            Rows = layers
+                .GroupBy(keySelector, StringComparer.OrdinalIgnoreCase)
+                .Select(g => new SalesAnalyticsRankingRowDto
+                {
+                    Id = g.Key,
+                    Name = labelSelector(g.First()),
+                    Amount = maskAmounts
+                        ? null
+                        : Math.Round(g.Sum(x => AmountValue(x, convertedUsd, maskAmounts: false)), 2, MidpointRounding.AwayFromZero),
+                    OrderCount = g.Sum(x => x.QtyRepertory)
+                })
+                .OrderByDescending(x => x.Amount ?? x.OrderCount)
+                .Take(TopN)
+                .ToList()
+        };
+
+    private static decimal AmountValue(LayerRow layer, bool convertedUsd, bool maskAmounts) =>
+        maskAmounts ? 1m : layer.QtyRepertory * (convertedUsd ? layer.UnitUsd : layer.PurchasePrice);
 
     private static string MaterialKey(LayerRow l)
     {
@@ -691,6 +872,10 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         public int QtyRepertory { get; set; }
         public int QtyInbound { get; set; }
         public decimal PurchasePrice { get; set; }
+        public decimal PurchasePriceUsd { get; set; }
+        public string? PurchaseOrderItemId { get; set; }
+        public decimal ConvertPrice { get; set; }
+        public decimal UnitUsd => InventoryOnHandCurrency.UnitUsd(ConvertPrice, PurchasePriceUsd);
         public short Currency { get; set; }
         public DateTime? StockInDate { get; set; }
         public int AgeDays { get; set; }

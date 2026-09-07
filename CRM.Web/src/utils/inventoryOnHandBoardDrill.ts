@@ -1,6 +1,7 @@
 import type { RouteLocationRaw, Router } from 'vue-router'
 import type { InventoryOnHandListAnalyticsQuery } from '@/api/inventoryOnHandAnalytics'
 import { parseStockInTypeFilterValue } from '@/constants/stockInType'
+import { isInventoryBoardConvertedUsd } from '@/utils/inventoryBoardConvertedUsd'
 
 export type RankingDrillDimension = 'customer' | 'salesUser' | 'material' | 'brand'
 
@@ -35,7 +36,7 @@ export function buildRankingStockItemDrillRoute(
   boardFilters: InventoryOnHandListAnalyticsQuery,
   dimension: RankingDrillDimension,
   row: { id: string; name: string },
-  metricMode: 'qty' | 'amount',
+  metricMode: 'qty' | 'amount' | 'layers',
   currencyKey?: string,
   panelTitle?: string
 ) {
@@ -47,7 +48,9 @@ export function buildRankingStockItemDrillRoute(
     rankLabel: row.name
   }
   if (panelTitle?.trim()) query.rankPanel = panelTitle.trim()
-  if (metricMode === 'amount' && currencyKey) query.rankCurrency = currencyKey
+  if (metricMode === 'amount' && currencyKey && !isInventoryBoardConvertedUsd(currencyKey)) {
+    query.rankCurrency = currencyKey
+  }
   appendBoardFilters(query, boardFilters)
   return { path: '/inventory/stock-items', query }
 }

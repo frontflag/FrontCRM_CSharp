@@ -44,11 +44,15 @@ public sealed class InventoryOnHandListAnalyticsTrendPointDto
         Array.Empty<InventoryOnHandListAnalyticsTrendCurrencyAmountDto>();
 }
 
-/// <summary>分布组：<c>CurrencyKey</c> 为空表示按数量；否则为该原币金额。</summary>
+/// <summary>
+/// 分布组。<c>Metric</c>：<c>qty</c> 在库 PCS、<c>layers</c> 在库条目数、<c>amount</c> 原币金额（配合 <c>CurrencyKey</c>）。
+/// </summary>
 public sealed class InventoryOnHandListAnalyticsBreakdownGroupDto
 {
     public string GroupKey { get; set; } = string.Empty;
     public string GroupLabel { get; set; } = string.Empty;
+    /// <summary><c>qty</c> / <c>layers</c> / <c>amount</c>。</summary>
+    public string Metric { get; set; } = "qty";
     public string? CurrencyKey { get; set; }
     public string? CurrencyLabel { get; set; }
     public IReadOnlyList<SalesAnalyticsBreakdownItemDto> Items { get; set; } =
@@ -72,6 +76,14 @@ public sealed class InventoryOnHandListAnalyticsRankingsDto
     public IReadOnlyList<SalesAnalyticsRankingRowDto> MaterialByQty { get; set; } =
         Array.Empty<SalesAnalyticsRankingRowDto>();
     public IReadOnlyList<SalesAnalyticsRankingRowDto> BrandByQty { get; set; } =
+        Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> CustomerByLayer { get; set; } =
+        Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> SalesUserByLayer { get; set; } =
+        Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> MaterialByLayer { get; set; } =
+        Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> BrandByLayer { get; set; } =
         Array.Empty<SalesAnalyticsRankingRowDto>();
     public IReadOnlyList<InventoryOnHandListAnalyticsRankingFacetDto> CustomerByAmount { get; set; } =
         Array.Empty<InventoryOnHandListAnalyticsRankingFacetDto>();

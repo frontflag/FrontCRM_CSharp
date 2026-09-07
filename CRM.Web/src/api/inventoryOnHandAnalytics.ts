@@ -39,6 +39,7 @@ export interface InventoryOnHandListAnalyticsTrendPoint {
 }
 
 export interface InventoryOnHandListAnalyticsBreakdownGroup extends SalesAnalyticsBreakdownGroup {
+  metric?: 'qty' | 'layers' | 'amount' | string | null
   currencyKey?: string | null
   currencyLabel?: string | null
 }
@@ -61,6 +62,10 @@ export interface InventoryOnHandListAnalyticsRankings {
   salesUserByQty: InventoryOnHandListAnalyticsRankingRow[]
   materialByQty: InventoryOnHandListAnalyticsRankingRow[]
   brandByQty: InventoryOnHandListAnalyticsRankingRow[]
+  customerByLayer?: InventoryOnHandListAnalyticsRankingRow[]
+  salesUserByLayer?: InventoryOnHandListAnalyticsRankingRow[]
+  materialByLayer?: InventoryOnHandListAnalyticsRankingRow[]
+  brandByLayer?: InventoryOnHandListAnalyticsRankingRow[]
   customerByAmount: InventoryOnHandListAnalyticsRankingFacet[]
   salesUserByAmount: InventoryOnHandListAnalyticsRankingFacet[]
   materialByAmount: InventoryOnHandListAnalyticsRankingFacet[]

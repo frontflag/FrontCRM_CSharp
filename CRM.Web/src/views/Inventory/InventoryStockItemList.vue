@@ -533,6 +533,7 @@ import {
   type IsiStockTypeTabId
 } from '@/utils/inventoryStockItemListTabMode'
 import { applyStockItemListRouteQuery } from '@/utils/inventoryOnHandBoardDrill'
+import { isInventoryBoardConvertedUsd } from '@/utils/inventoryBoardConvertedUsd'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import InventoryStockItemListBoard from '@/views/Inventory/InventoryStockItemListBoard.vue'
 import type { InventoryStockItemRankingDrillPayload } from '@/api/inventoryStockItemAnalytics'
@@ -743,6 +744,13 @@ const rankingDrillBannerText = computed(() => {
   }
   if (currencyKey === '2') {
     return t('inventoryStockItemList.drillFromBoard.rankingAmount', { panel, name, currency: 'USD' })
+  }
+  if (isInventoryBoardConvertedUsd(currencyKey)) {
+    return t('inventoryStockItemList.drillFromBoard.rankingAmount', {
+      panel,
+      name,
+      currency: t('inventoryStockItemList.board.currency.convertedUsd')
+    })
   }
   if (currencyKey) {
     return t('inventoryStockItemList.drillFromBoard.rankingAmount', { panel, name, currency: currencyKey })
