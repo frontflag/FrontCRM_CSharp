@@ -508,6 +508,16 @@ const SIDEBAR_MENU_GROUPS: SidebarMenuGroupDef[] = [
     ]
   },
   {
+    key: 'commission',
+    titleKey: 'layout.sections.commission',
+    items: [
+      { code: 'commission-estimated-sales.read', titleKey: 'layout.menu.commissionEstimatedSales' },
+      { code: 'commission-estimated-purchase.read', titleKey: 'layout.menu.commissionEstimatedPurchase' },
+      { code: 'commission-official-sales.read', titleKey: 'layout.menu.commissionOfficialSales' },
+      { code: 'commission-official-purchase.read', titleKey: 'layout.menu.commissionOfficialPurchase' }
+    ]
+  },
+  {
     key: 'business',
     titleKey: 'layout.sections.businessManagement',
     items: [{ code: 'biz-brand.read', titleKey: 'layout.menu.brandManagement' }]

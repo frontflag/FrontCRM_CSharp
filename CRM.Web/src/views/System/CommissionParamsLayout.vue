@@ -11,6 +11,14 @@
       <div class="settings-nav" aria-label="commission-params-nav">
         <div class="nav-group-label">{{ t('commissionParams.navTitle') }}</div>
         <router-link
+          to="/system/commission-params/settings"
+          class="nav-item"
+          active-class="active"
+        >
+          <el-icon class="nav-icon"><Setting /></el-icon>
+          <span>{{ t('commissionParams.settingsNav') }}</span>
+        </router-link>
+        <router-link
           v-if="canSales"
           to="/system/commission-params/sales"
           class="nav-item"
@@ -41,7 +49,7 @@
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ShoppingCart, User } from '@element-plus/icons-vue'
+import { Setting, ShoppingCart, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores'
 
 const { t } = useI18n()
@@ -54,8 +62,7 @@ const canPurchase = computed(() => authStore.canForceDelete())
 
 onMounted(() => {
   if (route.path === '/system/commission-params' || route.path === '/system/commission-params/') {
-    if (canSales.value) router.replace('/system/commission-params/sales')
-    else if (canPurchase.value) router.replace('/system/commission-params/purchase')
+    router.replace('/system/commission-params/settings')
   }
 })
 </script>

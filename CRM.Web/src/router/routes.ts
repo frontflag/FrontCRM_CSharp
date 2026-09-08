@@ -1090,7 +1090,17 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/System/CommissionParamsLayout.vue'),
         meta: { requiresAuth: true, title: '提成参数', paramsModule: 'commission', adminOrManagerOnly: true },
         children: [
-          { path: '', redirect: '/system/commission-params/sales' },
+          { path: '', redirect: '/system/commission-params/settings' },
+          {
+            path: 'settings',
+            name: 'CommissionParamsSettings',
+            component: () => import('@/views/System/CommissionParamsSettings.vue'),
+            meta: {
+              requiresAuth: true,
+              title: '提成参数',
+              adminOrManagerOnly: true
+            }
+          },
           {
             path: 'sales',
             name: 'CommissionParamsSales',
@@ -1361,6 +1371,30 @@ const routes: RouteRecordRaw[] = [
         name: 'FinanceVendorAccumulatedItemList',
         component: () => import('@/views/Finance/FinanceVendorAccumulatedItemList.vue'),
         meta: { requiresAuth: true, title: '供应商明细滚存', permission: 'finance-accumulated.read' }
+      },
+      {
+        path: 'commission/estimated/sales',
+        name: 'CommissionEstimatedSales',
+        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
+        meta: { requiresAuth: true, title: '业务预计提成', permission: 'commission-estimated-sales.read' }
+      },
+      {
+        path: 'commission/estimated/purchase',
+        name: 'CommissionEstimatedPurchase',
+        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
+        meta: { requiresAuth: true, title: '采购预计提成', permission: 'commission-estimated-purchase.read' }
+      },
+      {
+        path: 'commission/official/sales',
+        name: 'CommissionOfficialSales',
+        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
+        meta: { requiresAuth: true, title: '业务正式提成', permission: 'commission-official-sales.read' }
+      },
+      {
+        path: 'commission/official/purchase',
+        name: 'CommissionOfficialPurchase',
+        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
+        meta: { requiresAuth: true, title: '采购正式提成', permission: 'commission-official-purchase.read' }
       },
       {
         path: 'documents/demo',

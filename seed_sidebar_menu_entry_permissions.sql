@@ -10,7 +10,11 @@ VALUES
   ('30000000-0000-4000-8000-0000000000b1', 'biz-brand.write', '品牌管理-维护', 'api', 'biz-brand', 'write', 1, NOW()),
   ('30000000-0000-4000-8000-0000000000c1', 'biz.feedback.admin', '用户反馈-运维', 'api', 'feedback', 'admin', 1, NOW()),
   ('30000000-0000-4000-8000-0000000000c2', 'sys.errorlog.read', '系统错误-查看', 'api', 'errorlog', 'read', 1, NOW()),
-  ('30000000-0000-4000-8000-0000000000c3', 'biz.telemetry.analytics', '埋点分析-查看', 'api', 'telemetry', 'analytics', 1, NOW())
+  ('30000000-0000-4000-8000-0000000000c3', 'biz.telemetry.analytics', '埋点分析-查看', 'api', 'telemetry', 'analytics', 1, NOW()),
+  ('c1000000-0000-4000-8000-000000000101', 'commission-estimated-sales.read', '业务预计提成-查看', 'api', 'commission-estimated-sales', 'read', 1, NOW()),
+  ('c1000000-0000-4000-8000-000000000102', 'commission-estimated-purchase.read', '采购预计提成-查看', 'api', 'commission-estimated-purchase', 'read', 1, NOW()),
+  ('c1000000-0000-4000-8000-000000000103', 'commission-official-sales.read', '业务正式提成-查看', 'api', 'commission-official-sales', 'read', 1, NOW()),
+  ('c1000000-0000-4000-8000-000000000104', 'commission-official-purchase.read', '采购正式提成-查看', 'api', 'commission-official-purchase', 'read', 1, NOW())
 ON CONFLICT ("PermissionCode") DO UPDATE
 SET
   "PermissionName" = EXCLUDED."PermissionName",
@@ -30,6 +34,10 @@ WHERE "PermissionCode" IN (
   'biz-brand.read',
   'biz.feedback.admin',
   'sys.errorlog.read',
-  'biz.telemetry.analytics'
+  'biz.telemetry.analytics',
+  'commission-estimated-sales.read',
+  'commission-estimated-purchase.read',
+  'commission-official-sales.read',
+  'commission-official-purchase.read'
 )
 ORDER BY "PermissionCode";

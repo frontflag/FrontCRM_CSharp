@@ -4,6 +4,22 @@
       <div class="section-head__left">
         <div class="section-title"><span class="title-bar"></span>{{ sectionTitle }}</div>
         <p class="section-hint">{{ t('commissionParams.listHint') }}</p>
+        <div class="version-toolbar">
+          <span class="version-label">{{ t('commissionParams.editVersion') }}</span>
+          <el-select
+            :model-value="selectedVersionId"
+            class="version-select"
+            :filterable="false"
+            @change="onVersionChange"
+          >
+            <el-option
+              v-for="v in versions"
+              :key="v.id"
+              :label="formatCommissionVersionLabel(v, t('commissionParams.activeTag'))"
+              :value="v.id"
+            />
+          </el-select>
+        </div>
       </div>
     </div>
 
@@ -133,7 +149,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { useI18n } from 'vue-i18n'
@@ -143,8 +160,10 @@ import {
   COMMISSION_LADDER_COUNT,
   COMMISSION_ROLE_PURCHASE,
   commissionRatesApi,
+  formatCommissionVersionLabel,
   formatLadderCell,
-  type CommissionRateRow
+  type CommissionRateRow,
+  type CommissionRateVersion
 } from '@/api/commissionRates'
 import { userLevelApi, type UserLevelDefinition } from '@/api/userLevel'
 import { validateCommissionLadders, type CommissionLadderDraftSlot } from '@/utils/commissionLadderRules'
@@ -153,7 +172,11 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 
 const props = defineProps<{ roleType: number }>()
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
+const versions = ref<CommissionRateVersion[]>([])
+const selectedVersionId = ref('')
 
 const canWrite = computed(() => authStore.canForceDelete())
 
@@ -289,15 +312,29 @@ function levelDesc(level: number) {
   return desc || '—'
 }
 
+function onVersionChange(id: string) {
+  selectedVersionId.value = id
+  void router.replace({ query: { ...route.query, versionId: id } })
+}
+
 async function load() {
   loading.value = true
   try {
-    const [list, defs] = await Promise.all([
-      commissionRatesApi.list(props.roleType),
+    const [versionList, defs] = await Promise.all([
+      commissionRatesApi.listVersions(props.roleType),
       userLevelApi.listDefinitions().catch(() => [] as UserLevelDefinition[])
     ])
-    rows.value = list
+    versions.value = versionList
     levelDefs.value = defs
+    const q = typeof route.query.versionId === 'string' ? route.query.versionId : ''
+    selectedVersionId.value =
+      (q && versionList.some((v) => v.id === q) ? q : '') ||
+      versionList.find((v) => v.isActive)?.id ||
+      versionList[0]?.id ||
+      ''
+    rows.value = selectedVersionId.value
+      ? await commissionRatesApi.list(props.roleType, selectedVersionId.value)
+      : []
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : t('commissionParams.loadFailed'))
   } finally {
@@ -306,13 +343,12 @@ async function load() {
 }
 
 watch(
-  () => props.roleType,
+  () => [props.roleType, route.query.versionId] as const,
   () => {
     void load()
-  }
+  },
+  { immediate: true }
 )
-
-onMounted(load)
 </script>
 
 <style scoped lang="scss">
@@ -348,6 +384,22 @@ onMounted(load)
   font-size: 12px;
   color: $text-muted;
   line-height: 1.5;
+}
+
+.version-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.version-label {
+  font-size: 13px;
+  color: $text-secondary;
+}
+
+.version-select {
+  width: 320px;
 }
 
 .table-wrapper {

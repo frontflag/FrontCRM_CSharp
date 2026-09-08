@@ -937,6 +937,106 @@
           </SidebarMenuGroupFlyout>
         </div>
 
+        <!-- 提成：财务组之下；预计=动态表、正式=锁定表（列表页后续落地） -->
+        <div class="menu-section-label" v-if="!isCollapsed && showCommissionMenus">{{ t('layout.sections.commission') }}</div>
+        <div v-if="showCommissionMenus" class="sidebar-nav-inline-group">
+          <SidebarMenuGroupFlyout
+            v-if="showCommissionEstimated"
+            :collapsed="isCollapsed"
+            :expanded="openGroups.commissionEstimated"
+            @toggle="toggleGroup('commissionEstimated')"
+          >
+            <template #icon>
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M4 20V9"/>
+                  <path d="M10 20V4"/>
+                  <path d="M16 20v-8"/>
+                  <path d="M22 20V11"/>
+                </svg>
+              </span>
+            </template>
+            <template #label>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.commissionEstimated') }}</span>
+            </template>
+            <template #chevron>
+              <svg
+                v-if="!isCollapsed"
+                class="chevron"
+                :class="{ rotated: openGroups.commissionEstimated }"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </template>
+            <template #submenu>
+              <router-link
+                v-if="hasPermission('commission-estimated-sales.read')"
+                to="/commission/estimated/sales"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.commissionEstimatedSales') }}</router-link>
+              <router-link
+                v-if="hasPermission('commission-estimated-purchase.read')"
+                to="/commission/estimated/purchase"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.commissionEstimatedPurchase') }}</router-link>
+            </template>
+          </SidebarMenuGroupFlyout>
+
+          <SidebarMenuGroupFlyout
+            v-if="showCommissionOfficial"
+            :collapsed="isCollapsed"
+            :expanded="openGroups.commissionOfficial"
+            @toggle="toggleGroup('commissionOfficial')"
+          >
+            <template #icon>
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="4" y="3" width="16" height="18" rx="2"/>
+                  <path d="M8 8h8"/>
+                  <path d="M8 12h8"/>
+                  <path d="M8 16h5"/>
+                </svg>
+              </span>
+            </template>
+            <template #label>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.commissionOfficial') }}</span>
+            </template>
+            <template #chevron>
+              <svg
+                v-if="!isCollapsed"
+                class="chevron"
+                :class="{ rotated: openGroups.commissionOfficial }"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M6 9l6 6 6-6"/>
+              </svg>
+            </template>
+            <template #submenu>
+              <router-link
+                v-if="hasPermission('commission-official-sales.read')"
+                to="/commission/official/sales"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.commissionOfficialSales') }}</router-link>
+              <router-link
+                v-if="hasPermission('commission-official-purchase.read')"
+                to="/commission/official/purchase"
+                class="submenu-item"
+                active-class="active"
+              >{{ t('layout.menu.commissionOfficialPurchase') }}</router-link>
+            </template>
+          </SidebarMenuGroupFlyout>
+        </div>
+
         <!-- 业务管理 -->
         <div
           class="menu-section-label"
@@ -3624,6 +3724,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/purchase-params/demand-protection': 'purchaseParams.demandProtectionNav',
   '/system/purchase-params/refresh-vendor': 'purchaseParams.refreshVendorNav',
   '/system/report-params/global': 'layout.menu.reportParams',
+  '/system/commission-params/settings': 'layout.menu.commissionParams',
   '/system/commission-params/sales': 'layout.menu.commissionParams',
   '/system/commission-params/purchase': 'commissionParams.purchaseNav',
   '/system/login-logs': 'layout.menu.loginLog',
@@ -3694,7 +3795,11 @@ const pageTitleMap: Record<string, string> = {
   '/finance/customer-accumulated': 'layout.menu.customerAccumulated',
   '/finance/customer-accumulated/items': 'layout.menu.customerAccumulated',
   '/finance/vendor-accumulated': 'layout.menu.vendorAccumulated',
-  '/finance/vendor-accumulated/items': 'layout.menu.vendorAccumulated'
+  '/finance/vendor-accumulated/items': 'layout.menu.vendorAccumulated',
+  '/commission/estimated/sales': 'layout.menu.commissionEstimatedSales',
+  '/commission/estimated/purchase': 'layout.menu.commissionEstimatedPurchase',
+  '/commission/official/sales': 'layout.menu.commissionOfficialSales',
+  '/commission/official/purchase': 'layout.menu.commissionOfficialPurchase'
 }
 
 const routeMetaTitleKeyMap: Record<string, string> = {
@@ -3820,6 +3925,10 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '进项发票详情': 'rfqItemList.actions.detail',
   '销项发票': 'layout.menu.sellInvoices',
   '销项发票详情': 'rfqItemList.actions.detail',
+  '业务预计提成': 'layout.menu.commissionEstimatedSales',
+  '采购预计提成': 'layout.menu.commissionEstimatedPurchase',
+  '业务正式提成': 'layout.menu.commissionOfficialSales',
+  '采购正式提成': 'layout.menu.commissionOfficialPurchase',
   '文档模块演示': 'layout.menu.system',
   'Debug 模拟数据': 'layout.menu.debugData',
   Debug: 'layout.menu.debug'
@@ -3927,6 +4036,20 @@ const showLogisticsMenus = computed(() => {
   if (isSysAdmin.value || hasBizDataBypass.value) return true
   return (authStore.user?.logisticsDataScope ?? 0) !== 4
 })
+
+const showCommissionEstimated = computed(
+  () =>
+    hasPermission('commission-estimated-sales.read') ||
+    hasPermission('commission-estimated-purchase.read')
+)
+const showCommissionOfficial = computed(
+  () =>
+    hasPermission('commission-official-sales.read') ||
+    hasPermission('commission-official-purchase.read')
+)
+const showCommissionMenus = computed(
+  () => showCommissionEstimated.value || showCommissionOfficial.value
+)
 
 /** 付款管理/收款管理：主部门 FinanceDataScope=4 时整组隐藏；采购运营仍可见付款侧、商务助理仍可见收款侧 */
 const showFinanceMenus = computed(() => {
@@ -4085,6 +4208,12 @@ watch(
     }
     if (p === '/finance/vendor-accumulated' || p.startsWith('/finance/vendor-accumulated/')) {
       openGroups.value.financeInventoryReports = true
+    }
+    if (p.startsWith('/commission/estimated')) {
+      openGroups.value.commissionEstimated = true
+    }
+    if (p.startsWith('/commission/official')) {
+      openGroups.value.commissionOfficial = true
     }
     persistMenuGroups()
   },

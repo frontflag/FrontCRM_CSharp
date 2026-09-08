@@ -12,8 +12,9 @@ public class CommissionRate : BaseGuidEntity
     [Column("id")]
     public override string Id { get; set; } = Guid.NewGuid().ToString();
 
-    [Column("role_type")]
-    public short RoleType { get; set; }
+    [Column("version_id")]
+    [StringLength(36)]
+    public string VersionId { get; set; } = string.Empty;
 
     [Column("user_level")]
     public short UserLevel { get; set; }
