@@ -153,16 +153,7 @@ const props = defineProps<{ roleType: number }>()
 const { t } = useI18n()
 const authStore = useAuthStore()
 
-const writeCode = computed(() =>
-  props.roleType === COMMISSION_ROLE_PURCHASE
-    ? 'system.params.commission.purchase.write'
-    : 'system.params.commission.sales.write'
-)
-const canWrite = computed(
-  () =>
-    authStore.canAccessSystemPermission(writeCode.value) ||
-    authStore.canAccessSystemPermission('system.params.commission.write')
-)
+const canWrite = computed(() => authStore.canForceDelete())
 
 const sectionTitle = computed(() =>
   props.roleType === COMMISSION_ROLE_PURCHASE

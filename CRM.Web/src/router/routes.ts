@@ -1088,7 +1088,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'system/commission-params',
         component: () => import('@/views/System/CommissionParamsLayout.vue'),
-        meta: { requiresAuth: true, title: '提成参数', paramsModule: 'commission' },
+        meta: { requiresAuth: true, title: '提成参数', paramsModule: 'commission', adminOrManagerOnly: true },
         children: [
           { path: '', redirect: '/system/commission-params/sales' },
           {
@@ -1098,7 +1098,7 @@ const routes: RouteRecordRaw[] = [
             meta: {
               requiresAuth: true,
               title: '提成参数',
-              permissions: ['system.params.commission.sales.read', 'system.params.commission.read']
+              adminOrManagerOnly: true
             }
           },
           {
@@ -1108,7 +1108,7 @@ const routes: RouteRecordRaw[] = [
             meta: {
               requiresAuth: true,
               title: '提成参数',
-              permissions: ['system.params.commission.purchase.read', 'system.params.commission.read']
+              adminOrManagerOnly: true
             }
           }
         ]

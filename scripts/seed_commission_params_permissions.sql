@@ -24,23 +24,10 @@ WHERE r."RoleCode" IN ('SYS_ADMIN', 'SYS_MANAGER')
     WHERE rp."RoleId" = r."RoleId" AND rp."PermissionId" = p."PermissionId"
   );
 
-INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
-SELECT gen_random_uuid()::text, rp_exist."RoleId", p_new."PermissionId", NOW()
-FROM sys_role_permission rp_exist
-JOIN sys_permission p_old ON p_old."PermissionId" = rp_exist."PermissionId"
-JOIN sys_permission p_new ON (
-  (p_old."PermissionCode" = 'system.params.finance.read' AND p_new."PermissionCode" IN (
-    'system.params.commission.read',
-    'system.params.commission.sales.read',
-    'system.params.commission.purchase.read'
-  ))
-  OR (p_old."PermissionCode" = 'system.params.finance.write' AND p_new."PermissionCode" IN (
-    'system.params.commission.write',
-    'system.params.commission.sales.write',
-    'system.params.commission.purchase.write'
-  ))
-)
-WHERE NOT EXISTS (
-  SELECT 1 FROM sys_role_permission rp
-  WHERE rp."RoleId" = rp_exist."RoleId" AND rp."PermissionId" = p_new."PermissionId"
-);
+-- 提成参数仅 SYS_ADMIN / SYS_MANAGER：收回其他角色上的误授。
+DELETE FROM sys_role_permission rp
+USING sys_permission p, sys_role r
+WHERE rp."PermissionId" = p."PermissionId"
+  AND rp."RoleId" = r."RoleId"
+  AND p."PermissionCode" LIKE 'system.params.commission%'
+  AND r."RoleCode" NOT IN ('SYS_ADMIN', 'SYS_MANAGER');

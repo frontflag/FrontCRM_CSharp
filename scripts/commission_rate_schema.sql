@@ -66,3 +66,10 @@ WHERE r."RoleCode" IN ('SYS_ADMIN', 'SYS_MANAGER')
     SELECT 1 FROM sys_role_permission rp
     WHERE rp."RoleId" = r."RoleId" AND rp."PermissionId" = p."PermissionId"
   );
+
+DELETE FROM sys_role_permission rp
+USING sys_permission p, sys_role r
+WHERE rp."PermissionId" = p."PermissionId"
+  AND rp."RoleId" = r."RoleId"
+  AND p."PermissionCode" LIKE 'system.params.commission%'
+  AND r."RoleCode" NOT IN ('SYS_ADMIN', 'SYS_MANAGER');

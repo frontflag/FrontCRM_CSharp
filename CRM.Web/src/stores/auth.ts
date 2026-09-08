@@ -311,6 +311,7 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function canAccessParamsModule(area: 'sales' | 'purchase' | 'finance' | 'report' | 'commission'): boolean {
     if (!user.value) return false
+    if (area === 'commission') return canForceDelete()
     if (user.value.isSysAdmin) return true
     if (canAccessSystemPermission(`system.params.${area}.read`)) return true
     const prefix = `system.params.${area}.`

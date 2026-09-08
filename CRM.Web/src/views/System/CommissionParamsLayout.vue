@@ -49,16 +49,8 @@ const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const canSales = computed(
-  () =>
-    authStore.canAccessSystemPermission('system.params.commission.sales.read') ||
-    authStore.canAccessSystemPermission('system.params.commission.read')
-)
-const canPurchase = computed(
-  () =>
-    authStore.canAccessSystemPermission('system.params.commission.purchase.read') ||
-    authStore.canAccessSystemPermission('system.params.commission.read')
-)
+const canSales = computed(() => authStore.canForceDelete())
+const canPurchase = computed(() => authStore.canForceDelete())
 
 onMounted(() => {
   if (route.path === '/system/commission-params' || route.path === '/system/commission-params/') {
