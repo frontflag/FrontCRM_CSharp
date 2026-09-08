@@ -11,7 +11,7 @@
       <CrmDataTable
         v-show="loading || rows.length > 0"
         ref="dataTableRef"
-        :column-layout-key="`system-commission-rate-${roleType}-v2`"
+        :column-layout-key="`system-commission-rate-${roleType}-v3`"
         :columns="tableColumns"
         :show-column-settings="false"
         :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -19,6 +19,7 @@
         row-key="id"
         @row-dblclick="onRowDblclick"
       >
+        <template #col-levelDesc="{ row }">{{ levelDesc(row.userLevel) }}</template>
         <template #col-remark="{ row }">{{ row.remark || '—' }}</template>
         <template #col-actions-header>
           <div class="list-op-col-header--icon-only">
@@ -84,7 +85,7 @@
       <p class="edit-hint">{{ t('commissionParams.editHint') }}</p>
       <el-form v-if="editRow" label-width="96px">
         <el-form-item :label="t('commissionParams.colLevel')">
-          <span>{{ editRow.userLevel }} · {{ t('commissionParams.levelLabel', { n: editRow.userLevel }) }}</span>
+          <span>{{ editRow.userLevel }}{{ levelDesc(editRow.userLevel) !== '—' ? ` · ${levelDesc(editRow.userLevel)}` : '' }}</span>
         </el-form-item>
         <div class="ladder-grid">
           <div class="ladder-head">
@@ -145,6 +146,7 @@ import {
   formatLadderCell,
   type CommissionRateRow
 } from '@/api/commissionRates'
+import { userLevelApi, type UserLevelDefinition } from '@/api/userLevel'
 import { validateCommissionLadders, type CommissionLadderDraftSlot } from '@/utils/commissionLadderRules'
 import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -164,6 +166,7 @@ const sectionTitle = computed(() =>
 const loading = ref(false)
 const saving = ref(false)
 const rows = ref<CommissionRateRow[]>([])
+const levelDefs = ref<UserLevelDefinition[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const opColExpanded = ref(false)
@@ -180,6 +183,7 @@ function headerMin(label: string) {
 
 const tableColumns = computed<CrmTableColumnDef[]>(() => {
   const level = t('commissionParams.colLevel')
+  const levelDescLabel = t('commissionParams.colLevelDesc')
   const remark = t('commissionParams.colRemark')
   const ladderCols: CrmTableColumnDef[] = Array.from({ length: COMMISSION_LADDER_COUNT }, (_, i) => {
     const label = t('commissionParams.colLadder', { n: i + 1 })
@@ -197,6 +201,7 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
   })
   return [
     { key: 'userLevel', label: level, prop: 'userLevel', width: Math.max(88, headerMin(level)), align: 'center' },
+    { key: 'levelDesc', label: levelDescLabel, minWidth: Math.max(140, headerMin(levelDescLabel)), showOverflowTooltip: true },
     ...ladderCols,
     { key: 'remark', label: remark, minWidth: Math.max(140, headerMin(remark)), showOverflowTooltip: true },
     {
@@ -279,10 +284,20 @@ async function submitEdit() {
   }
 }
 
+function levelDesc(level: number) {
+  const desc = levelDefs.value.find((d) => d.userLevel === level)?.description?.trim()
+  return desc || '—'
+}
+
 async function load() {
   loading.value = true
   try {
-    rows.value = await commissionRatesApi.list(props.roleType)
+    const [list, defs] = await Promise.all([
+      commissionRatesApi.list(props.roleType),
+      userLevelApi.listDefinitions().catch(() => [] as UserLevelDefinition[])
+    ])
+    rows.value = list
+    levelDefs.value = defs
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : t('commissionParams.loadFailed'))
   } finally {

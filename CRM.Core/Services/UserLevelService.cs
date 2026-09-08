@@ -10,17 +10,20 @@ public sealed class UserLevelService : IUserLevelService
     private readonly IUserService _users;
     private readonly IRepository<User> _userRepo;
     private readonly IRepository<UserLevelHistory> _historyRepo;
+    private readonly IRepository<UserLevelDefinition> _definitionRepo;
     private readonly IUnitOfWork _unitOfWork;
 
     public UserLevelService(
         IUserService users,
         IRepository<User> userRepo,
         IRepository<UserLevelHistory> historyRepo,
+        IRepository<UserLevelDefinition> definitionRepo,
         IUnitOfWork unitOfWork)
     {
         _users = users;
         _userRepo = userRepo;
         _historyRepo = historyRepo;
+        _definitionRepo = definitionRepo;
         _unitOfWork = unitOfWork;
     }
 
@@ -103,6 +106,60 @@ public sealed class UserLevelService : IUserLevelService
         var rows = await _historyRepo.FindAsNoTrackingAsync(x => x.UserId == userId.Trim());
         return rows.OrderByDescending(x => x.ChangeTime).ThenByDescending(x => x.CreateTime).ToList();
     }
+
+    public async Task<IReadOnlyList<UserLevelDefinition>> ListDefinitionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureDefinitionsAsync();
+        var rows = (await _definitionRepo.GetAllAsync()).ToList();
+        return rows.OrderBy(x => x.UserLevel).ToList();
+    }
+
+    public async Task<UserLevelDefinition> UpdateDefinitionAsync(
+        short userLevel,
+        string? description,
+        CancellationToken cancellationToken = default)
+    {
+        if (!UserLevelCode.IsValid(userLevel))
+            throw new ArgumentOutOfRangeException(nameof(userLevel), $"等级须为 {UserLevelCode.Min}～{UserLevelCode.Max}");
+
+        await EnsureDefinitionsAsync();
+        var row = (await _definitionRepo.FindAsync(x => x.UserLevel == userLevel)).FirstOrDefault();
+        if (row == null)
+            throw new KeyNotFoundException("等级不存在");
+
+        var trimmed = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        if (trimmed != null && trimmed.Length > 200)
+            trimmed = trimmed[..200];
+
+        row.Description = trimmed;
+        row.ModifyTime = DateTime.UtcNow;
+        await _definitionRepo.UpdateAsync(row);
+        await _unitOfWork.SaveChangesAsync();
+        return row;
+    }
+
+    private async Task EnsureDefinitionsAsync()
+    {
+        var existing = (await _definitionRepo.GetAllAsync()).ToList();
+        var have = existing.Select(x => x.UserLevel).ToHashSet();
+        var added = false;
+        for (short level = UserLevelCode.Min; level <= UserLevelCode.Max; level++)
+        {
+            if (have.Contains(level)) continue;
+            await _definitionRepo.AddAsync(new UserLevelDefinition
+            {
+                Id = FormatDefinitionId(level),
+                UserLevel = level
+            });
+            added = true;
+        }
+        if (added)
+            await _unitOfWork.SaveChangesAsync();
+    }
+
+    internal static string FormatDefinitionId(short level) =>
+        $"ul000000-0000-4000-8000-00000000{level:D4}";
 
     private async Task<string?> ResolveOperatorNameAsync(string operatorUserId)
     {

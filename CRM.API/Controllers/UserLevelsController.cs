@@ -40,6 +40,18 @@ public class UserLevelsController : ControllerBase
         public string? Remark { get; set; }
     }
 
+    public sealed class UpdateUserLevelDefinitionRequest
+    {
+        public string? Description { get; set; }
+    }
+
+    public sealed class UserLevelDefinitionDto
+    {
+        public string Id { get; set; } = string.Empty;
+        public short UserLevel { get; set; }
+        public string? Description { get; set; }
+    }
+
     public sealed class UserLevelHistoryItemDto
     {
         public string Id { get; set; } = string.Empty;
@@ -51,6 +63,67 @@ public class UserLevelsController : ControllerBase
         public DateTime ChangeTime { get; set; }
         public string? OperatorUserId { get; set; }
         public string? OperatorUserName { get; set; }
+    }
+
+    [HttpGet("definitions")]
+    public async Task<ActionResult<ApiResponse<object>>> ListDefinitions()
+    {
+        try
+        {
+            var actor = await GetActorAsync();
+            if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+            if (!CanReadDefinitions(actor))
+                return StatusCode(403, ApiResponse<object>.Fail($"无权限访问: {SystemPermissionCodes.OrgUsersRead}", 403));
+
+            var rows = await _userLevels.ListDefinitionsAsync();
+            var dto = rows.Select(x => new UserLevelDefinitionDto
+            {
+                Id = x.Id,
+                UserLevel = x.UserLevel,
+                Description = x.Description
+            }).ToList();
+            return Ok(ApiResponse<object>.Ok(dto, "获取等级列表成功"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取用户等级主数据失败");
+            return StatusCode(500, ApiResponse<object>.Fail($"获取等级列表失败: {ex.Message}", 500));
+        }
+    }
+
+    [HttpPut("definitions/{level:int}")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateDefinition(int level, [FromBody] UpdateUserLevelDefinitionRequest request)
+    {
+        try
+        {
+            var actor = await GetActorAsync();
+            if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+            if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                && !actor.IsSysAdmin)
+                return StatusCode(403, ApiResponse<object>.Fail($"无权限访问: {SystemPermissionCodes.OrgUsersWrite}", 403));
+
+            var row = await _userLevels.UpdateDefinitionAsync((short)level, request.Description);
+            return Ok(ApiResponse<object>.Ok(new UserLevelDefinitionDto
+            {
+                Id = row.Id,
+                UserLevel = row.UserLevel,
+                Description = row.Description
+            }, "等级说明已保存"));
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(ApiResponse<object>.Fail("等级不存在", 404));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新用户等级说明失败 {Level}", level);
+            return StatusCode(500, ApiResponse<object>.Fail($"保存等级说明失败: {ex.Message}", 500));
+        }
     }
 
     [HttpPut("{userId}")]
@@ -129,6 +202,12 @@ public class UserLevelsController : ControllerBase
             return StatusCode(500, ApiResponse<object>.Fail($"获取等级变更记录失败: {ex.Message}", 500));
         }
     }
+
+    private static bool CanReadDefinitions(UserPermissionSummaryDto actor) =>
+        actor.IsSysAdmin
+        || actor.IsSysManager
+        || actor.HasPermissionCode(SystemPermissionCodes.OrgUsersRead)
+        || actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage);
 
     private async Task<UserPermissionSummaryDto?> GetActorAsync()
     {

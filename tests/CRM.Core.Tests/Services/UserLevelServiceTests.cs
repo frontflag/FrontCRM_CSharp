@@ -13,7 +13,7 @@ public sealed class UserLevelServiceTests
     [Fact]
     public async Task ChangeAsync_when_level_changes_writes_history_with_account_snapshot()
     {
-        var (sut, users, history) = CreateSut();
+        var (sut, users, history, _) = CreateSut();
         await users.AddAsync(new User
         {
             Id = "u1",
@@ -57,7 +57,7 @@ public sealed class UserLevelServiceTests
     [Fact]
     public async Task ChangeAsync_same_level_updates_remark_without_history()
     {
-        var (sut, users, history) = CreateSut();
+        var (sut, users, history, _) = CreateSut();
         await users.AddAsync(new User
         {
             Id = "u1",
@@ -79,7 +79,7 @@ public sealed class UserLevelServiceTests
     [Fact]
     public async Task ChangeAsync_rejects_out_of_range()
     {
-        var (sut, users, _) = CreateSut();
+        var (sut, users, _, _) = CreateSut();
         await users.AddAsync(new User { Id = "u1", UserName = "a", Level = 1, PasswordHash = "x", Salt = "s" });
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => sut.ChangeAsync("u1", 0, null, "op"));
@@ -90,7 +90,7 @@ public sealed class UserLevelServiceTests
     [Fact]
     public async Task GetHistoryAsync_orders_newest_first()
     {
-        var (sut, _, history) = CreateSut();
+        var (sut, _, history, _) = CreateSut();
         await history.AddAsync(new UserLevelHistory
         {
             Id = "h1",
@@ -114,16 +114,49 @@ public sealed class UserLevelServiceTests
         Assert.Equal(new[] { "h2", "h1" }, rows.Select(x => x.Id).ToArray());
     }
 
-    private static (UserLevelService sut, MemoryRepository<User> users, MemoryRepository<UserLevelHistory> history) CreateSut()
+    [Fact]
+    public async Task ListDefinitionsAsync_seeds_levels_1_to_20()
+    {
+        var (sut, _, _, defs) = CreateSut();
+
+        var rows = await sut.ListDefinitionsAsync();
+
+        Assert.Equal(20, rows.Count);
+        Assert.Equal(Enumerable.Range(1, 20).Select(i => (short)i), rows.Select(x => x.UserLevel));
+        Assert.Equal(20, defs.Snapshot().Count);
+    }
+
+    [Fact]
+    public async Task UpdateDefinitionAsync_saves_trimmed_description()
+    {
+        var (sut, _, _, defs) = CreateSut();
+
+        var row = await sut.UpdateDefinitionAsync(3, "  骨干  ");
+
+        Assert.Equal("骨干", row.Description);
+        Assert.Equal("骨干", defs.Snapshot().Single(x => x.UserLevel == 3).Description);
+    }
+
+    [Fact]
+    public async Task UpdateDefinitionAsync_rejects_out_of_range()
+    {
+        var (sut, _, _, _) = CreateSut();
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => sut.UpdateDefinitionAsync(0, "x"));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => sut.UpdateDefinitionAsync(21, "x"));
+    }
+
+    private static (UserLevelService sut, MemoryRepository<User> users, MemoryRepository<UserLevelHistory> history, MemoryRepository<UserLevelDefinition> defs) CreateSut()
     {
         var users = new MemoryRepository<User>();
         var history = new MemoryRepository<UserLevelHistory>();
+        var defs = new MemoryRepository<UserLevelDefinition>();
         var userService = Substitute.For<IUserService>();
         userService.GetByIdForAdminAsync(Arg.Any<string>())
             .Returns(ci => users.GetByIdAsync(ci.Arg<string>()));
         var uow = Substitute.For<IUnitOfWork>();
         uow.SaveChangesAsync().Returns(1);
-        var sut = new UserLevelService(userService, users, history, uow);
-        return (sut, users, history);
+        var sut = new UserLevelService(userService, users, history, defs, uow);
+        return (sut, users, history, defs);
     }
 }

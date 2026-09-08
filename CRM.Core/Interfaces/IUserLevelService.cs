@@ -14,6 +14,14 @@ public interface IUserLevelService
     Task<IReadOnlyList<UserLevelHistory>> GetHistoryAsync(
         string userId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<UserLevelDefinition>> ListDefinitionsAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<UserLevelDefinition> UpdateDefinitionAsync(
+        short userLevel,
+        string? description,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class UserLevelChangeResult

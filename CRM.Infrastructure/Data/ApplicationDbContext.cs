@@ -36,6 +36,7 @@ namespace CRM.Infrastructure.Data
         // ===== 原有表 =====
         public DbSet<User> Users { get; set; } = null!;
         public DbSet<UserLevelHistory> UserLevelHistories { get; set; } = null!;
+        public DbSet<UserLevelDefinition> UserLevelDefinitions { get; set; } = null!;
         public DbSet<CustomerInfo> Customers { get; set; } = null!;
         public DbSet<CustomerAddress> CustomerAddresses { get; set; } = null!;
         public DbSet<CustomerContactInfo> CustomerContacts { get; set; } = null!;
@@ -592,6 +593,17 @@ namespace CRM.Infrastructure.Data
                 entity.Ignore(e => e.ModifyUserId);
                 entity.Ignore(e => e.ModifyTime);
                 entity.HasIndex(e => new { e.UserId, e.ChangeTime });
+            });
+
+            modelBuilder.Entity<UserLevelDefinition>(entity =>
+            {
+                entity.ToTable("user_level_def");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("UserLevelDefId").HasMaxLength(36);
+                entity.Property(e => e.Description).HasMaxLength(200);
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => e.UserLevel).IsUnique();
             });
 
             // Customer configuration

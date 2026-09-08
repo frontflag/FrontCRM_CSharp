@@ -23,7 +23,22 @@ export interface UserLevelChangeResult {
   levelChanged: boolean
 }
 
+export interface UserLevelDefinition {
+  id: string
+  userLevel: number
+  description?: string | null
+}
+
 export const userLevelApi = {
+  listDefinitions() {
+    return apiClient.get<UserLevelDefinition[]>('/api/v1/user-levels/definitions')
+  },
+  updateDefinition(level: number, description?: string | null) {
+    return apiClient.put<UserLevelDefinition>(
+      `/api/v1/user-levels/definitions/${level}`,
+      { description }
+    )
+  },
   change(userId: string, payload: { level: number; remark?: string | null }) {
     return apiClient.put<UserLevelChangeResult>(
       `/api/v1/user-levels/${encodeURIComponent(userId)}`,
