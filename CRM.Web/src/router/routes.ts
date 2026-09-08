@@ -1086,6 +1086,34 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'system/commission-params',
+        component: () => import('@/views/System/CommissionParamsLayout.vue'),
+        meta: { requiresAuth: true, title: '提成参数', paramsModule: 'commission' },
+        children: [
+          { path: '', redirect: '/system/commission-params/sales' },
+          {
+            path: 'sales',
+            name: 'CommissionParamsSales',
+            component: () => import('@/views/System/CommissionRateSalesView.vue'),
+            meta: {
+              requiresAuth: true,
+              title: '提成参数',
+              permissions: ['system.params.commission.sales.read', 'system.params.commission.read']
+            }
+          },
+          {
+            path: 'purchase',
+            name: 'CommissionParamsPurchase',
+            component: () => import('@/views/System/CommissionRatePurchaseView.vue'),
+            meta: {
+              requiresAuth: true,
+              title: '提成参数',
+              permissions: ['system.params.commission.purchase.read', 'system.params.commission.read']
+            }
+          }
+        ]
+      },
+      {
         path: 'system/report-params',
         component: () => import('@/views/System/ReportParamsLayout.vue'),
         meta: { requiresAuth: true, title: '报表参数', paramsModule: 'report' },

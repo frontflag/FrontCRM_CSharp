@@ -59,6 +59,14 @@ public static class SystemPermissionCodes
     public const string ParamsReportGlobalRead = "system.params.report.global.read";
     public const string ParamsReportGlobalWrite = "system.params.report.global.write";
 
+    /// <summary>侧栏「提成参数」。</summary>
+    public const string ParamsCommissionRead = "system.params.commission.read";
+    public const string ParamsCommissionWrite = "system.params.commission.write";
+    public const string ParamsCommissionSalesRead = "system.params.commission.sales.read";
+    public const string ParamsCommissionSalesWrite = "system.params.commission.sales.write";
+    public const string ParamsCommissionPurchaseRead = "system.params.commission.purchase.read";
+    public const string ParamsCommissionPurchaseWrite = "system.params.commission.purchase.write";
+
     public const string LogsLoginRead = "system.logs.login.read";
     public const string LogsOperationRead = "system.logs.operation.read";
     public const string LogsExportRead = "system.logs.export.read";
@@ -69,7 +77,7 @@ public static class SystemPermissionCodes
             || string.Equals(code, LegacyRbacManage, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// 参数模块页内子项：system.params.{sales|purchase|finance|report}.{feature}.(read|write)。
+    /// 参数模块页内子项：system.params.{sales|purchase|finance|report|commission}.{feature}.(read|write)。
     /// 侧栏入口仍为 system.params.{area}.(read|write)（恰好 4 段）。
     /// 新增子菜单时按此命名即可被角色编辑页自动识别为「页内子项」。
     /// </summary>
@@ -102,7 +110,8 @@ public static class SystemPermissionCodes
         string.Equals(area, "sales", StringComparison.OrdinalIgnoreCase)
         || string.Equals(area, "purchase", StringComparison.OrdinalIgnoreCase)
         || string.Equals(area, "finance", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(area, "report", StringComparison.OrdinalIgnoreCase);
+        || string.Equals(area, "report", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(area, "commission", StringComparison.OrdinalIgnoreCase);
 
     public static IReadOnlyList<string> AllSystemPermissions { get; } = new[]
     {
@@ -127,6 +136,9 @@ public static class SystemPermissionCodes
         ParamsFinancePaymentBanksRead, ParamsFinancePaymentBanksWrite,
         ParamsReportRead, ParamsReportWrite,
         ParamsReportGlobalRead, ParamsReportGlobalWrite,
+        ParamsCommissionRead, ParamsCommissionWrite,
+        ParamsCommissionSalesRead, ParamsCommissionSalesWrite,
+        ParamsCommissionPurchaseRead, ParamsCommissionPurchaseWrite,
         LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 
@@ -152,6 +164,9 @@ public static class SystemPermissionCodes
         ParamsFinancePaymentBanksRead, ParamsFinancePaymentBanksWrite,
         ParamsReportRead, ParamsReportWrite,
         ParamsReportGlobalRead, ParamsReportGlobalWrite,
+        ParamsCommissionRead, ParamsCommissionWrite,
+        ParamsCommissionSalesRead, ParamsCommissionSalesWrite,
+        ParamsCommissionPurchaseRead, ParamsCommissionPurchaseWrite,
         LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 

@@ -139,6 +139,8 @@ public static class TelemetryCatalog
             ["FinanceExchangeRates"] = "财务参数-汇率",
             ["FinancePurchaseCostParams"] = "财务参数-采购成本",
             ["FinancePaymentBanks"] = "财务参数-付款银行",
+            ["CommissionParamsSales"] = "提成参数-业务员系数",
+            ["CommissionParamsPurchase"] = "提成参数-采购员系数",
             ["LoginLogList"] = "登录日志",
             ["OperationLogList"] = "操作日志",
             ["ExportLogList"] = "导出日志",

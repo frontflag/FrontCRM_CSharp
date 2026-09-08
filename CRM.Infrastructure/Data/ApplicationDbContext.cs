@@ -107,6 +107,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<FinanceExchangeRateSetting> FinanceExchangeRateSettings { get; set; } = null!;
         public DbSet<FinanceExchangeRateChangeLog> FinanceExchangeRateChangeLogs { get; set; } = null!;
         public DbSet<FinancePaymentBank> FinancePaymentBanks { get; set; } = null!;
+        public DbSet<CommissionRate> CommissionRates { get; set; } = null!;
         public DbSet<FinanceReceivable> FinanceReceivables { get; set; } = null!;
         public DbSet<FinanceReceivableWriteOff> FinanceReceivableWriteOffs { get; set; } = null!;
         public DbSet<FinanceCustomerAdvance> FinanceCustomerAdvances { get; set; } = null!;
@@ -2359,6 +2360,18 @@ namespace CRM.Infrastructure.Data
                 entity.Ignore(e => e.CreateUserId);
                 entity.Ignore(e => e.ModifyUserId);
                 entity.HasIndex(e => e.SortOrder);
+            });
+
+            modelBuilder.Entity<CommissionRate>(entity =>
+            {
+                entity.ToTable("commission_rate");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("created_at");
+                entity.Property(e => e.ModifyTime).HasColumnName("updated_at");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => new { e.RoleType, e.UserLevel }).IsUnique();
             });
 
             modelBuilder.Entity<ApprovalRecord>(entity =>

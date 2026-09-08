@@ -50,7 +50,13 @@ INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", 
 ('31000000-0000-4000-8000-00000000002b', 'system.params.report.read', '系统-报表参数-查看', 'api', 'system.params.report', 'read', 1, NOW()),
 ('31000000-0000-4000-8000-00000000002c', 'system.params.report.write', '系统-报表参数-维护', 'api', 'system.params.report', 'write', 1, NOW()),
 ('31000000-0000-4000-8000-00000000002d', 'system.params.report.global.read', '系统-报表参数-报表全局参数-查看', 'api', 'system.params.report.global', 'read', 1, NOW()),
-('31000000-0000-4000-8000-00000000002e', 'system.params.report.global.write', '系统-报表参数-报表全局参数-维护', 'api', 'system.params.report.global', 'write', 1, NOW())
+('31000000-0000-4000-8000-00000000002e', 'system.params.report.global.write', '系统-报表参数-报表全局参数-维护', 'api', 'system.params.report.global', 'write', 1, NOW()),
+('31000000-0000-4000-8000-0000000000a1', 'system.params.commission.read', '系统-提成参数-查看', 'api', 'system.params.commission', 'read', 1, NOW()),
+('31000000-0000-4000-8000-0000000000a2', 'system.params.commission.write', '系统-提成参数-维护', 'api', 'system.params.commission', 'write', 1, NOW()),
+('31000000-0000-4000-8000-0000000000a3', 'system.params.commission.sales.read', '系统-提成参数-业务员系数-查看', 'api', 'system.params.commission.sales', 'read', 1, NOW()),
+('31000000-0000-4000-8000-0000000000a4', 'system.params.commission.sales.write', '系统-提成参数-业务员系数-维护', 'api', 'system.params.commission.sales', 'write', 1, NOW()),
+('31000000-0000-4000-8000-0000000000a5', 'system.params.commission.purchase.read', '系统-提成参数-采购员系数-查看', 'api', 'system.params.commission.purchase', 'read', 1, NOW()),
+('31000000-0000-4000-8000-0000000000a6', 'system.params.commission.purchase.write', '系统-提成参数-采购员系数-维护', 'api', 'system.params.commission.purchase', 'write', 1, NOW())
 ON CONFLICT ("PermissionCode") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
@@ -89,6 +95,9 @@ WHERE r."RoleCode" = 'SYS_MANAGER'
     'system.params.finance.payment-banks.read','system.params.finance.payment-banks.write',
     'system.params.report.read','system.params.report.write',
     'system.params.report.global.read','system.params.report.global.write',
+    'system.params.commission.read','system.params.commission.write',
+    'system.params.commission.sales.read','system.params.commission.sales.write',
+    'system.params.commission.purchase.read','system.params.commission.purchase.write',
     'system.logs.login.read','system.logs.operation.read','system.logs.export.read'
   )
   AND NOT EXISTS (

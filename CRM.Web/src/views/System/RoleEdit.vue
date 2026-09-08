@@ -178,7 +178,8 @@ const SIDEBAR_MENU_GROUPS: SidebarMenuGroupDef[] = [
       { code: 'system.params.sales.read', titleKey: 'layout.menu.salesParams' },
       { code: 'system.params.purchase.read', titleKey: 'layout.menu.purchaseParams' },
       { code: 'system.params.finance.read', titleKey: 'layout.menu.financeParams' },
-      { code: 'system.params.report.read', titleKey: 'layout.menu.reportParams' }
+      { code: 'system.params.report.read', titleKey: 'layout.menu.reportParams' },
+      { code: 'system.params.commission.read', titleKey: 'layout.menu.commissionParams' }
     ]
   },
   {
@@ -226,7 +227,11 @@ const PAGE_SUB_LABELS: Record<string, string> = {
   'system.params.finance.payment-banks.read': '财务参数 → 付款银行',
   'system.params.finance.payment-banks.write': '财务参数 → 付款银行（写）',
   'system.params.report.global.read': '报表参数 → 报表全局参数',
-  'system.params.report.global.write': '报表参数 → 报表全局参数（写）'
+  'system.params.report.global.write': '报表参数 → 报表全局参数（写）',
+  'system.params.commission.sales.read': '提成参数 → 业务员提成系数',
+  'system.params.commission.sales.write': '提成参数 → 业务员提成系数（写）',
+  'system.params.commission.purchase.read': '提成参数 → 采购员提成系数',
+  'system.params.commission.purchase.write': '提成参数 → 采购员提成系数（写）'
 }
 
 type PermKind = 'menu' | 'sub' | 'feature'
@@ -237,7 +242,7 @@ function isParamsPageSub(code: string): boolean {
   const parts = code.split('.')
   if (parts.length < 5) return false
   if (parts[0] !== 'system' || parts[1] !== 'params') return false
-  if (!['sales', 'purchase', 'finance', 'report'].includes(parts[2])) return false
+  if (!['sales', 'purchase', 'finance', 'report', 'commission'].includes(parts[2])) return false
   const action = parts[parts.length - 1]
   return action === 'read' || action === 'write'
 }

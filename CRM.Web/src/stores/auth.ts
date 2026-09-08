@@ -306,10 +306,10 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 销售/采购/财务/报表参数模块入口：侧栏 .read，或任一页内子项权限（含未来新增子项）。
+   * 销售/采购/财务/报表/提成参数模块入口：侧栏 .read，或任一页内子项权限（含未来新增子项）。
    * 约定：system.params.{area}.{feature}.(read|write)
    */
-  function canAccessParamsModule(area: 'sales' | 'purchase' | 'finance' | 'report'): boolean {
+  function canAccessParamsModule(area: 'sales' | 'purchase' | 'finance' | 'report' | 'commission'): boolean {
     if (!user.value) return false
     if (user.value.isSysAdmin) return true
     if (canAccessSystemPermission(`system.params.${area}.read`)) return true

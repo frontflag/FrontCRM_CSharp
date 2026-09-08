@@ -719,6 +719,30 @@ const zhCN = {
     saveFailed: '保存失败',
     loadFailed: '加载报表参数失败'
   },
+  commissionParams: {
+    pageTitle: '提成参数',
+    pageSubtitle: '按用户等级维护业务员、采购员提成阶梯。',
+    navTitle: '参数分类',
+    salesNav: '业务员提成系数',
+    purchaseNav: '采购员提成系数',
+    listHint: '每个等级一行，最多 10 档；未填档不参与计算。',
+    colLevel: '用户等级',
+    colLevelDesc: '用户等级说明',
+    colLadder: '梯度{n}',
+    colThreshold: '达标金额（折算USD）',
+    colPoints: '提成点数（%）',
+    colRemark: '备注',
+    colActions: '操作',
+    levelLabel: '等级 {n}',
+    edit: '编辑',
+    editTitle: '编辑{kind} · 等级 {n}',
+    editHint: '阶梯须从第 1 档连续填写，达标金额须一档比一档高。建议第 1 档金额填 0。达标金额为整数；提成点数为百分比且 1 位小数，如 5.0 表示 5%。',
+    ladderIndex: '阶梯',
+    ladderN: '第 {n} 档',
+    saveSuccess: '已保存',
+    saveFailed: '保存失败',
+    loadFailed: '加载提成系数失败'
+  },
   layout: {
     /** 顶栏 Logo 旁完整品牌文案（与产品对外名称一致） */
     brandFull: 'Semicore AI Intelligent System',
@@ -851,6 +875,7 @@ const zhCN = {
       salesParams: '销售参数',
       financeParams: '财务参数',
       reportParams: '报表参数',
+      commissionParams: '提成参数',
       systemSettings: '系统设置',
       ops: '运维管理',
       userFeedback: '用户反馈',
