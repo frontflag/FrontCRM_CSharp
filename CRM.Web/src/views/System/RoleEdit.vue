@@ -1,10 +1,34 @@
 <template>
-  <div class="system-page">
-    <el-card>
-      <div class="toolbar">
-        <div class="title">{{ isEdit ? t('systemRole.editTitle') : t('systemRole.createTitle') }}</div>
+  <div class="role-edit-page">
+    <div class="page-header">
+      <div class="header-left">
+        <h2 class="page-title">{{ isEdit ? t('systemRole.editTitle') : t('systemRole.createTitle') }}</h2>
+        <p class="page-sub">{{ pageSubtitle }}</p>
+      </div>
+    </div>
+
+    <div class="settings-body">
+      <div class="settings-nav">
+        <div
+          v-for="item in navItems"
+          :key="item.key"
+          class="nav-item"
+          :class="{ active: activeNav === item.key }"
+          @click="activeNav = item.key"
+        >
+          <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+          <span>{{ item.label }}</span>
+        </div>
       </div>
 
+      <div class="settings-content">
+        <div v-show="activeNav === 'settings'" class="form-section">
+          <div class="section-head">
+            <div class="section-head__left">
+              <div class="section-title"><span class="title-bar"></span>{{ t('systemRole.navSettings') }}</div>
+              <p class="section-hint">{{ t('systemRole.settingsHint') }}</p>
+            </div>
+          </div>
       <el-form :model="formData" label-width="120px" :disabled="loading">
         <el-form-item :label="t('systemRole.columns.roleCode')">
           <el-input v-model="formData.roleCode" :disabled="isEdit" />
@@ -95,7 +119,161 @@
           </el-button>
         </div>
       </el-form>
-    </el-card>
+        </div>
+
+        <div v-show="activeNav === 'users'" class="form-section">
+          <div class="section-head">
+            <div class="section-head__left">
+              <div class="section-title"><span class="title-bar"></span>{{ t('systemRole.navUsers') }}</div>
+              <p class="section-hint">{{ isEdit ? t('systemRole.usersHint') : t('systemRole.usersCreateHint') }}</p>
+            </div>
+            <div v-if="isEdit" class="section-head__right">
+              <span class="role-users-count">{{ t('systemRole.usersCount', { count: roleUsers.length }) }}</span>
+              <el-button v-if="canWriteUsers" type="primary" @click="openAddUsersDialog">
+                {{ t('systemRole.addUsers') }}
+              </el-button>
+            </div>
+          </div>
+      <el-table
+        v-if="isEdit"
+        v-loading="usersLoading"
+        :data="roleUsers"
+        row-key="id"
+        class="role-users-table crm-data-table"
+        @row-dblclick="onRoleUserDblclick"
+      >
+        <el-table-column prop="userName" :label="t('systemUser.colUserName')" min-width="140">
+          <template #default="{ row }">
+            <button
+              v-if="canOpenUser"
+              type="button"
+              class="role-users-link"
+              @click.stop="goEditUser(row.id)"
+            >
+              {{ row.userName }}
+            </button>
+            <span v-else>{{ row.userName }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="realName" :label="t('systemUser.colRealName')" min-width="120">
+          <template #default="{ row }">{{ row.realName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('systemUser.colPrimaryDept')" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.primaryDepartmentName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('systemUser.colStatus')" width="88">
+          <template #default="{ row }">{{ userStatusLabel(row.status) }}</template>
+        </el-table-column>
+        <el-table-column
+          v-if="canWriteUsers"
+          :label="t('systemRole.columns.actions')"
+          :width="opColWidth"
+          :min-width="opColMinWidth"
+          fixed="right"
+          align="center"
+          class-name="op-col"
+          label-class-name="op-col"
+        >
+          <template #header>
+            <div class="list-op-col-header--icon-only">
+              <button
+                type="button"
+                class="op-col-toggle-btn list-op-col-toggle"
+                :aria-label="opColExpanded ? t('common.listOpCol.collapse') : t('common.listOpCol.expand')"
+                @click.stop="toggleOpCol"
+              >
+                {{ opColExpanded ? '>' : '<' }}
+              </button>
+            </div>
+          </template>
+          <template #default="{ row }">
+            <div @click.stop @dblclick.stop>
+              <div v-if="opColExpanded" class="action-btns">
+                <button
+                  type="button"
+                  class="action-btn action-btn--primary"
+                  @click.stop="openUserEdit(row.id)"
+                >
+                  {{ t('systemRole.editAccount') }}
+                </button>
+                <button
+                  type="button"
+                  class="action-btn action-btn--danger"
+                  :disabled="removingUserId === row.id"
+                  @click.stop="handleRemoveRole(row)"
+                >
+                  {{ t('systemRole.removeRole') }}
+                </button>
+              </div>
+              <el-dropdown v-else trigger="click" placement="bottom-end">
+                <div class="op-more-dropdown-trigger">
+                  <button type="button" class="op-more-trigger">...</button>
+                </div>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item @click.stop="openUserEdit(row.id)">
+                      <span class="op-more-item op-more-item--primary">{{ t('systemRole.editAccount') }}</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :disabled="removingUserId === row.id" @click.stop="handleRemoveRole(row)">
+                      <span class="op-more-item op-more-item--danger">{{ t('systemRole.removeRole') }}</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
+          </template>
+        </el-table-column>
+        <template #empty>{{ t('systemRole.usersEmpty') }}</template>
+      </el-table>
+        </div>
+      </div>
+    </div>
+
+    <el-dialog
+      v-model="addUsersVisible"
+      :title="t('systemRole.addUsers')"
+      width="720px"
+      destroy-on-close
+      @closed="onAddUsersDialogClosed"
+    >
+      <p class="add-users-hint">{{ t('systemRole.addUsersHint') }}</p>
+      <div class="add-users-search">
+        <el-input
+          v-model="addUsersKw"
+          clearable
+          :placeholder="t('systemRole.addUsersSearchPlaceholder')"
+          @keyup.enter="applyAddUsersSearch"
+        />
+        <el-button type="primary" @click="applyAddUsersSearch">{{ t('systemUser.searchQuery') }}</el-button>
+      </div>
+      <el-table
+        ref="addUsersTableRef"
+        v-loading="addUsersLoading"
+        :data="addUsersFiltered"
+        row-key="id"
+        max-height="420"
+        class="role-users-table crm-data-table"
+        @selection-change="onAddUsersSelectionChange"
+      >
+        <el-table-column type="selection" width="48" align="center" />
+        <el-table-column prop="userName" :label="t('systemUser.colUserName')" min-width="140" />
+        <el-table-column prop="realName" :label="t('systemUser.colRealName')" min-width="120">
+          <template #default="{ row }">{{ row.realName || '—' }}</template>
+        </el-table-column>
+        <el-table-column :label="t('systemUser.colPrimaryDept')" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.primaryDepartmentName || '—' }}</template>
+        </el-table-column>
+        <template #empty>
+          {{ addUsersAppliedKw.trim() ? t('systemRole.addUsersSearchEmpty') : t('systemRole.addUsersEmpty') }}
+        </template>
+      </el-table>
+      <template #footer>
+        <el-button @click="addUsersVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="addUsersSaving" :disabled="addUsersSelected.length === 0" @click="confirmAddUsers">
+          {{ t('systemRole.addUsersConfirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -103,18 +281,204 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
-import { rbacAdminApi, type RbacPermission, type RbacRole } from '@/api/rbacAdmin'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Setting, User } from '@element-plus/icons-vue'
+import { rbacAdminApi, type AdminUserDto, type RbacPermission, type RbacRole } from '@/api/rbacAdmin'
+import { useAuthStore } from '@/stores'
 
 const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
+const authStore = useAuthStore()
 
 const roleId = route.params.id as string | undefined
 const isEdit = !!roleId
+const activeNav = ref<'settings' | 'users'>('settings')
+const navItems = computed(() => [
+  { key: 'settings' as const, label: t('systemRole.navSettings'), icon: Setting },
+  { key: 'users' as const, label: t('systemRole.navUsers'), icon: User }
+])
+const pageSubtitle = computed(() => {
+  if (!isEdit) return t('systemRole.createSubtitle')
+  const code = formData.value.roleCode?.trim()
+  const name = formData.value.roleName?.trim()
+  if (code && name) return `${code} · ${name}`
+  return t('systemRole.editSubtitle')
+})
 
 const loading = ref(false)
 const saving = ref(false)
+const usersLoading = ref(false)
+const roleUsers = ref<AdminUserDto[]>([])
+const removingUserId = ref<string | null>(null)
+const addUsersVisible = ref(false)
+const addUsersLoading = ref(false)
+const addUsersSaving = ref(false)
+const addUsersCandidates = ref<AdminUserDto[]>([])
+const addUsersSelected = ref<AdminUserDto[]>([])
+const addUsersKw = ref('')
+const addUsersAppliedKw = ref('')
+const addUsersTableRef = ref<{ clearSelection?: () => void } | null>(null)
+const addUsersFiltered = computed(() => {
+  const q = addUsersAppliedKw.value.trim().toLowerCase()
+  if (!q) return addUsersCandidates.value
+  return addUsersCandidates.value.filter((u) => {
+    const name = (u.userName || '').toLowerCase()
+    const real = (u.realName || '').toLowerCase()
+    return name.includes(q) || real.includes(q)
+  })
+})
+const canOpenUser = computed(() => authStore.canAccessSystemPermission('system.org.users.read'))
+const canWriteUsers = computed(() => authStore.canAccessSystemPermission('system.org.users.write'))
+
+/** 《列表操作列规范》：角色用户表操作列，默认收起、仅图标列头 */
+const opColExpanded = ref(false)
+const OP_COL_COLLAPSED_WIDTH = 43
+const OP_COL_EXPANDED_WIDTH = 220
+const OP_COL_EXPANDED_MIN_WIDTH = 200
+const opColWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_WIDTH : OP_COL_COLLAPSED_WIDTH))
+const opColMinWidth = computed(() => (opColExpanded.value ? OP_COL_EXPANDED_MIN_WIDTH : OP_COL_COLLAPSED_WIDTH))
+function toggleOpCol() {
+  opColExpanded.value = !opColExpanded.value
+}
+
+function userStatusLabel(status: number) {
+  if (status === 1) return t('systemUser.statusEnabled')
+  if (status === 2) return t('systemUser.statusFrozen')
+  return t('systemUser.statusDisabled')
+}
+
+function goEditUser(userId: string) {
+  if (!canOpenUser.value || !userId) return
+  router.push({ name: 'UserEdit', params: { id: userId } })
+}
+
+function openUserEdit(userId: string) {
+  if (!canWriteUsers.value || !userId) return
+  const { href } = router.resolve({ name: 'UserEdit', params: { id: userId } })
+  window.open(href, '_blank', 'noopener,noreferrer')
+}
+
+function onRoleUserDblclick(row: AdminUserDto) {
+  goEditUser(row.id)
+}
+
+function roleUserLabel(row: AdminUserDto) {
+  const real = (row.realName || '').trim()
+  const name = (row.userName || '').trim()
+  if (real && name && real !== name) return `${real}（${name}）`
+  return real || name || row.id
+}
+
+function applyRoleUsers(list: AdminUserDto[]) {
+  roleUsers.value = Array.isArray(list) ? list : []
+}
+
+async function loadRoleUsers(opts?: { silent?: boolean }) {
+  if (!isEdit || !roleId) {
+    roleUsers.value = []
+    return
+  }
+  if (!opts?.silent) usersLoading.value = true
+  try {
+    applyRoleUsers(await rbacAdminApi.getRoleUsers(roleId))
+  } catch (e: unknown) {
+    if (!opts?.silent) {
+      roleUsers.value = []
+      ElMessage.error(e instanceof Error ? e.message : t('systemRole.usersLoadFailed'))
+    }
+  } finally {
+    if (!opts?.silent) usersLoading.value = false
+  }
+}
+
+function onAddUsersSelectionChange(rows: AdminUserDto[]) {
+  addUsersSelected.value = rows
+}
+
+function applyAddUsersSearch() {
+  addUsersAppliedKw.value = addUsersKw.value.trim()
+}
+
+function onAddUsersDialogClosed() {
+  addUsersCandidates.value = []
+  addUsersSelected.value = []
+  addUsersKw.value = ''
+  addUsersAppliedKw.value = ''
+  addUsersTableRef.value?.clearSelection?.()
+}
+
+async function openAddUsersDialog() {
+  if (!canWriteUsers.value || !isEdit || !roleId) return
+  addUsersVisible.value = true
+  addUsersLoading.value = true
+  addUsersSelected.value = []
+  addUsersKw.value = ''
+  addUsersAppliedKw.value = ''
+  try {
+    const all = await rbacAdminApi.getUsers()
+    const already = new Set(roleUsers.value.map((u) => (u.id || '').toLowerCase()))
+    addUsersCandidates.value = all
+      .filter((u) => u.status === 1 && !already.has((u.id || '').toLowerCase()))
+      .filter((u) => !(u.roleIds || []).some((id) => id.toLowerCase() === roleId.toLowerCase()))
+      .sort((a, b) => (a.userName || '').localeCompare(b.userName || '', 'zh-CN'))
+  } catch (e: unknown) {
+    addUsersCandidates.value = []
+    ElMessage.error(e instanceof Error ? e.message : t('systemRole.addUsersLoadFailed'))
+  } finally {
+    addUsersLoading.value = false
+  }
+}
+
+async function confirmAddUsers() {
+  if (!canWriteUsers.value || !roleId || addUsersSaving.value) return
+  const ids = addUsersSelected.value.map((u) => u.id).filter(Boolean)
+  if (ids.length === 0) {
+    ElMessage.warning(t('systemRole.addUsersNeedSelect'))
+    return
+  }
+  addUsersSaving.value = true
+  try {
+    await rbacAdminApi.addRoleUsers(roleId, ids)
+    ElMessage.success(t('systemRole.addUsersSuccess'))
+    addUsersVisible.value = false
+    await loadRoleUsers()
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : t('systemRole.addUsersFailed'))
+  } finally {
+    addUsersSaving.value = false
+  }
+}
+
+async function handleRemoveRole(row: AdminUserDto) {
+  if (!canWriteUsers.value || !roleId || !row.id || removingUserId.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('systemRole.removeRoleConfirmMessage', { user: roleUserLabel(row) }),
+      t('systemRole.removeRoleConfirmTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('systemRole.removeRole'),
+        cancelButtonText: t('common.cancel')
+      }
+    )
+  } catch {
+    return
+  }
+  removingUserId.value = row.id
+  try {
+    await rbacAdminApi.removeRoleUser(roleId, row.id)
+    const removedId = row.id.toLowerCase()
+    applyRoleUsers(roleUsers.value.filter((u) => (u.id || '').toLowerCase() !== removedId))
+    ElMessage.success(t('systemRole.removeRoleSuccess'))
+    await loadRoleUsers({ silent: true })
+    applyRoleUsers(roleUsers.value.filter((u) => (u.id || '').toLowerCase() !== removedId))
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : t('systemRole.removeRoleFailed'))
+  } finally {
+    removingUserId.value = null
+  }
+}
 
 const permissions = ref<RbacPermission[]>([])
 const permFilter = ref('')
@@ -425,7 +789,12 @@ const load = async () => {
     if (isEdit && roleId) {
       const roles: RbacRole[] = await rbacAdminApi.getRoles()
       const role = roles.find(r => r.id === roleId)
-      if (!role) throw new Error(t('systemRole.notFound'))
+      const isSysAdminRole = String(role?.roleCode || '').toUpperCase() === 'SYS_ADMIN'
+      if (!role || (isSysAdminRole && !authStore.hasSysAdminRole())) {
+        ElMessage.error(t('systemRole.notFound'))
+        await router.replace({ name: 'RoleList' })
+        return
+      }
 
       formData.value.roleCode = role.roleCode
       formData.value.roleName = role.roleName
@@ -433,6 +802,7 @@ const load = async () => {
       formData.value.status = role.status ?? 1
 
       formData.value.permissionIds = await rbacAdminApi.getRolePermissionIds(roleId)
+      await loadRoleUsers()
     }
   } catch (e: any) {
     ElMessage.error(e?.message || t('systemRole.loadDetailFailed'))
@@ -501,21 +871,194 @@ const handleSubmit = async () => {
 onMounted(load)
 </script>
 
-<style scoped>
-.system-page {
+<style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.role-edit-page {
   padding: 20px;
+  min-height: 320px;
 }
 
-.toolbar {
+.page-header {
+  margin-bottom: 20px;
+  .page-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: $text-primary;
+    margin: 0 0 6px;
+  }
+  .page-sub {
+    margin: 0;
+    font-size: 13px;
+    color: $text-muted;
+    line-height: 1.5;
+  }
+}
+
+.settings-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.settings-nav {
+  width: 200px;
+  flex-shrink: 0;
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: 8px;
+  padding: 8px;
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: $text-muted;
+    font-size: 13px;
+    transition: all 0.2s;
+
+    .nav-icon {
+      font-size: 16px;
+    }
+
+    &:hover {
+      background: rgba(0, 212, 255, 0.06);
+      color: $text-secondary;
+    }
+
+    &.active {
+      background: rgba(0, 212, 255, 0.18);
+      color: $cyan-primary;
+      font-weight: 500;
+    }
+  }
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-section {
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.section-head__left {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: $text-primary;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 8px;
 }
 
-.title {
-  font-size: 18px;
-  font-weight: 600;
+.title-bar {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: $cyan-primary;
+}
+
+.section-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.section-head__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.role-users-count {
+  font-size: 13px;
+  color: $text-muted;
+}
+
+.add-users-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
+}
+
+.add-users-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.add-users-search .el-input {
+  flex: 1;
+  max-width: 280px;
+}
+
+.role-users-table {
+  width: 100%;
+}
+
+.role-users-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--el-color-primary);
+  cursor: pointer;
+  font: inherit;
+}
+
+.role-users-link:hover {
+  text-decoration: underline;
+}
+
+.action-btn--primary {
+  color: $cyan-primary;
+}
+
+.action-btn--danger {
+  color: $color-red-brown;
+}
+
+.op-more-item {
+  font-size: 13px;
+}
+
+.op-more-item--primary {
+  color: $cyan-primary;
+}
+
+.op-more-item--danger {
+  color: $color-red-brown;
+}
+
+.role-users-empty {
+  padding: 16px 0 4px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--el-text-color-secondary, #909399);
 }
 
 .footer-bar {

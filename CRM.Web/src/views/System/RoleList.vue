@@ -287,12 +287,19 @@ watch(filteredRoles, (list) => {
   if (page.value > maxPage) page.value = maxPage
 })
 
+function hasSysAdminRole() {
+  return authStore.hasSysAdminRole()
+}
+
+function excludeSysAdminUnlessHolder(list: RbacRole[]) {
+  if (hasSysAdminRole()) return list
+  return list.filter((r) => String(r.roleCode || '').toUpperCase() !== 'SYS_ADMIN')
+}
+
 const load = async () => {
   loading.value = true
   try {
-    const list = await rbacAdminApi.getRoles()
-    const isSa = authStore.user?.isSysAdmin === true
-    roles.value = isSa ? list : list.filter((r) => r.roleCode !== 'SYS_ADMIN')
+    roles.value = excludeSysAdminUnlessHolder(await rbacAdminApi.getRoles())
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : t('systemRole.loadFailed'))
   } finally {
@@ -301,6 +308,13 @@ const load = async () => {
 }
 
 const goEdit = (id: string) => {
+  const row = roles.value.find((r) => r.id === id)
+  if (
+    row &&
+    String(row.roleCode || '').toUpperCase() === 'SYS_ADMIN' &&
+    !hasSysAdminRole()
+  )
+    return
   router.push({ name: 'RoleEdit', params: { id } })
 }
 

@@ -45,6 +45,10 @@ namespace CRM.Core.Interfaces
 
         /// <summary>按目标集合同步用户角色：多余软删，缺失则复活已删行或插入。</summary>
         Task AssignUserRolesAsync(string userId, IReadOnlyList<string> roleIds);
+        /// <summary>从账号上移除一个角色（软删关联，不影响该账号其他角色）。</summary>
+        Task RemoveUserRoleAsync(string userId, string roleId);
+        /// <summary>为多个账号追加同一角色（复活已删行或插入；不影响各账号其他角色）。</summary>
+        Task AddRoleUsersAsync(string roleId, IReadOnlyList<string> userIds);
         /// <summary>按目标集合同步用户部门：多余软删，缺失则复活；保留行可更新主部门。</summary>
         Task AssignUserDepartmentsAsync(string userId, IReadOnlyList<string> departmentIds, string? primaryDepartmentId);
         /// <summary>按目标集合同步角色权限：多余软删，缺失则复活已删行或插入。</summary>

@@ -408,6 +408,14 @@ export const useAuthStore = defineStore('auth', () => {
     return false
   }
 
+  /** 当前登录账号是否持有 SYS_ADMIN 角色（优先看 roleCodes，避免 isSysAdmin 粘滞） */
+  function hasSysAdminRole() {
+    const codes = user.value?.roleCodes || []
+    if (codes.length > 0)
+      return codes.some((c) => String(c).toUpperCase() === 'SYS_ADMIN')
+    return user.value?.isSysAdmin === true
+  }
+
   return {
     token,
     user,
@@ -421,6 +429,7 @@ export const useAuthStore = defineStore('auth', () => {
     fetchCurrentUser,
     loadSimulationBanner,
     hasPermission,
+    hasSysAdminRole,
     canForceDelete,
     canAccessSystemPermission,
     canAccessParamsModule,

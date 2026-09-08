@@ -59,6 +59,43 @@ public sealed class RbacServiceAssignTests
     }
 
     [Fact]
+    public async Task RemoveUserRoleAsync_soft_deletes_only_that_role()
+    {
+        var roles = new MemoryRepository<RbacUserRole>();
+        await roles.AddAsync(new RbacUserRole { Id = "ur-keep", UserId = "u1", RoleId = "r1" });
+        await roles.AddAsync(new RbacUserRole { Id = "ur-drop", UserId = "u1", RoleId = "r2" });
+        var sut = CreateSut(roles);
+
+        await sut.RemoveUserRoleAsync("u1", "r2");
+
+        var snap = roles.Snapshot();
+        Assert.False(snap.Single(x => x.Id == "ur-keep").IsDeleted);
+        Assert.True(snap.Single(x => x.Id == "ur-drop").IsDeleted);
+    }
+
+    [Fact]
+    public async Task AddRoleUsersAsync_inserts_and_revives_without_dropping_other_roles()
+    {
+        var roles = new MemoryRepository<RbacUserRole>();
+        await roles.AddAsync(new RbacUserRole { Id = "ur-other", UserId = "u1", RoleId = "r-keep" });
+        await roles.AddAsync(new RbacUserRole
+        {
+            Id = "ur-dead",
+            UserId = "u1",
+            RoleId = "r-add",
+            IsDeleted = true
+        });
+        var sut = CreateSut(roles);
+
+        await sut.AddRoleUsersAsync("r-add", new[] { "u1", "u2" });
+
+        var snap = roles.Snapshot();
+        Assert.False(snap.Single(x => x.Id == "ur-other").IsDeleted);
+        Assert.False(snap.Single(x => x.Id == "ur-dead").IsDeleted);
+        Assert.Contains(snap, x => !x.IsDeleted && x.UserId == "u2" && x.RoleId == "r-add");
+    }
+
+    [Fact]
     public async Task AssignUserDepartmentsAsync_revives_and_sets_primary()
     {
         var depts = new MemoryRepository<RbacUserDepartment>();

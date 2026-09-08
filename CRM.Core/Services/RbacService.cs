@@ -626,6 +626,61 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
         }
 
+        public async Task RemoveUserRoleAsync(string userId, string roleId)
+        {
+            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(roleId))
+                return;
+
+            var uid = userId.Trim();
+            var rid = roleId.Trim();
+            var live = (await _userRoleRepo.FindAsync(x => x.UserId == uid && x.RoleId == rid)).ToList();
+            foreach (var item in live)
+                await _userRoleRepo.DeleteAsync(item.Id);
+            if (live.Count > 0)
+                await _unitOfWork.SaveChangesAsync();
+        }
+
+        public async Task AddRoleUsersAsync(string roleId, IReadOnlyList<string> userIds)
+        {
+            if (string.IsNullOrWhiteSpace(roleId))
+                return;
+
+            var rid = roleId.Trim();
+            var uids = NormalizeIds(userIds);
+            if (uids.Count == 0)
+                return;
+
+            var changed = false;
+            foreach (var uid in uids)
+            {
+                var live = (await _userRoleRepo.FindAsync(x => x.UserId == uid && x.RoleId == rid)).ToList();
+                if (live.Count > 0)
+                    continue;
+
+                var all = (await _userRoleRepo.FindIgnoreFiltersAsync(x => x.UserId == uid && x.RoleId == rid)).ToList();
+                var dead = all.FirstOrDefault(x => x.IsDeleted && SameId(x.RoleId, rid));
+                if (dead != null)
+                {
+                    dead.IsDeleted = false;
+                    dead.ModifyTime = DateTime.UtcNow;
+                    await _userRoleRepo.UpdateAsync(dead);
+                    changed = true;
+                    continue;
+                }
+
+                await _userRoleRepo.AddAsync(new RbacUserRole
+                {
+                    UserId = uid,
+                    RoleId = rid,
+                    CreateTime = DateTime.UtcNow
+                });
+                changed = true;
+            }
+
+            if (changed)
+                await _unitOfWork.SaveChangesAsync();
+        }
+
         public async Task AssignUserDepartmentsAsync(string userId, IReadOnlyList<string> departmentIds, string? primaryDepartmentId)
         {
             var distinctIds = NormalizeIds(departmentIds);

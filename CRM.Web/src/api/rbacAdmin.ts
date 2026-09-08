@@ -198,6 +198,19 @@ export const rbacAdminApi = {
   async deleteRole(roleId: string): Promise<void> {
     await apiClient.delete(`/api/v1/rbac/admin/roles/${encodeURIComponent(roleId)}`)
   },
+  async getRoleUsers(roleId: string): Promise<AdminUserDto[]> {
+    return apiClient.get<AdminUserDto[]>(`/api/v1/rbac/admin/roles/${encodeURIComponent(roleId)}/users`)
+  },
+  async removeRoleUser(roleId: string, userId: string): Promise<void> {
+    await apiClient.delete(
+      `/api/v1/rbac/admin/roles/${encodeURIComponent(roleId)}/users/${encodeURIComponent(userId)}`
+    )
+  },
+  async addRoleUsers(roleId: string, userIds: string[]): Promise<void> {
+    await apiClient.post(`/api/v1/rbac/admin/roles/${encodeURIComponent(roleId)}/users`, {
+      ids: userIds
+    })
+  },
   async getRolePermissionIds(roleId: string): Promise<string[]> {
     return apiClient.get<string[]>(`/api/v1/rbac/admin/roles/${encodeURIComponent(roleId)}/permissions`)
   },

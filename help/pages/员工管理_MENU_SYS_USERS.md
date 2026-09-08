@@ -9,6 +9,7 @@
 - **SuperAdmin 账号对 Admin / Manager 不可见**；Manager 仅可维护普通员工，不可创建 Manager。
 - Admin 可新建 Manager（SYS_BIZ_MANAGER）；不可见 / 不可维护 SuperAdmin。
 - 系统管理员可在本页为 SuperAdmin 账号重置登录密码。本人改密（需验证旧密码）仍走隐蔽运维页。
+- SuperAdmin 不能在员工编辑页授予，须在角色管理的「角色用户」中添加。
 
 ## 操作说明
 

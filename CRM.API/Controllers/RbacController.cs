@@ -99,11 +99,52 @@ namespace CRM.API.Controllers
             return null;
         }
 
+        /// <summary>
+        /// SYS_ADMIN 只能通过角色用户列表追加/移除；员工创建与更新不得新增，已有则原样保留。
+        /// </summary>
+        private async Task<List<string>> ApplySysAdminRoleUsersOnlyAsync(
+            IReadOnlyList<string>? requestedRoleIds,
+            bool keepExistingSysAdmin)
+        {
+            var ids = (requestedRoleIds ?? Array.Empty<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            var sa = (await _roleRepo.FindAsync(x => x.RoleCode == ManagementRoleCodes.SuperAdmin))
+                .FirstOrDefault();
+            if (sa == null)
+                return ids;
+
+            ids.RemoveAll(id => string.Equals(id, sa.Id, StringComparison.OrdinalIgnoreCase));
+            if (keepExistingSysAdmin)
+                ids.Add(sa.Id);
+            return ids;
+        }
+
         private async Task<(AdminUserDto? dto, IReadOnlyList<string> roleCodes)> LoadUserWithRolesAsync(string userId)
         {
             var dto = await BuildAdminUserDtoAsync(userId);
             if (dto == null) return (null, Array.Empty<string>());
             return (dto, dto.RoleCodes ?? new List<string>());
+        }
+
+        private static bool ActorHoldsSysAdminRole(UserPermissionSummaryDto actor) =>
+            ManagementRoleCodes.IsSuperAdmin(actor.RoleCodes);
+
+        /// <summary>非 SYS_ADMIN 持有者不可见/不可改系统管理员角色（按「角色不存在」处理）。</summary>
+        private async Task<ActionResult<ApiResponse<object>>?> HideSysAdminRoleIfNeededAsync(string roleId)
+        {
+            var actor = await GetActorSummaryAsync();
+            if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+            if (ActorHoldsSysAdminRole(actor) || string.IsNullOrWhiteSpace(roleId))
+                return null;
+            var role = (await _roleRepo.FindAsync(x => x.Id == roleId.Trim())).FirstOrDefault();
+            if (role != null
+                && string.Equals(role.RoleCode, ManagementRoleCodes.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
+            return null;
         }
 
         [HttpGet("roles")]
@@ -118,14 +159,24 @@ namespace CRM.API.Controllers
                 return ForbidPerm(SystemPermissionCodes.RbacRolesRead);
 
             var roles = (await _rbacService.GetRolesAsync()).ToList();
-            if (!actor.IsSysAdmin)
+            if (!ManagementRoleCodes.IsSuperAdmin(actor.RoleCodes))
                 roles = roles.Where(r => !string.Equals(r.RoleCode, ManagementRoleCodes.SuperAdmin, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            // 无角色管理权限时仅返回可赋角色（员工编辑下拉）
+            // 无角色管理权限时：可赋角色 + 操作者已持有角色 + 管理角色（不含 SYS_ADMIN，已在上方剔除）。
+            // 员工编辑页用本列表解析已有 roleId；若漏掉 SYS_MANAGER，前端会误报「未识别扩展角色」并在保存时剥掉。
             if (!actor.IsSysAdmin && !actor.HasPermissionCode(SystemPermissionCodes.RbacRolesRead))
             {
-                var assignable = ManagementAccountPolicy.GetAssignableRoleCodes(actor);
-                roles = roles.Where(r => assignable.Contains(r.RoleCode ?? string.Empty)).ToList();
+                var allowed = new HashSet<string>(
+                    ManagementAccountPolicy.GetAssignableRoleCodes(actor),
+                    StringComparer.OrdinalIgnoreCase);
+                foreach (var code in actor.RoleCodes ?? Array.Empty<string>())
+                {
+                    if (!string.IsNullOrWhiteSpace(code))
+                        allowed.Add(code.Trim());
+                }
+                allowed.Add(ManagementRoleCodes.Admin);
+                allowed.Add(ManagementRoleCodes.Manager);
+                roles = roles.Where(r => allowed.Contains(r.RoleCode ?? string.Empty)).ToList();
             }
 
             return Ok(ApiResponse<object>.Ok(roles, "获取角色列表成功"));
@@ -565,10 +616,11 @@ namespace CRM.API.Controllers
                 if (string.IsNullOrWhiteSpace(request.Password))
                     return BadRequest(ApiResponse<object>.Fail("Password 不能为空", 400));
 
-                var roleCheck = await ValidateUserRoleIdsAsync(actor, request.RoleIds);
+                var roleIds = await ApplySysAdminRoleUsersOnlyAsync(request.RoleIds, keepExistingSysAdmin: false);
+                var roleCheck = await ValidateUserRoleIdsAsync(actor, roleIds);
                 if (roleCheck != null) return roleCheck;
 
-                var roleId = request.RoleIds?.FirstOrDefault();
+                var roleId = roleIds.FirstOrDefault();
                 var deptId = request.DepartmentIds?.FirstOrDefault();
 
                 var created = await _userService.CreateAsync(new CreateUserRequest
@@ -585,8 +637,8 @@ namespace CRM.API.Controllers
                 // IUserService 当前简化实现不会主动 SaveChanges
                 await _unitOfWork.SaveChangesAsync();
 
-                if (request.RoleIds != null && request.RoleIds.Count > 0)
-                    await _rbacService.AssignUserRolesAsync(created.Id, request.RoleIds);
+                if (roleIds.Count > 0)
+                    await _rbacService.AssignUserRolesAsync(created.Id, roleIds);
 
                 if (request.DepartmentIds != null && request.DepartmentIds.Count > 0)
                     await _rbacService.AssignUserDepartmentsAsync(created.Id, request.DepartmentIds, request.PrimaryDepartmentId);
@@ -643,9 +695,11 @@ namespace CRM.API.Controllers
 
                 if (request.RoleIds != null)
                 {
-                    var roleCheck = await ValidateUserRoleIdsAsync(actor, request.RoleIds);
+                    var keepSa = ManagementRoleCodes.IsSuperAdmin(existing.RoleCodes);
+                    var roleIds = await ApplySysAdminRoleUsersOnlyAsync(request.RoleIds, keepSa);
+                    var roleCheck = await ValidateUserRoleIdsAsync(actor, roleIds);
                     if (roleCheck != null) return roleCheck;
-                    await _rbacService.AssignUserRolesAsync(userId, request.RoleIds);
+                    await _rbacService.AssignUserRolesAsync(userId, roleIds);
                 }
 
                 if (request.DepartmentIds != null)
@@ -911,6 +965,9 @@ namespace CRM.API.Controllers
                 if (request == null)
                     return BadRequest(ApiResponse<object>.Fail("请求体不能为空", 400));
 
+                var hidden = await HideSysAdminRoleIfNeededAsync(roleId);
+                if (hidden != null) return hidden;
+
                 var role = await _roleRepo.GetByIdAsync(roleId);
                 if (role == null)
                     return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
@@ -941,6 +998,9 @@ namespace CRM.API.Controllers
                 if (string.IsNullOrWhiteSpace(roleId))
                     return BadRequest(ApiResponse<object>.Fail("roleId 不能为空", 400));
 
+                var hidden = await HideSysAdminRoleIfNeededAsync(roleId);
+                if (hidden != null) return hidden;
+
                 // 清理关联：用户角色、角色权限
                 var userRoles = (await _userRoleRepo.FindAsync(x => x.RoleId == roleId)).ToList();
                 foreach (var ur in userRoles)
@@ -962,6 +1022,182 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpGet("admin/roles/{roleId}/users")]
+        [RequirePermission("system.rbac.roles.read")]
+        public async Task<ActionResult<ApiResponse<object>>> GetRoleUsers(string roleId)
+        {
+            try
+            {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+
+                if (string.IsNullOrWhiteSpace(roleId))
+                    return BadRequest(ApiResponse<object>.Fail("roleId 不能为空", 400));
+
+                var rid = roleId.Trim();
+                var role = (await _roleRepo.FindAsync(x => x.Id == rid)).FirstOrDefault();
+                if (role == null)
+                    return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
+                if (!ActorHoldsSysAdminRole(actor)
+                    && string.Equals(role.RoleCode, ManagementRoleCodes.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                    return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
+
+                var links = (await _userRoleRepo.FindAsync(x => x.RoleId == rid)).ToList();
+                var userIds = links
+                    .Select(x => x.UserId)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (userIds.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(Array.Empty<AdminUserDto>(), "获取角色用户成功"));
+
+                var dtos = new List<AdminUserDto>();
+                foreach (var userId in userIds)
+                {
+                    var dto = await BuildAdminUserDtoAsync(userId);
+                    if (dto == null) continue;
+                    if (!ManagementAccountPolicy.CanMaintainTarget(actor, dto.RoleCodes))
+                        continue;
+                    dtos.Add(dto);
+                }
+
+                dtos = dtos
+                    .OrderBy(x => x.UserName, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                return Ok(ApiResponse<object>.Ok(dtos, "获取角色用户成功"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "获取角色用户失败 roleId={RoleId}", roleId);
+                return StatusCode(500, ApiResponse<object>.Fail($"获取角色用户失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpDelete("admin/roles/{roleId}/users/{userId}")]
+        public async Task<ActionResult<ApiResponse<object>>> RemoveRoleUser(string roleId, string userId)
+        {
+            try
+            {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
+                if (string.IsNullOrWhiteSpace(roleId) || string.IsNullOrWhiteSpace(userId))
+                    return BadRequest(ApiResponse<object>.Fail("roleId / userId 不能为空", 400));
+
+                var rid = roleId.Trim();
+                var uid = userId.Trim();
+                var role = (await _roleRepo.FindAsync(x => x.Id == rid)).FirstOrDefault();
+                if (role == null)
+                    return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
+                if (!ActorHoldsSysAdminRole(actor)
+                    && string.Equals(role.RoleCode, ManagementRoleCodes.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                    return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
+                if (ManagementRoleCodes.IsManagementRoleCode(role.RoleCode)
+                    && !ManagementAccountPolicy.CanAssignRoleCode(actor, role.RoleCode ?? string.Empty))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权从该角色移除账号", 403));
+
+                var target = await BuildAdminUserDtoAsync(uid);
+                if (target == null) return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
+                if (!(target.RoleIds ?? new List<string>()).Any(x =>
+                        string.Equals(x, rid, StringComparison.OrdinalIgnoreCase)))
+                    return NotFound(ApiResponse<object>.Fail("该账号未应用当前角色", 404));
+
+                if (string.Equals(role.RoleCode, ManagementRoleCodes.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                {
+                    var saLinks = (await _userRoleRepo.FindAsync(x => x.RoleId == rid)).ToList();
+                    var remainingLive = 0;
+                    foreach (var link in saLinks)
+                    {
+                        if (string.Equals(link.UserId, uid, StringComparison.OrdinalIgnoreCase))
+                            continue;
+                        if (await BuildAdminUserDtoAsync(link.UserId) != null)
+                            remainingLive++;
+                    }
+                    if (remainingLive <= 0)
+                        return BadRequest(ApiResponse<object>.Fail("不能移除最后一个系统管理员", 400));
+                }
+
+                await _rbacService.RemoveUserRoleAsync(uid, rid);
+                return Ok(ApiResponse<object>.Ok(null, "已移除角色"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "移除角色用户失败 roleId={RoleId} userId={UserId}", roleId, userId);
+                return StatusCode(500, ApiResponse<object>.Fail($"移除角色失败: {ex.Message}", 500));
+            }
+        }
+
+        [HttpPost("admin/roles/{roleId}/users")]
+        public async Task<ActionResult<ApiResponse<object>>> AddRoleUsers(string roleId, [FromBody] AssignIdsRequest request)
+        {
+            try
+            {
+                var actor = await GetActorSummaryAsync();
+                if (actor == null) return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+                if (!actor.HasPermissionCode(SystemPermissionCodes.OrgUsersWrite)
+                    && !actor.HasPermissionCode(SystemPermissionCodes.LegacyRbacManage)
+                    && !actor.IsSysAdmin)
+                    return ForbidPerm(SystemPermissionCodes.OrgUsersWrite);
+
+                if (string.IsNullOrWhiteSpace(roleId))
+                    return BadRequest(ApiResponse<object>.Fail("roleId 不能为空", 400));
+
+                var userIds = (request.Ids ?? Array.Empty<string>())
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                if (userIds.Count == 0)
+                    return BadRequest(ApiResponse<object>.Fail("请选择要添加的账号", 400));
+
+                var rid = roleId.Trim();
+                var role = (await _roleRepo.FindAsync(x => x.Id == rid)).FirstOrDefault();
+                if (role == null)
+                    return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
+                if (!ActorHoldsSysAdminRole(actor)
+                    && string.Equals(role.RoleCode, ManagementRoleCodes.SuperAdmin, StringComparison.OrdinalIgnoreCase))
+                    return NotFound(ApiResponse<object>.Fail("角色不存在", 404));
+                if (ManagementRoleCodes.IsManagementRoleCode(role.RoleCode)
+                    && !ManagementAccountPolicy.CanAssignRoleCode(actor, role.RoleCode ?? string.Empty))
+                    return StatusCode(403, ApiResponse<object>.Fail("无权向该角色添加账号", 403));
+
+                var accepted = new List<string>();
+                foreach (var uid in userIds)
+                {
+                    var target = await BuildAdminUserDtoAsync(uid);
+                    if (target == null)
+                        return NotFound(ApiResponse<object>.Fail("用户不存在", 404));
+                    if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
+                        return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
+                    if (target.Status != 1)
+                        return BadRequest(ApiResponse<object>.Fail("只能添加启用中的账号", 400));
+                    if ((target.RoleIds ?? new List<string>()).Any(x =>
+                            string.Equals(x, rid, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+                    accepted.Add(uid);
+                }
+
+                if (accepted.Count == 0)
+                    return Ok(ApiResponse<object>.Ok(null, "所选账号已应用当前角色"));
+
+                await _rbacService.AddRoleUsersAsync(rid, accepted);
+                return Ok(ApiResponse<object>.Ok(null, "已添加用户"));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "添加角色用户失败 roleId={RoleId}", roleId);
+                return StatusCode(500, ApiResponse<object>.Fail($"添加用户失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpGet("admin/roles/{roleId}/permissions")]
         [RequirePermission("system.rbac.roles.read")]
         public async Task<ActionResult<ApiResponse<object>>> GetRolePermissionIds(string roleId)
@@ -970,6 +1206,9 @@ namespace CRM.API.Controllers
             {
                 if (string.IsNullOrWhiteSpace(roleId))
                     return BadRequest(ApiResponse<object>.Fail("roleId 不能为空", 400));
+
+                var hidden = await HideSysAdminRoleIfNeededAsync(roleId);
+                if (hidden != null) return hidden;
 
                 var mappings = (await _rolePermissionRepo.FindAsync(x => x.RoleId == roleId)).ToList();
                 var ids = mappings.Select(x => x.PermissionId).Distinct().ToList();
@@ -1116,10 +1355,12 @@ namespace CRM.API.Controllers
                 if (!ManagementAccountPolicy.CanMaintainTarget(actor, target.RoleCodes))
                     return StatusCode(403, ApiResponse<object>.Fail("无权维护该账号", 403));
 
-                var roleCheck = await ValidateUserRoleIdsAsync(actor, request.Ids);
+                var keepSa = ManagementRoleCodes.IsSuperAdmin(target.RoleCodes);
+                var roleIds = await ApplySysAdminRoleUsersOnlyAsync(request.Ids, keepSa);
+                var roleCheck = await ValidateUserRoleIdsAsync(actor, roleIds);
                 if (roleCheck != null) return roleCheck;
 
-                await _rbacService.AssignUserRolesAsync(userId, request.Ids ?? Array.Empty<string>());
+                await _rbacService.AssignUserRolesAsync(userId, roleIds);
                 return Ok(ApiResponse<object>.Ok(null, "分配用户角色成功"));
             }
             catch (Exception ex)
@@ -1162,6 +1403,9 @@ namespace CRM.API.Controllers
         {
             try
             {
+                var hidden = await HideSysAdminRoleIfNeededAsync(roleId);
+                if (hidden != null) return hidden;
+
                 await _rbacService.AssignRolePermissionsAsync(roleId, request.Ids ?? Array.Empty<string>());
                 return Ok(ApiResponse<object>.Ok(null, "分配角色权限成功"));
             }
