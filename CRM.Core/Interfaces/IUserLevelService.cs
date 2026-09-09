@@ -22,6 +22,11 @@ public interface IUserLevelService
         short userLevel,
         string? description,
         CancellationToken cancellationToken = default);
+
+    Task<short> GetLevelAsOfAsync(
+        string userId,
+        DateOnly asOfShanghai,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class UserLevelChangeResult

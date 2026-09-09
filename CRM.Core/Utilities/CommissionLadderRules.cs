@@ -49,6 +49,22 @@ public static class CommissionLadderRules
         return null;
     }
 
+    /// <summary>计算用 GP：负值当 0。</summary>
+    public static decimal CalcGp(decimal gp) => gp < 0m ? 0m : gp;
+
+    /// <summary>本月是否达标：梯度1 已填且本月 GP ≥ 梯度1 达标金额。</summary>
+    public static bool MeetsFirstTier(IReadOnlyList<CommissionLadderSlot> slots, decimal monthGp)
+    {
+        if (slots == null || slots.Count == 0)
+            return false;
+        var first = slots[0];
+        return first.Threshold.HasValue && monthGp >= first.Threshold.Value;
+    }
+
+    /// <summary>达标后按全档取点；未达标为 0。</summary>
+    public static decimal ResolveMonthlyPoints(IReadOnlyList<CommissionLadderSlot> slots, decimal monthGp) =>
+        MeetsFirstTier(slots, monthGp) ? ResolvePoints(slots, monthGp) : 0m;
+
     public static decimal ResolvePoints(IReadOnlyList<CommissionLadderSlot> slots, decimal gp)
     {
         if (slots == null || slots.Count == 0) return 0m;

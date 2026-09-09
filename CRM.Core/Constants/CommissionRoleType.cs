@@ -36,3 +36,17 @@ public static class CommissionCalcSettingCode
     public static bool IsDelayDays(int value) =>
         value is >= DelayDaysMin and <= DelayDaysMax;
 }
+
+/// <summary>提成 Job 水位（单行）。</summary>
+public static class CommissionJobWatermarkCode
+{
+    public const string SeedId = "c2000000-0000-4000-8000-000000000011";
+}
+
+/// <summary>池表两侧正式标记。</summary>
+public static class CommissionOfficialFlag
+{
+    public const short Open = 0;
+    public const short Locked = 1;
+    public const short NotApplicable = 2;
+}

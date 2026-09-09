@@ -304,6 +304,8 @@ namespace CRM.API.Extensions
 
             services.AddHostedService<CRM.API.Services.TelemetryCleanupHostedService>();
             services.AddHostedService<CRM.API.Services.MailSyncHostedService>();
+            services.AddHostedService<CRM.API.Services.CommissionDynamicHostedService>();
+            services.AddHostedService<CRM.API.Services.CommissionLockHostedService>();
 
             return services;
         }

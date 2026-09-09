@@ -974,13 +974,13 @@
             </template>
             <template #submenu>
               <router-link
-                v-if="hasPermission('commission-estimated-sales.read')"
+                v-if="canSeeCommissionMenus"
                 to="/commission/estimated/sales"
                 class="submenu-item"
                 active-class="active"
               >{{ t('layout.menu.commissionEstimatedSales') }}</router-link>
               <router-link
-                v-if="hasPermission('commission-estimated-purchase.read')"
+                v-if="canSeeCommissionMenus"
                 to="/commission/estimated/purchase"
                 class="submenu-item"
                 active-class="active"
@@ -1022,13 +1022,13 @@
             </template>
             <template #submenu>
               <router-link
-                v-if="hasPermission('commission-official-sales.read')"
+                v-if="canSeeCommissionMenus"
                 to="/commission/official/sales"
                 class="submenu-item"
                 active-class="active"
               >{{ t('layout.menu.commissionOfficialSales') }}</router-link>
               <router-link
-                v-if="hasPermission('commission-official-purchase.read')"
+                v-if="canSeeCommissionMenus"
                 to="/commission/official/purchase"
                 class="submenu-item"
                 active-class="active"
@@ -3926,9 +3926,23 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '销项发票': 'layout.menu.sellInvoices',
   '销项发票详情': 'rfqItemList.actions.detail',
   '业务预计提成': 'layout.menu.commissionEstimatedSales',
+  '业务预计提成月份': 'commissionResult.monthListSales',
+  '业务预计提成明细': 'commissionResult.personDetailSales',
+  '业务预计提成详情': 'commissionResult.personDetailSales',
+  '业务员提成详情': 'commissionResult.personDetailSales',
   '采购预计提成': 'layout.menu.commissionEstimatedPurchase',
+  '采购预计提成月份': 'commissionResult.monthListPurchase',
+  '采购预计提成明细': 'commissionResult.personDetailPurchase',
+  '采购预计提成详情': 'commissionResult.personDetailPurchase',
+  '采购员提成详情': 'commissionResult.personDetailPurchase',
   '业务正式提成': 'layout.menu.commissionOfficialSales',
+  '业务正式提成月份': 'commissionResult.monthListOfficialSales',
+  '业务正式提成明细': 'commissionResult.personDetailOfficialSales',
+  '业务正式提成详情': 'commissionResult.personDetailOfficialSales',
   '采购正式提成': 'layout.menu.commissionOfficialPurchase',
+  '采购正式提成月份': 'commissionResult.monthListOfficialPurchase',
+  '采购正式提成明细': 'commissionResult.personDetailOfficialPurchase',
+  '采购正式提成详情': 'commissionResult.personDetailOfficialPurchase',
   '文档模块演示': 'layout.menu.system',
   'Debug 模拟数据': 'layout.menu.debugData',
   Debug: 'layout.menu.debug'
@@ -3942,6 +3956,10 @@ const resolveRouteTitle = (path: string): string => {
   if (/^\/vendors\/[^/]+\/warranty\/?$/.test(path)) return t('layout.menu.vendors')
   if (/^\/customers\/[^/]+\/warranty\/?$/.test(path)) return t('customerWarrantyReport.pageTitle')
   if (/^\/quotes\/[^/]+\/edit$/.test(path)) return t('layout.menu.quoteManagement')
+  if (/^\/commission\/estimated\/sales\/[^/]+$/.test(path)) return t('commissionResult.personDetailSales')
+  if (/^\/commission\/estimated\/purchase\/[^/]+$/.test(path)) return t('commissionResult.personDetailPurchase')
+  if (/^\/commission\/official\/sales\/[^/]+$/.test(path)) return t('commissionResult.personDetailOfficialSales')
+  if (/^\/commission\/official\/purchase\/[^/]+$/.test(path)) return t('commissionResult.personDetailOfficialPurchase')
   if (/^\/inventory\/stocks\/[^/]+$/.test(path)) return t('inventoryStockDetail.title')
   if (/^\/inventory\/picking-list\/.+$/.test(path)) return t('pickingSlip.detailTitle')
   if (path === '/inventory/packing/create') return t('packingCreate.title')
@@ -4037,19 +4055,10 @@ const showLogisticsMenus = computed(() => {
   return (authStore.user?.logisticsDataScope ?? 0) !== 4
 })
 
-const showCommissionEstimated = computed(
-  () =>
-    hasPermission('commission-estimated-sales.read') ||
-    hasPermission('commission-estimated-purchase.read')
-)
-const showCommissionOfficial = computed(
-  () =>
-    hasPermission('commission-official-sales.read') ||
-    hasPermission('commission-official-purchase.read')
-)
-const showCommissionMenus = computed(
-  () => showCommissionEstimated.value || showCommissionOfficial.value
-)
+const canSeeCommissionMenus = computed(() => authStore.canForceDelete())
+const showCommissionEstimated = computed(() => canSeeCommissionMenus.value)
+const showCommissionOfficial = computed(() => canSeeCommissionMenus.value)
+const showCommissionMenus = computed(() => canSeeCommissionMenus.value)
 
 /** 付款管理/收款管理：主部门 FinanceDataScope=4 时整组隐藏；采购运营仍可见付款侧、商务助理仍可见收款侧 */
 const showFinanceMenus = computed(() => {

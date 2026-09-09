@@ -1375,26 +1375,158 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'commission/estimated/sales',
         name: 'CommissionEstimatedSales',
-        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
-        meta: { requiresAuth: true, title: '业务预计提成', permission: 'commission-estimated-sales.read' }
+        component: () => import('@/views/Commission/CommissionResultList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '业务预计提成',
+          adminOrManagerOnly: true,
+          permission: 'commission-estimated-sales.read',
+          commissionMode: 'estimated',
+          commissionRoleType: 1
+        }
+      },
+      {
+        path: 'commission/estimated/sales/:userId',
+        name: 'CommissionEstimatedSalesPerson',
+        component: () => import('@/views/Commission/CommissionMonthList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '业务预计提成月份',
+          adminOrManagerOnly: true,
+          permission: 'commission-estimated-sales.read',
+          commissionMode: 'estimated',
+          commissionRoleType: 1
+        }
+      },
+      {
+        path: 'commission/estimated/sales/:userId/months/:calcMonth',
+        name: 'CommissionEstimatedSalesMonth',
+        component: () => import('@/views/Commission/CommissionPersonDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '业务预计提成明细',
+          adminOrManagerOnly: true,
+          permission: 'commission-estimated-sales.read',
+          commissionMode: 'estimated',
+          commissionRoleType: 1
+        }
       },
       {
         path: 'commission/estimated/purchase',
         name: 'CommissionEstimatedPurchase',
-        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
-        meta: { requiresAuth: true, title: '采购预计提成', permission: 'commission-estimated-purchase.read' }
+        component: () => import('@/views/Commission/CommissionResultList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '采购预计提成',
+          adminOrManagerOnly: true,
+          permission: 'commission-estimated-purchase.read',
+          commissionMode: 'estimated',
+          commissionRoleType: 2
+        }
+      },
+      {
+        path: 'commission/estimated/purchase/:userId',
+        name: 'CommissionEstimatedPurchasePerson',
+        component: () => import('@/views/Commission/CommissionMonthList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '采购预计提成月份',
+          adminOrManagerOnly: true,
+          permission: 'commission-estimated-purchase.read',
+          commissionMode: 'estimated',
+          commissionRoleType: 2
+        }
+      },
+      {
+        path: 'commission/estimated/purchase/:userId/months/:calcMonth',
+        name: 'CommissionEstimatedPurchaseMonth',
+        component: () => import('@/views/Commission/CommissionPersonDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '采购预计提成明细',
+          adminOrManagerOnly: true,
+          permission: 'commission-estimated-purchase.read',
+          commissionMode: 'estimated',
+          commissionRoleType: 2
+        }
       },
       {
         path: 'commission/official/sales',
         name: 'CommissionOfficialSales',
-        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
-        meta: { requiresAuth: true, title: '业务正式提成', permission: 'commission-official-sales.read' }
+        component: () => import('@/views/Commission/CommissionResultList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '业务正式提成',
+          adminOrManagerOnly: true,
+          permission: 'commission-official-sales.read',
+          commissionMode: 'official',
+          commissionRoleType: 1
+        }
+      },
+      {
+        path: 'commission/official/sales/:userId',
+        name: 'CommissionOfficialSalesPerson',
+        component: () => import('@/views/Commission/CommissionMonthList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '业务正式提成月份',
+          adminOrManagerOnly: true,
+          permission: 'commission-official-sales.read',
+          commissionMode: 'official',
+          commissionRoleType: 1
+        }
+      },
+      {
+        path: 'commission/official/sales/:userId/months/:calcMonth',
+        name: 'CommissionOfficialSalesMonth',
+        component: () => import('@/views/Commission/CommissionPersonDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '业务正式提成明细',
+          adminOrManagerOnly: true,
+          permission: 'commission-official-sales.read',
+          commissionMode: 'official',
+          commissionRoleType: 1
+        }
       },
       {
         path: 'commission/official/purchase',
         name: 'CommissionOfficialPurchase',
-        component: () => import('@/views/Commission/CommissionPlaceholderPage.vue'),
-        meta: { requiresAuth: true, title: '采购正式提成', permission: 'commission-official-purchase.read' }
+        component: () => import('@/views/Commission/CommissionResultList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '采购正式提成',
+          adminOrManagerOnly: true,
+          permission: 'commission-official-purchase.read',
+          commissionMode: 'official',
+          commissionRoleType: 2
+        }
+      },
+      {
+        path: 'commission/official/purchase/:userId',
+        name: 'CommissionOfficialPurchasePerson',
+        component: () => import('@/views/Commission/CommissionMonthList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '采购正式提成月份',
+          adminOrManagerOnly: true,
+          permission: 'commission-official-purchase.read',
+          commissionMode: 'official',
+          commissionRoleType: 2
+        }
+      },
+      {
+        path: 'commission/official/purchase/:userId/months/:calcMonth',
+        name: 'CommissionOfficialPurchaseMonth',
+        component: () => import('@/views/Commission/CommissionPersonDetail.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '采购正式提成明细',
+          adminOrManagerOnly: true,
+          permission: 'commission-official-purchase.read',
+          commissionMode: 'official',
+          commissionRoleType: 2
+        }
       },
       {
         path: 'documents/demo',

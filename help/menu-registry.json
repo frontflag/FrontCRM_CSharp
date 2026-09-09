@@ -71,10 +71,10 @@
     { "id": "MENU_FINANCE_CUSTOMER_ACCUMULATED", "label": "客户滚存", "routeNames": ["FinanceCustomerAccumulatedList", "FinanceCustomerAccumulatedItemList"], "pathPrefixes": ["/finance/customer-accumulated"] },
     { "id": "MENU_FINANCE_VENDOR_ACCUMULATED", "label": "供应商滚存", "routeNames": ["FinanceVendorAccumulatedList", "FinanceVendorAccumulatedItemList"], "pathPrefixes": ["/finance/vendor-accumulated"] },
 
-    { "id": "MENU_COMMISSION_ESTIMATED_SALES", "label": "业务预计提成", "routeNames": ["CommissionEstimatedSales"], "pathPrefixes": ["/commission/estimated/sales"] },
-    { "id": "MENU_COMMISSION_ESTIMATED_PURCHASE", "label": "采购预计提成", "routeNames": ["CommissionEstimatedPurchase"], "pathPrefixes": ["/commission/estimated/purchase"] },
-    { "id": "MENU_COMMISSION_OFFICIAL_SALES", "label": "业务正式提成", "routeNames": ["CommissionOfficialSales"], "pathPrefixes": ["/commission/official/sales"] },
-    { "id": "MENU_COMMISSION_OFFICIAL_PURCHASE", "label": "采购正式提成", "routeNames": ["CommissionOfficialPurchase"], "pathPrefixes": ["/commission/official/purchase"] },
+    { "id": "MENU_COMMISSION_ESTIMATED_SALES", "label": "业务预计提成", "routeNames": ["CommissionEstimatedSales", "CommissionEstimatedSalesPerson"], "pathPrefixes": ["/commission/estimated/sales"] },
+    { "id": "MENU_COMMISSION_ESTIMATED_PURCHASE", "label": "采购预计提成", "routeNames": ["CommissionEstimatedPurchase", "CommissionEstimatedPurchasePerson"], "pathPrefixes": ["/commission/estimated/purchase"] },
+    { "id": "MENU_COMMISSION_OFFICIAL_SALES", "label": "业务正式提成", "routeNames": ["CommissionOfficialSales", "CommissionOfficialSalesPerson"], "pathPrefixes": ["/commission/official/sales"] },
+    { "id": "MENU_COMMISSION_OFFICIAL_PURCHASE", "label": "采购正式提成", "routeNames": ["CommissionOfficialPurchase", "CommissionOfficialPurchasePerson"], "pathPrefixes": ["/commission/official/purchase"] },
 
     { "id": "MENU_REPORT_ANALYSIS", "label": "报表分析", "routeNames": [], "pathPrefixes": ["/reports"] },
     { "id": "MENU_SALES_ANALYTICS", "label": "销售分析", "routeNames": ["SalesAnalytics"], "pathPrefixes": ["/reports/sales"] },

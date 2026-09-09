@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models;
 using CRM.Core.Models.System;
+using CRM.Core.Utilities;
 
 namespace CRM.Core.Services;
 
@@ -94,6 +95,23 @@ public sealed class UserLevelService : IUserLevelService
             LevelRemark = user.LevelRemark,
             LevelChanged = true
         };
+    }
+
+    public async Task<short> GetLevelAsOfAsync(
+        string userId,
+        DateOnly asOfShanghai,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return UserLevelCode.Default;
+
+        var user = await _userRepo.GetByIdAsync(userId.Trim());
+        var current = user?.Level ?? UserLevelCode.Default;
+        var history = await GetHistoryAsync(userId, cancellationToken);
+        return UserLevelAsOf.Resolve(
+            current,
+            history.Select(h => new UserLevelChangePoint(h.ChangeTime, h.OldLevel, h.NewLevel)).ToList(),
+            asOfShanghai);
     }
 
     public async Task<IReadOnlyList<UserLevelHistory>> GetHistoryAsync(

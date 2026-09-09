@@ -38,21 +38,6 @@
             <el-button @click="openCreate(COMMISSION_ROLE_PURCHASE)">{{ t('commissionParams.createVersion') }}</el-button>
           </div>
         </el-form-item>
-        <el-form-item :label="t('commissionParams.delayDays')">
-          <div class="delay-row">
-            <el-input-number
-              v-model="delayDays"
-              :min="COMMISSION_DELAY_DAYS_MIN"
-              :max="COMMISSION_DELAY_DAYS_MAX"
-              :precision="0"
-              :step="1"
-              :controls="true"
-              class="delay-input"
-            />
-            <span class="delay-unit">{{ t('commissionParams.delayDaysUnit') }}</span>
-          </div>
-          <p class="delay-hint">{{ t('commissionParams.delayDaysHint') }}</p>
-        </el-form-item>
       </el-form>
     </div>
 
@@ -96,8 +81,6 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import {
-  COMMISSION_DELAY_DAYS_MAX,
-  COMMISSION_DELAY_DAYS_MIN,
   COMMISSION_ROLE_PURCHASE,
   COMMISSION_ROLE_SALES,
   commissionRatesApi,
@@ -157,23 +140,13 @@ async function saveActive() {
     ElMessage.error(t('commissionParams.selectBothVersions'))
     return
   }
-  const days = delayDays.value
-  if (
-    days === undefined ||
-    !Number.isInteger(days) ||
-    days < COMMISSION_DELAY_DAYS_MIN ||
-    days > COMMISSION_DELAY_DAYS_MAX
-  ) {
-    ElMessage.error(t('commissionParams.delayDaysInvalid'))
-    return
-  }
   saving.value = true
   try {
     applySettings(
       await commissionRatesApi.setActive({
         salesVersionId: salesVersionId.value,
         purchaseVersionId: purchaseVersionId.value,
-        receiptWriteoffDelayDays: days
+        receiptWriteoffDelayDays: delayDays.value ?? 0
       })
     )
     ElMessage.success(t('commissionParams.saveSuccess'))

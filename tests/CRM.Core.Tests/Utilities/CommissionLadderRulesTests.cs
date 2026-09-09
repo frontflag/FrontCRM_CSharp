@@ -60,6 +60,31 @@ public sealed class CommissionLadderRulesTests
     }
 
     [Fact]
+    public void Feb_and_Mar_qualify_independently()
+    {
+        var slots = Slots((300m, 3m), (1000m, 5m));
+        var febPoints = CommissionLadderRules.ResolveMonthlyPoints(slots, 800m);
+        var marPoints = CommissionLadderRules.ResolveMonthlyPoints(slots, 200m);
+        Assert.Equal(3m, febPoints);
+        Assert.Equal(0m, marPoints);
+        Assert.Equal(24.00m, decimal.Round(CommissionLadderRules.CalcGp(800m) * febPoints / 100m, 2));
+        Assert.Equal(0.00m, decimal.Round(CommissionLadderRules.CalcGp(200m) * marPoints / 100m, 2));
+    }
+
+    [Fact]
+    public void Monthly_qualify_uses_first_tier_then_full_ladder()
+    {
+        var slots = Slots((300m, 3m), (1000m, 5m));
+        Assert.False(CommissionLadderRules.MeetsFirstTier(slots, 200m));
+        Assert.Equal(0m, CommissionLadderRules.ResolveMonthlyPoints(slots, 200m));
+        Assert.True(CommissionLadderRules.MeetsFirstTier(slots, 700m));
+        Assert.Equal(3m, CommissionLadderRules.ResolveMonthlyPoints(slots, 700m));
+        Assert.Equal(5m, CommissionLadderRules.ResolveMonthlyPoints(slots, 1000m));
+        Assert.Equal(0m, CommissionLadderRules.CalcGp(-80m));
+        Assert.Equal(12m, CommissionLadderRules.CalcGp(12m));
+    }
+
+    [Fact]
     public void ToRate_divides_by_100()
     {
         Assert.Equal(0.05m, CommissionLadderRules.ToRate(5m));

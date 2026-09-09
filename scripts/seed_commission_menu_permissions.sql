@@ -27,6 +27,18 @@ WHERE r."RoleCode" IN ('SYS_ADMIN', 'SYS_MANAGER')
     WHERE rp."RoleId" = r."RoleId" AND rp."PermissionId" = p."PermissionId"
   );
 
+DELETE FROM sys_role_permission rp
+USING sys_permission p, sys_role r
+WHERE rp."PermissionId" = p."PermissionId"
+  AND rp."RoleId" = r."RoleId"
+  AND p."PermissionCode" IN (
+    'commission-estimated-sales.read',
+    'commission-estimated-purchase.read',
+    'commission-official-sales.read',
+    'commission-official-purchase.read'
+  )
+  AND r."RoleCode" NOT IN ('SYS_ADMIN', 'SYS_MANAGER');
+
 SELECT p."PermissionCode", p."PermissionName", r."RoleCode"
 FROM sys_permission p
 JOIN sys_role_permission rp ON rp."PermissionId" = p."PermissionId"

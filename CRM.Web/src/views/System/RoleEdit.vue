@@ -716,16 +716,27 @@ function resolveGroupMeta(p: RbacPermission): GroupMeta {
   return { key: `feat:${prefix}`, label: prefix, sort: 900, itemSort: () => 0 }
 }
 
+function isCommissionAdminRoleCode(roleCode: string) {
+  const code = roleCode.trim().toUpperCase()
+  return code === 'SYS_ADMIN' || code === 'SYS_MANAGER'
+}
+
+function isCommissionPermissionCode(code: string) {
+  const c = (code ?? '').toLowerCase()
+  return c.startsWith('system.params.commission') || c.startsWith('commission-')
+}
+
 const permissionGroups = computed(() => {
   const q = permFilter.value.trim().toLowerCase()
   const kindFilter = permKindFilter.value
+  const keepCommission = isCommissionAdminRoleCode(formData.value.roleCode)
   const byCode = new Map(
     permissions.value.filter((p) => p.status === 1).map((p) => [p.permissionCode, p] as const)
   )
 
   // 主菜单入口：始终按侧栏结构完整展示（库中缺失时禁用并提示执行种子）
   if (kindFilter === 'menu') {
-    return SIDEBAR_MENU_GROUPS.map((g, groupOrder) => {
+    return SIDEBAR_MENU_GROUPS.filter((g) => keepCommission || g.key !== 'commission').map((g, groupOrder) => {
       const items = g.items
         .map((item) => {
           const existing = byCode.get(item.code)
@@ -759,7 +770,7 @@ const permissionGroups = computed(() => {
 
   const filtered = permissions.value.filter((p) => {
     if (p.status !== 1) return false
-    if ((p.permissionCode ?? '').toLowerCase().startsWith('system.params.commission')) return false
+    if (isCommissionPermissionCode(p.permissionCode ?? '')) return false
     const kind = resolvePermKind(p.permissionCode)
     if (kindFilter !== 'all' && kind !== kindFilter) return false
     if (!q) return true
@@ -822,11 +833,10 @@ const load = async () => {
 }
 
 function permissionIdsForSave(): string[] {
-  const roleCode = (formData.value.roleCode || '').toUpperCase()
-  const keepCommission = roleCode === 'SYS_ADMIN' || roleCode === 'SYS_MANAGER'
+  const keepCommission = isCommissionAdminRoleCode(formData.value.roleCode)
   const commissionIds = new Set(
     permissions.value
-      .filter((p) => (p.permissionCode ?? '').toLowerCase().startsWith('system.params.commission'))
+      .filter((p) => isCommissionPermissionCode(p.permissionCode ?? ''))
       .map((p) => p.id)
   )
   return formData.value.permissionIds.filter((id) => {

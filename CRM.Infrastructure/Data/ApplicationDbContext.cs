@@ -111,6 +111,10 @@ namespace CRM.Infrastructure.Data
         public DbSet<CommissionRate> CommissionRates { get; set; } = null!;
         public DbSet<CommissionRateVersion> CommissionRateVersions { get; set; } = null!;
         public DbSet<CommissionCalcSetting> CommissionCalcSettings { get; set; } = null!;
+        public DbSet<CommissionDynamic> CommissionDynamics { get; set; } = null!;
+        public DbSet<CommissionLocked> CommissionLockeds { get; set; } = null!;
+        public DbSet<CommissionPool> CommissionPools { get; set; } = null!;
+        public DbSet<CommissionJobWatermark> CommissionJobWatermarks { get; set; } = null!;
         public DbSet<FinanceReceivable> FinanceReceivables { get; set; } = null!;
         public DbSet<FinanceReceivableWriteOff> FinanceReceivableWriteOffs { get; set; } = null!;
         public DbSet<FinanceCustomerAdvance> FinanceCustomerAdvances { get; set; } = null!;
@@ -2408,6 +2412,59 @@ namespace CRM.Infrastructure.Data
             modelBuilder.Entity<CommissionCalcSetting>(entity =>
             {
                 entity.ToTable("commission_calc_setting");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("created_at");
+                entity.Property(e => e.ModifyTime).HasColumnName("updated_at");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+            });
+
+            modelBuilder.Entity<CommissionDynamic>(entity =>
+            {
+                entity.ToTable("commission_dynamic");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.CalcMonth).HasColumnName("calc_month").HasMaxLength(7);
+                entity.Property(e => e.CreateTime).HasColumnName("created_at");
+                entity.Property(e => e.ModifyTime).HasColumnName("updated_at");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => new { e.RoleType, e.StockOutItemId }).IsUnique();
+                entity.HasIndex(e => new { e.RoleType, e.UserId, e.CalcMonth });
+            });
+
+            modelBuilder.Entity<CommissionLocked>(entity =>
+            {
+                entity.ToTable("commission_locked");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.Term).HasColumnName("term").HasMaxLength(6);
+                entity.Property(e => e.CalcMonth).HasColumnName("calc_month").HasMaxLength(7);
+                entity.Property(e => e.CreateTime).HasColumnName("created_at");
+                entity.Property(e => e.ModifyTime).HasColumnName("updated_at");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => new { e.RoleType, e.StockOutItemId }).IsUnique();
+                entity.HasIndex(e => new { e.RoleType, e.UserId, e.CalcMonth });
+            });
+
+            modelBuilder.Entity<CommissionPool>(entity =>
+            {
+                entity.ToTable("commission_pool");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("created_at");
+                entity.Property(e => e.ModifyTime).HasColumnName("updated_at");
+                entity.Ignore(e => e.CreateUserId);
+                entity.Ignore(e => e.ModifyUserId);
+                entity.HasIndex(e => e.StockOutItemId).IsUnique();
+                entity.HasIndex(e => e.SellOrderItemId);
+            });
+
+            modelBuilder.Entity<CommissionJobWatermark>(entity =>
+            {
+                entity.ToTable("commission_job_watermark");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
                 entity.Property(e => e.CreateTime).HasColumnName("created_at");

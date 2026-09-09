@@ -14,6 +14,7 @@ using CRM.Infrastructure.Logistics;
 using CRM.Infrastructure.StockIns;
 using CRM.Infrastructure.StockOuts;
 using CRM.Infrastructure.InventoryCenter;
+using CRM.Infrastructure.Commission;
 using CRM.Infrastructure.Finance;
 using CRM.Infrastructure.Analytics;
 using CRM.Infrastructure.SystemLogs;
@@ -91,6 +92,10 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IFinanceFreightForwarderPayableListQuery, FinanceFreightForwarderPayableListQuery>();
             services.AddScoped<IFinanceSellInvoiceListQuery, FinanceSellInvoiceListQuery>();
             services.AddScoped<IFinanceReceivableListQuery, FinanceReceivableListQuery>();
+            services.AddScoped<CommissionPoolQuery>();
+            services.AddScoped<ICommissionDynamicCalculator, CommissionDynamicCalculator>();
+            services.AddScoped<ICommissionLockService, CommissionLockService>();
+            services.AddScoped<ICommissionResultService, CommissionResultService>();
             services.AddScoped<IFinanceReceivableStatementQuery, FinanceReceivableStatementQuery>();
             services.AddScoped<IFinanceCustomerAdvanceListQuery, FinanceCustomerAdvanceListQuery>();
             services.AddScoped<ILoginLogQueryService, LoginLogListQuery>();
