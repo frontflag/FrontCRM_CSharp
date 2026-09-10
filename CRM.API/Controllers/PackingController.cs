@@ -42,6 +42,7 @@ public class PackingController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<object>>> List(
         [FromQuery] string? packingCode,
+        [FromQuery] string? declarationCode,
         [FromQuery] short? status,
         [FromQuery] short? stockOutType,
         [FromQuery] short? materialType,
@@ -58,6 +59,7 @@ public class PackingController : ControllerBase
             var filter = new PackingListQueryRequest
             {
                 PackingCode = packingCode,
+                DeclarationCode = declarationCode,
                 Status = status,
                 StockOutType = stockOutType,
                 MaterialType = materialType,

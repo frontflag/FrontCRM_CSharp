@@ -41,6 +41,21 @@ public sealed class PackingEfListQuery : IPackingListQuery
                 q = q.Where(x => x.Code.ToLower().Contains(code));
             }
 
+            if (!string.IsNullOrWhiteSpace(filter.DeclarationCode))
+            {
+                var k = filter.DeclarationCode.Trim().ToLowerInvariant();
+                q = q.Where(x =>
+                    _db.CustomsDeclarations.Any(d =>
+                        !d.IsDeleted
+                        && d.DeclarationCode.ToLower().Contains(k)
+                        && ((x.CustomsDeclarationId != null
+                             && x.CustomsDeclarationId != ""
+                             && d.Id == x.CustomsDeclarationId)
+                            || (d.PackingId != null
+                                && d.PackingId != ""
+                                && d.PackingId == x.Id))));
+            }
+
             if (filter.Status.HasValue)
                 q = q.Where(x => x.Status == filter.Status.Value);
 

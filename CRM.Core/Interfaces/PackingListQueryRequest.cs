@@ -4,6 +4,8 @@ namespace CRM.Core.Interfaces;
 public class PackingListQueryRequest
 {
     public string? PackingCode { get; set; }
+    /// <summary>报关单号（模糊匹配；头表 packing_id 或装箱单 customs_declaration_id）。</summary>
+    public string? DeclarationCode { get; set; }
     public short? Status { get; set; }
     public short? StockOutType { get; set; }
     public short? MaterialType { get; set; }

@@ -9230,6 +9230,7 @@ const enUS = {
     filters: {
       keywordPlaceholder: 'Packing no. / customer / sales rep',
       packingCodePlaceholder: 'Packing no.',
+      declarationCodePlaceholder: 'Declaration no.',
       statusPlaceholder: 'Status',
       status: 'Status',
       statusAll: 'All statuses',

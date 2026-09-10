@@ -22,6 +22,15 @@
             @keyup.enter="handleSearch"
           />
         </div>
+        <div class="search-input-wrap">
+          <input
+            v-model="filterForm.declarationCode"
+            class="search-input search-input--code"
+            type="search"
+            :placeholder="t('packingList.filters.declarationCodePlaceholder')"
+            @keyup.enter="handleSearch"
+          />
+        </div>
         <el-select
           v-if="tabModeDimension !== 'status'"
           v-model="filterForm.status"
@@ -764,6 +773,7 @@ const materialTypeFilterOptions = PACKING_MATERIAL_TYPE_FILTER_VALUES
 
 type FilterForm = {
   packingCode: string
+  declarationCode: string
   status?: number
   stockOutType?: number
   materialType?: number
@@ -775,6 +785,7 @@ type FilterForm = {
 function defaultFilterForm(): FilterForm {
   return {
     packingCode: '',
+    declarationCode: '',
     status: undefined,
     stockOutType: undefined,
     materialType: undefined,
@@ -861,6 +872,8 @@ function buildListQuery(): PackingListQuery {
   }
   const code = filterForm.packingCode.trim()
   if (code) q.packingCode = code
+  const declarationCode = filterForm.declarationCode.trim()
+  if (declarationCode) q.declarationCode = declarationCode
   if (filterForm.status != null) q.status = filterForm.status
   if (filterForm.stockOutType != null) q.stockOutType = filterForm.stockOutType
   if (filterForm.materialType != null) q.materialType = filterForm.materialType

@@ -286,6 +286,7 @@ export interface PackingStatusRefreshResult {
 
 export interface PackingListQuery {
   packingCode?: string
+  declarationCode?: string
   status?: number
   stockOutType?: number
   materialType?: number

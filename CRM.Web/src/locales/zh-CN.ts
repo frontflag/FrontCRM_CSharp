@@ -9209,6 +9209,7 @@ const zhCN = {
     filters: {
       keywordPlaceholder: '装箱单号 / 客户 / 业务员',
       packingCodePlaceholder: '装箱单号',
+      declarationCodePlaceholder: '报关单号',
       statusPlaceholder: '状态',
       status: '状态',
       statusAll: '全部状态',
