@@ -11,7 +11,7 @@ namespace CRM.API.Models.DTOs
         /// <summary>装箱单编号（从装箱单入口打印 Invoice 时）。</summary>
         public string? PackingCode { get; set; }
 
-        /// <summary>装箱单业务类型（<c>packing.StockOutType</c>）；报关装箱 Invoice 须据此走美金段，勿用关联出库单类型。</summary>
+        /// <summary>装箱单业务类型（<c>packing.StockOutType</c>）；报关装箱 Invoice 按报关明细拆行，勿用关联出库单类型。</summary>
         public short? PackingStockOutType { get; set; }
 
         /// <summary>账单/送货地址（packing_extend_ship）。</summary>
@@ -20,7 +20,7 @@ namespace CRM.API.Models.DTOs
         /// <summary>出库仓库地址。</summary>
         public string? WarehouseAddress { get; set; }
 
-        /// <summary>装箱单明细行（PN / Brand / Qty 等，与 Packing 报表一致）。</summary>
+        /// <summary>Invoice 明细。销售装箱按装箱行；报关装箱按报关明细（拣货行）拆行，单价为 cost_usd。</summary>
         public List<PackingReportLineDto> PackingLines { get; set; } = new();
 
         /// <summary>

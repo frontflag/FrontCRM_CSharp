@@ -78,7 +78,10 @@ export function resolveCustomsInvoiceStockOutType(args: {
   return null
 }
 
-/** 报关装箱 Invoice：美金段，有折算美金价则用之，币别固定 USD（对齐后端 ResolveLine）。 */
+/**
+ * 出库单入口 Invoice 的兼容覆盖（折算美金价 → USD）。
+ * 装箱单入口的报关 Invoice 由后端按报关明细 / cost_usd 拆行，页面不得再调用本函数。
+ */
 export function applyCustomsInvoiceUsdPrices(
   stockOutType: number | null | undefined,
   lines: Array<{ packingItemId?: string | null; price?: number | null; priceCurrency?: number | null }>,

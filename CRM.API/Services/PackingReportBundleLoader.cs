@@ -241,7 +241,7 @@ public static class PackingReportBundleLoader
 
         var packing = await packingService.GetPackingByIdAsync(packingId.Trim(), cancellationToken);
         if (packing != null)
-            ApplyCustomsInvoiceUsdPrices(packing, packingBundle.PackingLines);
+            await ApplyCustomsInvoiceDeclarationLinesAsync(db, packing, packingBundle, cancellationToken);
 
         return new StockOutInvoiceReportBundleDto
         {
@@ -257,36 +257,84 @@ public static class PackingReportBundleLoader
     }
 
     /// <summary>
-    /// 报关装箱 Invoice：美金段，单价用销售折算美金价，币别固定 USD。
-    /// 装箱单 Packing List 不改价。
+    /// 报关装箱 Invoice：按报关明细拆行，单价用已试算 <c>cost_usd</c>，币别 USD。
+    /// 未试算抛「请先试算费用」。装箱单 Packing List 与销售装箱 Invoice 不调用。
     /// </summary>
-    public static void ApplyCustomsInvoiceUsdPrices(
+    public static async Task ApplyCustomsInvoiceDeclarationLinesAsync(
+        ApplicationDbContext db,
         PackingDetailDto packing,
-        List<PackingReportLineDto> lines)
+        StockOutPackingReportBundleDto packingBundle,
+        CancellationToken cancellationToken = default)
     {
-        if (lines.Count == 0 || !CustomsInvoiceReportPriceRules.IsCustomsPacking(packing.StockOutType))
+        if (!CustomsInvoiceReportPriceRules.IsCustomsPacking(packing.StockOutType))
             return;
 
-        var convertByItemId = (packing.ItemExtends ?? new List<PackingDetailItemExtendDto>())
-            .Where(e => !string.IsNullOrWhiteSpace(e.PackingItemId))
-            .GroupBy(e => e.PackingItemId.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().PriceConvertPrice, StringComparer.OrdinalIgnoreCase);
+        var declarationId = packing.CustomsDeclarationId?.Trim() ?? string.Empty;
+        var declaration = string.IsNullOrEmpty(declarationId)
+            ? null
+            : await db.CustomsDeclarations.AsNoTracking()
+                .Where(d => d.Id == declarationId && !d.IsDeleted)
+                .Select(d => new { d.FeesCalculatedAt })
+                .FirstOrDefaultAsync(cancellationToken);
 
-        foreach (var line in lines)
+        var declarationItems = await db.CustomsDeclarationItems.AsNoTracking()
+            .Where(i => declarationId != "" && i.DeclarationId == declarationId && !i.IsDeleted)
+            .OrderBy(i => i.LineNo)
+            .ThenBy(i => i.Id)
+            .Select(i => new
+            {
+                i.PackingItemId,
+                i.LineNo,
+                i.DeclareQty,
+                i.CostUsd,
+                i.PurchasePn,
+                i.PurchaseBrand
+            })
+            .ToListAsync(cancellationToken);
+
+        CustomsInvoiceReportPriceRules.EnsureDeclarationReadyForInvoice(
+            declarationExists: declaration != null,
+            feesCalculatedAt: declaration?.FeesCalculatedAt,
+            costUsdByLine: declarationItems.Select(i => i.CostUsd).ToList());
+
+        var byPackingItem = packingBundle.PackingLines
+            .Where(l => !string.IsNullOrWhiteSpace(l.PackingItemId))
+            .GroupBy(l => l.PackingItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var expanded = new List<PackingReportLineDto>(declarationItems.Count);
+        foreach (var item in declarationItems)
         {
-            decimal? convert = null;
-            var itemId = line.PackingItemId?.Trim();
-            if (!string.IsNullOrEmpty(itemId))
-                convertByItemId.TryGetValue(itemId, out convert);
+            PackingReportLineDto? src = null;
+            var packingItemId = item.PackingItemId?.Trim();
+            if (!string.IsNullOrEmpty(packingItemId))
+                byPackingItem.TryGetValue(packingItemId, out src);
 
-            var resolved = CustomsInvoiceReportPriceRules.ResolveLine(
-                packing.StockOutType,
-                line.Price,
-                convert,
-                line.PriceCurrency);
-            line.Price = resolved.Price;
-            line.PriceCurrency = resolved.Currency;
+            expanded.Add(new PackingReportLineDto
+            {
+                PackingItemId = packingItemId,
+                Pn = src?.Pn ?? item.PurchasePn,
+                CustomerPn = src?.CustomerPn,
+                Brand = src?.Brand ?? item.PurchaseBrand,
+                CustomerBrand = src?.CustomerBrand,
+                CustomerPo = src?.CustomerPo,
+                Qty = item.DeclareQty,
+                Carton = src?.Carton,
+                Remark = src?.Remark,
+                Dc = src?.Dc,
+                Co = src?.Co,
+                Cod = src?.Cod,
+                Size = src?.Size,
+                Nw = src?.Nw,
+                Gw = src?.Gw,
+                Price = item.CostUsd,
+                PriceCurrency = (short)CurrencyCode.USD
+            });
         }
+
+        packingBundle.PackingLines = expanded;
+        packingBundle.StockOut.TotalQuantity = expanded.Sum(l => l.Qty);
+        packingBundle.StockOut.TotalAmount = expanded.Sum(l => (l.Price ?? 0m) * l.Qty);
     }
 
     public static async Task<List<PackingReportLineDto>> MapPackingLinesAsync(

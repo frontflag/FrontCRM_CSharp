@@ -3,24 +3,30 @@ using CRM.Core.Constants;
 namespace CRM.Core.Utilities;
 
 /// <summary>
-/// 报关出库（美金段）Commercial Invoice：金额用销售折算美金价，币别固定 USD。
-/// 销售装箱仍用订单原币 <c>Price</c> / <c>PriceCurrency</c>。
+/// 报关装箱（<c>StockOutType = 20</c>）Commercial Invoice：按报关明细拆行，单价用已试算的 <c>cost_usd</c>，币别 USD。
+/// 未试算禁止打印。销售装箱 Invoice 不走本规则。
 /// </summary>
 public static class CustomsInvoiceReportPriceRules
 {
+    public const string FeesRequiredForInvoiceMessage = "请先试算费用";
+
     public static bool IsCustomsPacking(short stockOutType) =>
         StockOutTypeCode.NormalizeForNotify(stockOutType) == StockOutTypeCode.Customs;
 
-    public static (decimal? Price, short? Currency) ResolveLine(
-        short packingStockOutType,
-        decimal? price,
-        decimal? priceConvertPrice,
-        short? priceCurrency)
+    /// <summary>
+    /// 报关装箱 Invoice 前置：须已有报关单、已试算，且每行 <c>cost_usd</c> &gt; 0。
+    /// </summary>
+    public static void EnsureDeclarationReadyForInvoice(
+        bool declarationExists,
+        DateTime? feesCalculatedAt,
+        IReadOnlyCollection<decimal> costUsdByLine)
     {
-        if (!IsCustomsPacking(packingStockOutType))
-            return (price, priceCurrency);
-
-        var usdPrice = priceConvertPrice is > 0m ? priceConvertPrice : price;
-        return (usdPrice, (short)CurrencyCode.USD);
+        if (!declarationExists
+            || feesCalculatedAt == null
+            || costUsdByLine.Count == 0
+            || costUsdByLine.Any(v => v <= 0m))
+        {
+            throw new InvalidOperationException(FeesRequiredForInvoiceMessage);
+        }
     }
 }

@@ -7,29 +7,41 @@ namespace CRM.Core.Tests.Utilities;
 public class CustomsInvoiceReportPriceRulesTests
 {
     [Fact]
-    public void SalesPacking_KeepsOrderCurrency()
+    public void IsCustomsPacking_OnlyType20()
     {
-        var (price, currency) = CustomsInvoiceReportPriceRules.ResolveLine(
-            StockOutTypeCode.Sales, 72m, 10.4m, (short)CurrencyCode.RMB);
-        Assert.Equal(72m, price);
-        Assert.Equal((short)CurrencyCode.RMB, currency);
+        Assert.True(CustomsInvoiceReportPriceRules.IsCustomsPacking(StockOutTypeCode.Customs));
+        Assert.False(CustomsInvoiceReportPriceRules.IsCustomsPacking(StockOutTypeCode.Sales));
     }
 
     [Fact]
-    public void CustomsPacking_UsesConvertPriceAndUsd()
+    public void Ready_DoesNotThrow()
     {
-        var (price, currency) = CustomsInvoiceReportPriceRules.ResolveLine(
-            StockOutTypeCode.Customs, 72m, 10.4m, (short)CurrencyCode.RMB);
-        Assert.Equal(10.4m, price);
-        Assert.Equal((short)CurrencyCode.USD, currency);
+        CustomsInvoiceReportPriceRules.EnsureDeclarationReadyForInvoice(
+            declarationExists: true,
+            feesCalculatedAt: DateTime.UtcNow,
+            costUsdByLine: new[] { 1.2m, 3.4m });
+    }
+
+    [Theory]
+    [InlineData(false, true, true)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    public void NotReady_ThrowsFeesRequired(bool exists, bool feesSet, bool hasPositiveCost)
+    {
+        DateTime? fees = feesSet ? DateTime.UtcNow : null;
+        decimal[] costs = hasPositiveCost ? new[] { 1.2m } : Array.Empty<decimal>();
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            CustomsInvoiceReportPriceRules.EnsureDeclarationReadyForInvoice(exists, fees, costs));
+        Assert.Equal(CustomsInvoiceReportPriceRules.FeesRequiredForInvoiceMessage, ex.Message);
     }
 
     [Fact]
-    public void CustomsPacking_WithoutConvert_KeepsAmountAsUsd()
+    public void ZeroCostUsd_ThrowsFeesRequired()
     {
-        var (price, currency) = CustomsInvoiceReportPriceRules.ResolveLine(
-            StockOutTypeCode.Customs, 72m, 0m, (short)CurrencyCode.RMB);
-        Assert.Equal(72m, price);
-        Assert.Equal((short)CurrencyCode.USD, currency);
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            CustomsInvoiceReportPriceRules.EnsureDeclarationReadyForInvoice(
+                true, DateTime.UtcNow, new[] { 2m, 0m }));
+        Assert.Equal(CustomsInvoiceReportPriceRules.FeesRequiredForInvoiceMessage, ex.Message);
     }
 }
