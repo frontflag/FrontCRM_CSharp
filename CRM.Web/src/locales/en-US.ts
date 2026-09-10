@@ -9392,6 +9392,8 @@ const enUS = {
     submitPickingOrderCreatedDialog: 'Picking slip created successfully.',
     submitPickingOrderFailed: 'Failed to generate picking slip',
     resubmitPickingOrderHint: 'Regenerate picking slip from confirmed quantities',
+    customsDeclarationGenerated: 'Customs declaration {code} created ({n} lines)',
+    customsDeclarationRebuilt: 'Customs declaration {code} rebuilt from new picks ({n} lines)',
     savePickingLines: 'Save picking lines',
     savePickingLinesSuccess: 'Picking lines saved',
     packingLinesTitle: 'Packing lines',

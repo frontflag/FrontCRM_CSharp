@@ -1060,8 +1060,9 @@ namespace CRM.API.Controllers
                 if (lines == null || lines.Count == 0)
                     return BadRequest(ApiResponse<object>.Fail("拣货明细不能为空", 400));
 
-                await _service.SavePickingTaskItemsAsync(taskId.Trim(), lines);
-                return Ok(ApiResponse<object>.Ok(null, "拣货明细已保存"));
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var result = await _service.SavePickingTaskItemsAsync(taskId.Trim(), lines, userId);
+                return Ok(ApiResponse<object>.Ok(result, "拣货明细已保存"));
             }
             catch (ArgumentException ex)
             {

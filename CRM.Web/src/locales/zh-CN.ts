@@ -9277,7 +9277,7 @@ const zhCN = {
     },
     regenerateCustomsDeclaration: {
       title: '补生成报关单',
-      message: '将为该报关装箱单重新生成报关单；若已完成拣货，将自动回写报关明细。',
+      message: '将为该报关装箱单补生成报关单（须已完成拣货；已有报关单则跳过）。',
       success: '报关单已补生成',
       failed: '补生成报关单失败'
     },
@@ -9372,6 +9372,8 @@ const zhCN = {
     submitPickingOrderCreatedDialog: '拣货单已创建成功。',
     submitPickingOrderFailed: '生成拣货单失败',
     resubmitPickingOrderHint: '将按当前已确认数量重新生成拣货单',
+    customsDeclarationGenerated: '已生成报关单 {code}，共 {n} 行',
+    customsDeclarationRebuilt: '已按新拣货重建报关单 {code}，共 {n} 行',
     savePickingLines: '保存拣货明细',
     savePickingLinesSuccess: '拣货明细已保存',
     packingLinesTitle: '装箱明细',

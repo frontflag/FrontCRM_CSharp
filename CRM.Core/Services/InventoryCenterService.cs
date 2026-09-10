@@ -1994,7 +1994,10 @@ namespace CRM.Core.Services
         }
 
         /// <inheritdoc />
-        public async Task SavePickingTaskItemsAsync(string pickingTaskId, IReadOnlyList<SavePickingTaskItemLineRequest> lines)
+        public async Task<SavePickingTaskItemsResultDto> SavePickingTaskItemsAsync(
+            string pickingTaskId,
+            IReadOnlyList<SavePickingTaskItemLineRequest> lines,
+            string? actingUserId = null)
         {
             if (string.IsNullOrWhiteSpace(pickingTaskId))
                 throw new ArgumentException("拣货任务ID不能为空", nameof(pickingTaskId));
@@ -2003,13 +2006,13 @@ namespace CRM.Core.Services
 
             var task = await _pickingTaskRepository.GetByIdAsync(pickingTaskId.Trim())
                 ?? throw new InvalidOperationException("拣货任务不存在");
-            if (task.Status == 100)
-                throw new InvalidOperationException("拣货任务已完成，不能修改明细");
+            if (task.Status == -1)
+                throw new InvalidOperationException("拣货任务已取消，不能修改明细");
 
             if (string.IsNullOrWhiteSpace(task.PackingId))
                 throw new InvalidOperationException("拣货任务未关联装箱单");
 
-            await SavePickingTaskItemsForPackingAsync(task, lines);
+            return await SavePickingTaskItemsForPackingAsync(task, lines, actingUserId);
         }
 
         public async Task CompletePickingTaskAsync(string taskId)

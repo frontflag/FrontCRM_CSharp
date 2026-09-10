@@ -249,7 +249,10 @@ public partial class InventoryCenterService
         return await BuildPickingStockItemCandidatesForSellLineAsync(sellLine, warehouseId.Trim());
     }
 
-    internal async Task SavePickingTaskItemsForPackingAsync(PickingTask task, IReadOnlyList<SavePickingTaskItemLineRequest> lines)
+    internal async Task<SavePickingTaskItemsResultDto> SavePickingTaskItemsForPackingAsync(
+        PickingTask task,
+        IReadOnlyList<SavePickingTaskItemLineRequest> lines,
+        string? actingUserId = null)
     {
         var packingId = task.PackingId?.Trim() ?? "";
         if (packingId.Length == 0)
@@ -262,6 +265,10 @@ public partial class InventoryCenterService
             throw new InvalidOperationException(
                 $"关联装箱单状态不允许保存拣货明细（须为已确认或已拣货，当前为 {DescribePackingStatus(packing.Status)}）");
         }
+
+        var isCustoms = StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs;
+        if (isCustoms)
+            await _customsV2FlowService.AssertCanReplacePickingForCustomsAsync(packing.Id);
 
         var packingItems = (await _packingItemRepository.FindAsync(pi =>
             !pi.IsDeleted && pi.PackingId == packingId)).ToList();
@@ -442,68 +449,75 @@ public partial class InventoryCenterService
         await _unitOfWork.SaveChangesAsync();
 
         // 生成拣货单（保存明细）后自动结案拣货任务，与原先「完成拣货」一致
-        await CompletePickingTaskForPackingAsync(task);
+        return await CompletePickingTaskForPackingAsync(task, actingUserId);
     }
 
-    internal async Task CompletePickingTaskForPackingAsync(PickingTask task)
+    internal async Task<SavePickingTaskItemsResultDto> CompletePickingTaskForPackingAsync(
+        PickingTask task,
+        string? actingUserId = null)
     {
-        if (task.Status == 100)
-            return;
-
-        var packingId = task.PackingId?.Trim() ?? "";
-        if (packingId.Length == 0)
-            throw new InvalidOperationException("拣货任务未关联装箱单");
-
-        var packing = await _packingRepository.GetByIdAsync(packingId)
-            ?? throw new InvalidOperationException("装箱单不存在");
-
-        if (packing.Status == PackingStatusCode.Confirmed)
-            await MarkPackingPickedAfterPickAsync(packing);
-        else if (packing.Status != PackingStatusCode.Picked)
+        if (task.Status != 100)
         {
-            throw new InvalidOperationException(
-                $"关联装箱单状态不允许完成拣货（须为已确认或已拣货，当前为 {DescribePackingStatus(packing.Status)}）");
-        }
+            var packingId = task.PackingId?.Trim() ?? "";
+            if (packingId.Length == 0)
+                throw new InvalidOperationException("拣货任务未关联装箱单");
 
-        var packingItems = (await _packingItemRepository.FindAsync(pi =>
-            !pi.IsDeleted && pi.PackingId == packingId)).ToList();
+            var packing = await _packingRepository.GetByIdAsync(packingId)
+                ?? throw new InvalidOperationException("装箱单不存在");
 
-        var items = await GetPickingTaskItemsByTaskIdAsync(task.Id);
-        if (items.Count == 0)
-            throw new InvalidOperationException("请先保存拣货明细后再完成拣货");
-        if (items.Any(x => string.IsNullOrWhiteSpace(x.StockItemId)))
-            throw new InvalidOperationException("拣货明细缺少 stock_item_id，请使用新流程保存拣货后再完成");
-
-        foreach (var pi in packingItems)
-        {
-            var piKey = pi.Id.Trim();
-            var planSum = items
-                .Where(x => string.Equals(x.PackingItemId?.Trim(), piKey, StringComparison.OrdinalIgnoreCase))
-                .Sum(x => x.PlanQty);
-            if (planSum != pi.Qty)
+            if (packing.Status == PackingStatusCode.Confirmed)
+                await MarkPackingPickedAfterPickAsync(packing);
+            else if (packing.Status != PackingStatusCode.Picked)
             {
                 throw new InvalidOperationException(
-                    $"装箱明细 {pi.ItemCode} 的计划拣货量（{planSum}）须等于装箱数量（{pi.Qty}）才能完成拣货");
+                    $"关联装箱单状态不允许完成拣货（须为已确认或已拣货，当前为 {DescribePackingStatus(packing.Status)}）");
             }
+
+            var packingItems = (await _packingItemRepository.FindAsync(pi =>
+                !pi.IsDeleted && pi.PackingId == packingId)).ToList();
+
+            var items = await GetPickingTaskItemsByTaskIdAsync(task.Id);
+            if (items.Count == 0)
+                throw new InvalidOperationException("请先保存拣货明细后再完成拣货");
+            if (items.Any(x => string.IsNullOrWhiteSpace(x.StockItemId)))
+                throw new InvalidOperationException("拣货明细缺少 stock_item_id，请使用新流程保存拣货后再完成");
+
+            foreach (var pi in packingItems)
+            {
+                var piKey = pi.Id.Trim();
+                var planSum = items
+                    .Where(x => string.Equals(x.PackingItemId?.Trim(), piKey, StringComparison.OrdinalIgnoreCase))
+                    .Sum(x => x.PlanQty);
+                if (planSum != pi.Qty)
+                {
+                    throw new InvalidOperationException(
+                        $"装箱明细 {pi.ItemCode} 的计划拣货量（{planSum}）须等于装箱数量（{pi.Qty}）才能完成拣货");
+                }
+            }
+
+            task.Status = 100;
+            task.ModifyTime = DateTime.UtcNow;
+            foreach (var item in items)
+            {
+                item.PickedQty = item.PlanQty;
+                item.ModifyTime = DateTime.UtcNow;
+                await _pickingTaskItemRepository.UpdateAsync(item);
+            }
+
+            await _pickingTaskRepository.UpdateAsync(task);
+            await _unitOfWork.SaveChangesAsync();
         }
 
-        task.Status = 100;
-        task.ModifyTime = DateTime.UtcNow;
-        foreach (var item in items)
+        var packingForSync = await _packingRepository.GetByIdAsync(task.PackingId!.Trim());
+        if (packingForSync != null
+            && StockOutTypeCode.NormalizeForNotify(packingForSync.StockOutType) == StockOutTypeCode.Customs)
         {
-            item.PickedQty = item.PlanQty;
-            item.ModifyTime = DateTime.UtcNow;
-            await _pickingTaskItemRepository.UpdateAsync(item);
+            var sync = await _customsV2FlowService.SyncCustomsDeclarationAfterPickingAsync(
+                packingForSync.Id, task.Id, actingUserId);
+            return new SavePickingTaskItemsResultDto { CustomsDeclaration = sync };
         }
 
-        await _pickingTaskRepository.UpdateAsync(task);
-        await _unitOfWork.SaveChangesAsync();
-
-        if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs)
-        {
-            await _customsV2FlowService.WritebackDeclarationItemsAfterPickingAsync(
-                packingId, task.Id, null);
-        }
+        return new SavePickingTaskItemsResultDto();
     }
 
     private async Task<Packing> EnsurePackingConfirmedByIdAsync(string packingId)

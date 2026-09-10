@@ -53,5 +53,5 @@
 ## 相关页面
 
 - [报关公司](报关公司_MENU_CUSTOMS_BROKERS.md) — 报关单头代理信息来源
-- [装箱单](装箱单_MENU_PACKING_LIST.md) — 确认装箱生成报关单
+- [装箱单](装箱单_MENU_PACKING_LIST.md) — 保存拣货后生成报关单
 - [报关单](报关单_MENU_CUSTOMS_DECLARATIONS.md) — 关务操作主入口

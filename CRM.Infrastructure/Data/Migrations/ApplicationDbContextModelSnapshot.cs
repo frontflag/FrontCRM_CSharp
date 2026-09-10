@@ -973,6 +973,11 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
 
+                    b.Property<string>("PickingTaskItemId")
+                        .HasMaxLength(36)
+                        .HasColumnType("character varying(36)")
+                        .HasColumnName("picking_task_item_id");
+
                     b.Property<string>("StockOutRequestId")
                         .IsRequired()
                         .HasMaxLength(36)
@@ -990,6 +995,11 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("DeclarationId");
+
+                    b.HasIndex("PickingTaskItemId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_cdi_picking_task_item")
+                        .HasFilter("is_deleted = false AND picking_task_item_id IS NOT NULL");
 
                     b.ToTable("customs_declaration_item", (string)null);
                 });

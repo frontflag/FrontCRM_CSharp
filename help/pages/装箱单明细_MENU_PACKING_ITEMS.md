@@ -62,6 +62,6 @@
 ## 相关页面
 
 - [装箱单](装箱单_MENU_PACKING_LIST.md) — 确认、拣货、备货、出库主入口
-- [报关单](报关单_MENU_CUSTOMS_DECLARATIONS.md) — 报关类装箱确认后的关务单据
+- [报关单](报关单_MENU_CUSTOMS_DECLARATIONS.md) — 报关类保存拣货后生成的关务单据
 - [出库通知](出库通知_MENU_STOCK_OUT_NOTIFY.md) — 装箱单来源
 - [出库单](出库单_MENU_STOCK_OUT.md) — 出库单与出库明细单号查询

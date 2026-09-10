@@ -1625,6 +1625,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CustomsPendlistId).HasColumnName("customs_pendlist_id").HasMaxLength(36);
                 entity.Property(e => e.CustomsStockOutNotifyId).HasColumnName("customs_stockout_notify_id").HasMaxLength(36);
                 entity.Property(e => e.PackingItemId).HasColumnName("packing_item_id").HasMaxLength(36);
+                entity.Property(e => e.PickingTaskItemId).HasColumnName("picking_task_item_id").HasMaxLength(36);
                 entity.Property(e => e.OriginalPurchasePrice).HasColumnName("original_purchase_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.PurchaseCostParamId).HasColumnName("purchase_cost_param_id").HasMaxLength(36);
                 entity.Property(e => e.PurchaseRatio).HasColumnName("purchase_ratio").HasColumnType("numeric(10,4)").HasDefaultValue(1m);
@@ -1636,9 +1637,12 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CustomsUsdPrice).HasColumnName("customs_usd_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.VendorId).HasColumnName("vendor_id").HasMaxLength(36);
                 entity.HasIndex(e => e.PackingItemId)
-                    .IsUnique()
-                    .HasDatabaseName("UX_cdi_packing_item")
+                    .HasDatabaseName("IX_cdi_packing_item")
                     .HasFilter("is_deleted = false AND packing_item_id IS NOT NULL");
+                entity.HasIndex(e => e.PickingTaskItemId)
+                    .IsUnique()
+                    .HasDatabaseName("UX_cdi_picking_task_item")
+                    .HasFilter("is_deleted = false AND picking_task_item_id IS NOT NULL");
             });
 
             modelBuilder.Entity<PurchaseCostParam>(entity =>

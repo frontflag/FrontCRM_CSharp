@@ -129,52 +129,111 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         await _unitOfWork.SaveChangesAsync();
     }
 
-    public async Task GenerateDeclarationOnPackingConfirmAsync(string packingId, string? actingUserId, CancellationToken cancellationToken = default)
+    public async Task ValidateCustomsPackingReadyForDeclarationAsync(
+        string packingId,
+        CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+        await ValidateCustomsPackingReadyCoreAsync(await RequireCustomsPackingAsync(packingId));
+    }
+
+    public async Task AssertCanReplacePickingForCustomsAsync(
+        string packingId,
+        CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
         var packing = await RequireCustomsPackingAsync(packingId);
-        if (!string.IsNullOrWhiteSpace(packing.CustomsDeclarationId))
-        {
-            var linkedDec = await _declarationRepo.GetByIdAsync(packing.CustomsDeclarationId.Trim());
-            if (linkedDec != null && !linkedDec.IsDeleted)
-                return;
+        await ClearOrphanDeclarationLinkAsync(packing, null);
+        packing = await RequireCustomsPackingAsync(packingId);
 
-            await ClearOrphanDeclarationLinkAsync(packing, actingUserId);
-            packing = await RequireCustomsPackingAsync(packingId);
+        var dec = await LoadLinkedDeclarationOrDefaultAsync(packing);
+        if (dec == null)
+            return;
+
+        var block = await GetDeclarationPickingChangeBlockReasonAsync(dec);
+        if (block != null)
+            throw new InvalidOperationException(block);
+    }
+
+    public async Task<SyncCustomsDeclarationAfterPickingResultDto> SyncCustomsDeclarationAfterPickingAsync(
+        string packingId,
+        string pickingTaskId,
+        string? actingUserId,
+        CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+        var packing = await RequireCustomsPackingAsync(packingId);
+        var (_, broker) = await ValidateCustomsPackingReadyCoreAsync(packing);
+        await ClearOrphanDeclarationLinkAsync(packing, actingUserId);
+        packing = await RequireCustomsPackingAsync(packingId);
+
+        var pickItems = await LoadPickItemsForDeclarationAsync(pickingTaskId);
+        if (pickItems.Count == 0)
+            throw new InvalidOperationException("请先保存拣货明细后再生成报关单。");
+
+        var packingItems = await LoadPackingItemsAsync(packing.Id);
+        var packingItemById = packingItems
+            .GroupBy(x => x.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        var now = DateTime.UtcNow;
+        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
+        var existing = await LoadLinkedDeclarationOrDefaultAsync(packing);
+        if (existing != null)
+        {
+            var block = await GetDeclarationPickingChangeBlockReasonAsync(existing);
+            if (block != null)
+                throw new InvalidOperationException(block);
+
+            var currentItems = (await _declarationItemRepo.FindAsync(i =>
+                    i.DeclarationId == existing.Id && !i.IsDeleted)).ToList();
+            if (DeclarationItemsMatchPickLines(currentItems, pickItems))
+            {
+                return new SyncCustomsDeclarationAfterPickingResultDto
+                {
+                    Action = SyncCustomsDeclarationAfterPickingResultDto.ActionUnchanged,
+                    DeclarationId = existing.Id,
+                    DeclarationCode = existing.DeclarationCode,
+                    LineCount = currentItems.Count
+                };
+            }
+
+            foreach (var old in currentItems)
+            {
+                old.IsDeleted = true;
+                old.ModifyTime = now;
+                await _declarationItemRepo.UpdateAsync(old);
+            }
+
+            await AddDeclarationItemsFromPickLinesAsync(
+                existing.Id, pickItems, packingItemById, now, actor);
+            await _unitOfWork.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "CustomsV2 declaration rebuilt from picking PackingId={PackingId} DeclarationId={DeclarationId} Code={Code} Lines={Lines}",
+                packing.Id, existing.Id, existing.DeclarationCode, pickItems.Count);
+
+            return new SyncCustomsDeclarationAfterPickingResultDto
+            {
+                Action = SyncCustomsDeclarationAfterPickingResultDto.ActionRebuilt,
+                DeclarationId = existing.Id,
+                DeclarationCode = existing.DeclarationCode,
+                LineCount = pickItems.Count
+            };
         }
 
-        if (string.IsNullOrWhiteSpace(packing.CustomsBrokerId))
-            throw new InvalidOperationException("报关装箱单缺少报关公司，不能确认。");
-
-        var broker = await _brokerRepo.GetByIdAsync(packing.CustomsBrokerId.Trim())
-                     ?? throw new InvalidOperationException("报关公司不存在。");
-
-        var fromWh = packing.StorageId?.Trim() ?? string.Empty;
-        if (string.IsNullOrEmpty(fromWh))
-            throw new InvalidOperationException("报关装箱单缺少境外出库仓库。");
-
-        var fromWarehouse = await _warehouseRepo.GetByIdAsync(fromWh)
-                            ?? throw new InvalidOperationException("境外出库仓库不存在。");
-        if (RegionTypeCode.Normalize(fromWarehouse.RegionType) != RegionTypeCode.Overseas)
-            throw new InvalidOperationException("报关装箱单出库仓库须为境外仓。");
-
+        var fromWh = packing.StorageId!.Trim();
         var toWh = await ResolveDefaultDomesticWarehouseIdAsync();
-        var items = await LoadPackingItemsAsync(packing.Id);
-        if (items.Count == 0)
-            throw new InvalidOperationException("报关装箱单无明细，不能确认。");
-
         var decId = Guid.NewGuid().ToString();
         var decCode = await _serialNumberService.GenerateNextAsync(ModuleCodes.CustomsDeclaration);
         var fx = await _financeExchangeRateService.GetCurrentAsync();
-        var now = DateTime.UtcNow;
-        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
 
         var header = new CustomsDeclaration
         {
             Id = decId,
             DeclarationCode = decCode,
             PackingId = packing.Id,
-            CustomsBrokerId = packing.CustomsBrokerId.Trim(),
+            CustomsBrokerId = packing.CustomsBrokerId!.Trim(),
             DeclarationType = CustomsDeclarationType.Import,
             InternalStatus = CustomsDeclarationInternalStatus.Processing,
             CustomsClearanceStatus = CustomsClearanceStatusCodes.None,
@@ -189,81 +248,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             IsDeleted = false
         };
         await _declarationRepo.AddAsync(header);
-
-        var lineNo = 1;
-        foreach (var pi in items.OrderBy(x => x.ItemCode, StringComparer.OrdinalIgnoreCase).ThenBy(x => x.Id, StringComparer.OrdinalIgnoreCase))
-        {
-            var customsSorId = pi.StockOutNotifyId?.Trim() ?? string.Empty;
-            if (string.IsNullOrEmpty(customsSorId))
-                throw new InvalidOperationException($"装箱明细 {pi.ItemCode} 缺少报关出库通知。");
-
-            var customsSor = await _stockOutRequestRepo.GetByIdAsync(customsSorId)
-                             ?? throw new InvalidOperationException("报关出库通知不存在。");
-            if (StockOutTypeCode.NormalizeForNotify(customsSor.StockOutType) != StockOutTypeCode.Customs)
-                throw new InvalidOperationException("装箱明细须关联报关出库通知。");
-
-            var pendlistId = pi.CustomsPendlistId?.Trim()
-                             ?? customsSor.CustomsPendlistId?.Trim()
-                             ?? string.Empty;
-            if (string.IsNullOrEmpty(pendlistId))
-                throw new InvalidOperationException($"装箱明细 {pi.ItemCode} 缺少待报关关联。");
-
-            var pendlist = await _pendlistRepo.GetByIdAsync(pendlistId)
-                           ?? throw new InvalidOperationException("待报关记录不存在。");
-            var salesSorId = pendlist.SalesStockOutNotifyId.Trim();
-            var sellLineId = pi.SellOrderItemId?.Trim() ?? pendlist.SellOrderItemId.Trim();
-
-            SellOrderItem? sellLine = null;
-            if (!string.IsNullOrEmpty(sellLineId))
-                sellLine = await _sellOrderItemRepo.GetByIdAsync(sellLineId);
-
-            SellOrder? sellOrder = null;
-            if (!string.IsNullOrWhiteSpace(pi.SellOrderId))
-                sellOrder = await _sellOrderRepo.GetByIdAsync(pi.SellOrderId.Trim());
-            else if (sellLine != null && !string.IsNullOrWhiteSpace(sellLine.SellOrderId))
-                sellOrder = await _sellOrderRepo.GetByIdAsync(sellLine.SellOrderId.Trim());
-
-            var materialId = !string.IsNullOrWhiteSpace(sellLine?.ProductId)
-                ? sellLine!.ProductId!.Trim()
-                : (!string.IsNullOrWhiteSpace(pi.ProductId) ? pi.ProductId!.Trim() : sellLineId);
-
-            var decItem = new CustomsDeclarationItem
-            {
-                Id = Guid.NewGuid().ToString(),
-                DeclarationId = decId,
-                LineNo = lineNo++,
-                StockOutRequestId = salesSorId,
-                CustomsPendlistId = pendlistId,
-                CustomsStockOutNotifyId = customsSorId,
-                PackingItemId = pi.Id,
-                MaterialId = materialId,
-                PurchasePn = pi.Pn,
-                PurchaseBrand = pi.Brand,
-                CustomerId = sellOrder?.CustomerId,
-                SalesUserId = sellOrder?.SalesUserId,
-                SellOrderItemId = sellLineId,
-                SellOrderItemCode = sellLine?.SellOrderItemCode,
-                DeclareQty = pi.Qty,
-                DeclareUnitPrice = 0m,
-                DutyAmount = 0m,
-                VatAmount = 0m,
-                CustomsPaymentGoods = 0m,
-                CustomsAgencyFee = 0m,
-                OtherFee = 0m,
-                InspectionFee = 0m,
-                TotalValueTax = 0m,
-                TaxIncludedUnitPrice = 0m,
-                OriginalPurchasePrice = 0m,
-                CreateTime = now,
-                IsDeleted = false
-            };
-            await _declarationItemRepo.AddAsync(decItem);
-
-            pendlist.Status = CustomsPendlistStatusCode.InCustomsProcess;
-            pendlist.ModifyTime = now;
-            pendlist.ModifyByUserId = actor;
-            await _pendlistRepo.UpdateAsync(pendlist);
-        }
+        await AddDeclarationItemsFromPickLinesAsync(decId, pickItems, packingItemById, now, actor);
 
         packing.CustomsDeclarationId = decId;
         packing.ModifyTime = now;
@@ -272,8 +257,16 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation(
-            "CustomsV2 declaration generated PackingId={PackingId} DeclarationId={DeclarationId} Code={Code} Lines={Lines}",
-            packing.Id, decId, decCode, items.Count);
+            "CustomsV2 declaration generated from picking PackingId={PackingId} DeclarationId={DeclarationId} Code={Code} Lines={Lines}",
+            packing.Id, decId, decCode, pickItems.Count);
+
+        return new SyncCustomsDeclarationAfterPickingResultDto
+        {
+            Action = SyncCustomsDeclarationAfterPickingResultDto.ActionGenerated,
+            DeclarationId = decId,
+            DeclarationCode = decCode,
+            LineCount = pickItems.Count
+        };
     }
 
     public async Task EnsureCustomsDeclarationForPackingAsync(
@@ -281,7 +274,6 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         string? actingUserId,
         CancellationToken cancellationToken = default)
     {
-        _ = cancellationToken;
         var id = packingId?.Trim() ?? string.Empty;
         if (string.IsNullOrEmpty(id))
             throw new ArgumentException("装箱单 ID 无效", nameof(packingId));
@@ -302,78 +294,15 @@ public class CustomsV2FlowService : ICustomsV2FlowService
                 return;
         }
 
-        await GenerateDeclarationOnPackingConfirmAsync(id, actingUserId, cancellationToken);
-
         var completedTask = (await _pickingTaskRepo.FindAsync(t =>
                 !t.IsDeleted && t.PackingId != null && t.PackingId == id && t.Status == 100))
             .OrderByDescending(t => t.ModifyTime ?? DateTime.MinValue)
             .ThenByDescending(t => t.CreateTime)
             .FirstOrDefault();
-        if (completedTask != null)
-        {
-            await WritebackDeclarationItemsAfterPickingAsync(
-                id,
-                completedTask.Id,
-                actingUserId,
-                cancellationToken);
-        }
-    }
+        if (completedTask == null)
+            throw new InvalidOperationException("请先完成拣货后再生成报关单。");
 
-    public async Task WritebackDeclarationItemsAfterPickingAsync(
-        string packingId,
-        string pickingTaskId,
-        string? actingUserId,
-        CancellationToken cancellationToken = default)
-    {
-        _ = cancellationToken;
-        var packing = await RequireCustomsPackingAsync(packingId);
-        var decId = packing.CustomsDeclarationId?.Trim() ?? string.Empty;
-        if (string.IsNullOrEmpty(decId))
-            return;
-
-        var decItems = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == decId && !i.IsDeleted)).ToList();
-        if (decItems.Count == 0)
-            return;
-
-        var pickItems = (await _pickingTaskItemRepo.FindAsync(i =>
-                i.PickingTaskId == pickingTaskId.Trim() && !i.IsDeleted))
-            .Where(i => !string.IsNullOrWhiteSpace(i.PackingItemId) && i.PlanQty > 0)
-            .ToList();
-
-        var now = DateTime.UtcNow;
-        var actor = ActingUserIdNormalizer.Normalize(actingUserId);
-
-        foreach (var decItem in decItems)
-        {
-            var piKey = decItem.PackingItemId?.Trim() ?? string.Empty;
-            if (string.IsNullOrEmpty(piKey))
-                continue;
-
-            var related = pickItems
-                .Where(x => string.Equals(x.PackingItemId?.Trim(), piKey, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-            if (related.Count == 0)
-                continue;
-
-            var pickedQty = related.Sum(x => x.PlanQty);
-            var primary = related[0];
-            var layerId = primary.StockItemId?.Trim() ?? string.Empty;
-            if (string.IsNullOrEmpty(layerId))
-                throw new InvalidOperationException($"拣货明细缺少在库行，无法回写报关明细行 {decItem.LineNo}。");
-
-            var layer = await _stockItemRepo.GetByIdAsync(layerId)
-                        ?? throw new InvalidOperationException("拣货引用的在库明细不存在。");
-
-            decItem.SourceStockItemId = layerId;
-            decItem.DeclareQty = pickedQty;
-            decItem.OriginalPurchasePrice = layer.PurchasePrice;
-            decItem.PurchaseCurrency = layer.PurchaseCurrency;
-            decItem.VendorId = await ResolveOriginalVendorIdFromStockLayerAsync(layer);
-            decItem.ModifyTime = now;
-            await _declarationItemRepo.UpdateAsync(decItem);
-        }
-
-        await _unitOfWork.SaveChangesAsync();
+        await SyncCustomsDeclarationAfterPickingAsync(id, completedTask.Id, actingUserId, cancellationToken);
     }
 
     public async Task EnsureCustomsOutReadyAsync(string customsStockOutRequestId, CancellationToken cancellationToken = default)
@@ -381,7 +310,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         _ = cancellationToken;
         var sor = await LoadCustomsStockOutRequestAsync(customsStockOutRequestId);
         var decItem = await FindDeclarationItemByCustomsStockOutNotifyAsync(sor.Id)
-                      ?? throw new InvalidOperationException("未找到报关明细，请先完成装箱确认与拣货。");
+                      ?? throw new InvalidOperationException("未找到报关明细，请先完成拣货并生成报关单。");
         var dec = await _declarationRepo.GetByIdAsync(decItem.DeclarationId.Trim())
                   ?? throw new InvalidOperationException("报关单不存在。");
 
@@ -419,21 +348,42 @@ public class CustomsV2FlowService : ICustomsV2FlowService
 
         var all = (await _declarationItemRepo.FindAsync(i =>
             i.DeclarationId == anchor.DeclarationId && !i.IsDeleted)).ToList();
-        return all
-            .Where(i => !string.IsNullOrWhiteSpace(i.PackingItemId))
-            .GroupBy(i => i.PackingItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var map = new Dictionary<string, CustomsDeclarationItem>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in all)
+        {
+            var pickKey = item.PickingTaskItemId?.Trim();
+            if (!string.IsNullOrEmpty(pickKey) && !map.ContainsKey(pickKey))
+                map[pickKey] = item;
+            else if (string.IsNullOrEmpty(pickKey))
+            {
+                var packingKey = item.PackingItemId?.Trim();
+                if (!string.IsNullOrEmpty(packingKey) && !map.ContainsKey(packingKey))
+                    map[packingKey] = item;
+            }
+        }
+
+        return map;
     }
 
     public void ApplyCustomsStockOutExtend(
         StockOutItemExtend ext,
         StockItem layer,
+        string? pickingTaskItemId,
         string? packingItemId,
-        IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByPackingItemId)
+        IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByKey)
     {
-        if (string.IsNullOrWhiteSpace(packingItemId))
-            return;
-        if (!decItemByPackingItemId.TryGetValue(packingItemId.Trim(), out var decItem))
+        CustomsDeclarationItem? decItem = null;
+        if (!string.IsNullOrWhiteSpace(pickingTaskItemId)
+            && decItemByKey.TryGetValue(pickingTaskItemId.Trim(), out decItem))
+        {
+            // keyed by picking task item
+        }
+        else if (!string.IsNullOrWhiteSpace(packingItemId)
+                 && decItemByKey.TryGetValue(packingItemId.Trim(), out decItem))
+        {
+            // legacy 1 packing item = 1 declaration item
+        }
+        else
             return;
 
         var p0 = decItem.OriginalPurchasePrice > 0m ? decItem.OriginalPurchasePrice : layer.PurchasePrice;
@@ -1050,6 +1000,222 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             throw new InvalidOperationException(reason);
     }
 
+    private async Task<(Packing Packing, CustomsBroker Broker)> ValidateCustomsPackingReadyCoreAsync(Packing packing)
+    {
+        if (string.IsNullOrWhiteSpace(packing.CustomsBrokerId))
+            throw new InvalidOperationException("报关装箱单缺少报关公司。");
+
+        var broker = await _brokerRepo.GetByIdAsync(packing.CustomsBrokerId.Trim())
+                     ?? throw new InvalidOperationException("报关公司不存在。");
+
+        var fromWh = packing.StorageId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(fromWh))
+            throw new InvalidOperationException("报关装箱单缺少境外出库仓库。");
+
+        var fromWarehouse = await _warehouseRepo.GetByIdAsync(fromWh)
+                            ?? throw new InvalidOperationException("境外出库仓库不存在。");
+        if (RegionTypeCode.Normalize(fromWarehouse.RegionType) != RegionTypeCode.Overseas)
+            throw new InvalidOperationException("报关装箱单出库仓库须为境外仓。");
+
+        var items = await LoadPackingItemsAsync(packing.Id);
+        if (items.Count == 0)
+            throw new InvalidOperationException("报关装箱单无明细。");
+
+        foreach (var pi in items)
+        {
+            var customsSorId = pi.StockOutNotifyId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(customsSorId))
+                throw new InvalidOperationException($"装箱明细 {pi.ItemCode} 缺少报关出库通知。");
+
+            var customsSor = await _stockOutRequestRepo.GetByIdAsync(customsSorId)
+                             ?? throw new InvalidOperationException("报关出库通知不存在。");
+            if (StockOutTypeCode.NormalizeForNotify(customsSor.StockOutType) != StockOutTypeCode.Customs)
+                throw new InvalidOperationException("装箱明细须关联报关出库通知。");
+
+            var pendlistId = pi.CustomsPendlistId?.Trim()
+                             ?? customsSor.CustomsPendlistId?.Trim()
+                             ?? string.Empty;
+            if (string.IsNullOrEmpty(pendlistId))
+                throw new InvalidOperationException($"装箱明细 {pi.ItemCode} 缺少待报关关联。");
+        }
+
+        return (packing, broker);
+    }
+
+    private async Task<CustomsDeclaration?> LoadLinkedDeclarationOrDefaultAsync(Packing packing)
+    {
+        var decId = packing.CustomsDeclarationId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(decId))
+            return null;
+        var dec = await _declarationRepo.GetByIdAsync(decId);
+        if (dec == null || dec.IsDeleted)
+            return null;
+        return dec;
+    }
+
+    private async Task<List<PickingTaskItem>> LoadPickItemsForDeclarationAsync(string pickingTaskId)
+    {
+        var tid = pickingTaskId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(tid))
+            throw new ArgumentException("拣货任务 ID 无效", nameof(pickingTaskId));
+
+        return (await _pickingTaskItemRepo.FindAsync(i =>
+                i.PickingTaskId == tid && !i.IsDeleted))
+            .Where(i => !string.IsNullOrWhiteSpace(i.PackingItemId) && i.PlanQty > 0)
+            .OrderBy(i => i.ItemCode, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private async Task<string?> GetDeclarationPickingChangeBlockReasonAsync(CustomsDeclaration dec)
+    {
+        var items = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted)).ToList();
+        var itemIds = items.Select(i => i.Id).ToList();
+        var hasArrival = false;
+        if (itemIds.Count > 0)
+        {
+            hasArrival = (await _stockInNotifyRepo.FindAsync(n =>
+                    !n.IsDeleted && n.CustomsDeclarationItemId != null && itemIds.Contains(n.CustomsDeclarationItemId)))
+                .Any();
+        }
+
+        var hasFees = dec.FeesLocked
+                      || dec.FeesCalculatedAt != null
+                      || items.Any(i => i.TaxIncludedUnitPrice > 0m || i.TotalValueTax > 0m);
+
+        if (hasFees && hasArrival)
+            return "报关单已试算费用且已生成到货通知，不能改拣货。请先清除到货与费用后再改。";
+        if (hasArrival)
+            return "报关单已生成到货通知，不能改拣货。请先清除到货后再改。";
+        if (hasFees)
+            return "报关单已试算费用，不能改拣货。请先清除费用后再改。";
+        return null;
+    }
+
+    private static bool DeclarationItemsMatchPickLines(
+        IReadOnlyList<CustomsDeclarationItem> decItems,
+        IReadOnlyList<PickingTaskItem> pickItems)
+    {
+        if (decItems.Count != pickItems.Count)
+            return false;
+
+        var pickById = pickItems
+            .GroupBy(x => x.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+        foreach (var decItem in decItems)
+        {
+            var key = decItem.PickingTaskItemId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(key) || !pickById.TryGetValue(key, out var pick))
+                return false;
+            if (pick.PlanQty != decItem.DeclareQty)
+                return false;
+            var layerId = pick.StockItemId?.Trim() ?? string.Empty;
+            if (!string.Equals(layerId, decItem.SourceStockItemId?.Trim(), StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+
+        return true;
+    }
+
+    private async Task AddDeclarationItemsFromPickLinesAsync(
+        string declarationId,
+        IReadOnlyList<PickingTaskItem> pickItems,
+        IReadOnlyDictionary<string, PackingItem> packingItemById,
+        DateTime now,
+        string? actor)
+    {
+        var lineNo = 1;
+        foreach (var pick in pickItems)
+        {
+            var piKey = pick.PackingItemId!.Trim();
+            if (!packingItemById.TryGetValue(piKey, out var pi))
+                throw new InvalidOperationException($"拣货行引用的装箱明细不存在：{piKey}");
+
+            var layerId = pick.StockItemId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(layerId))
+                throw new InvalidOperationException($"拣货明细缺少在库行，无法生成报关明细。");
+
+            var layer = await _stockItemRepo.GetByIdAsync(layerId)
+                        ?? throw new InvalidOperationException("拣货引用的在库明细不存在。");
+
+            var customsSorId = pi.StockOutNotifyId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(customsSorId))
+                throw new InvalidOperationException($"装箱明细 {pi.ItemCode} 缺少报关出库通知。");
+
+            var customsSor = await _stockOutRequestRepo.GetByIdAsync(customsSorId)
+                             ?? throw new InvalidOperationException("报关出库通知不存在。");
+            if (StockOutTypeCode.NormalizeForNotify(customsSor.StockOutType) != StockOutTypeCode.Customs)
+                throw new InvalidOperationException("装箱明细须关联报关出库通知。");
+
+            var pendlistId = pi.CustomsPendlistId?.Trim()
+                             ?? customsSor.CustomsPendlistId?.Trim()
+                             ?? string.Empty;
+            if (string.IsNullOrEmpty(pendlistId))
+                throw new InvalidOperationException($"装箱明细 {pi.ItemCode} 缺少待报关关联。");
+
+            var pendlist = await _pendlistRepo.GetByIdAsync(pendlistId)
+                           ?? throw new InvalidOperationException("待报关记录不存在。");
+            var salesSorId = pendlist.SalesStockOutNotifyId.Trim();
+            var sellLineId = pi.SellOrderItemId?.Trim() ?? pendlist.SellOrderItemId.Trim();
+
+            SellOrderItem? sellLine = null;
+            if (!string.IsNullOrEmpty(sellLineId))
+                sellLine = await _sellOrderItemRepo.GetByIdAsync(sellLineId);
+
+            SellOrder? sellOrder = null;
+            if (!string.IsNullOrWhiteSpace(pi.SellOrderId))
+                sellOrder = await _sellOrderRepo.GetByIdAsync(pi.SellOrderId.Trim());
+            else if (sellLine != null && !string.IsNullOrWhiteSpace(sellLine.SellOrderId))
+                sellOrder = await _sellOrderRepo.GetByIdAsync(sellLine.SellOrderId.Trim());
+
+            var materialId = !string.IsNullOrWhiteSpace(sellLine?.ProductId)
+                ? sellLine!.ProductId!.Trim()
+                : (!string.IsNullOrWhiteSpace(pi.ProductId) ? pi.ProductId!.Trim() : sellLineId);
+
+            var decItem = new CustomsDeclarationItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                DeclarationId = declarationId,
+                LineNo = lineNo++,
+                StockOutRequestId = salesSorId,
+                CustomsPendlistId = pendlistId,
+                CustomsStockOutNotifyId = customsSorId,
+                PackingItemId = pi.Id,
+                PickingTaskItemId = pick.Id,
+                SourceStockItemId = layerId,
+                MaterialId = materialId,
+                PurchasePn = pi.Pn,
+                PurchaseBrand = pi.Brand,
+                CustomerId = sellOrder?.CustomerId,
+                SalesUserId = sellOrder?.SalesUserId,
+                SellOrderItemId = sellLineId,
+                SellOrderItemCode = sellLine?.SellOrderItemCode,
+                DeclareQty = pick.PlanQty,
+                DeclareUnitPrice = 0m,
+                DutyAmount = 0m,
+                VatAmount = 0m,
+                CustomsPaymentGoods = 0m,
+                CustomsAgencyFee = 0m,
+                OtherFee = 0m,
+                InspectionFee = 0m,
+                TotalValueTax = 0m,
+                TaxIncludedUnitPrice = 0m,
+                OriginalPurchasePrice = layer.PurchasePrice,
+                PurchaseCurrency = layer.PurchaseCurrency,
+                VendorId = await ResolveOriginalVendorIdFromStockLayerAsync(layer),
+                CreateTime = now,
+                IsDeleted = false
+            };
+            await _declarationItemRepo.AddAsync(decItem);
+
+            pendlist.Status = CustomsPendlistStatusCode.InCustomsProcess;
+            pendlist.ModifyTime = now;
+            pendlist.ModifyByUserId = actor;
+            await _pendlistRepo.UpdateAsync(pendlist);
+        }
+    }
+
     private async Task ClearOrphanDeclarationLinkAsync(Packing packing, string? actingUserId)
     {
         var decId = packing.CustomsDeclarationId?.Trim() ?? string.Empty;
@@ -1406,7 +1572,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             .OrderBy(w => w.WarehouseCode, StringComparer.OrdinalIgnoreCase)
             .FirstOrDefault();
         if (domestic == null || string.IsNullOrWhiteSpace(domestic.Id))
-            throw new InvalidOperationException("未找到启用的境内仓库，请先在仓库档案中配置后再确认报关装箱。");
+            throw new InvalidOperationException("未找到启用的境内仓库，请先在仓库档案中配置后再保存报关拣货。");
         return domestic.Id.Trim();
     }
 

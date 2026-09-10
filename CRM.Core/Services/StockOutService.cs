@@ -1411,11 +1411,11 @@ namespace CRM.Core.Services
                 executePacking = await _packingRepository.GetByIdAsync(defaultPackingId);
             }
 
-            IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByPackingItemId =
+            IReadOnlyDictionary<string, CustomsDeclarationItem> decItemByKey =
                 new Dictionary<string, CustomsDeclarationItem>(StringComparer.OrdinalIgnoreCase);
             if (isCustomsOut)
             {
-                decItemByPackingItemId =
+                decItemByKey =
                     await _customsV2FlowService.GetDeclarationItemsMapForCustomsStockOutAsync(requestId);
             }
 
@@ -1510,7 +1510,7 @@ namespace CRM.Core.Services
                 if (isCustomsOut)
                 {
                     _customsV2FlowService.ApplyCustomsStockOutExtend(
-                        ext, layer, pickItem.PackingItemId, decItemByPackingItemId);
+                        ext, layer, pickItem.Id, pickItem.PackingItemId, decItemByKey);
                 }
 
                 await _stockOutItemExtendRepository.AddAsync(ext);

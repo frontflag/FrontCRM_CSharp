@@ -1496,12 +1496,12 @@ public class PackingService : IPackingService
         if (packing.Status != PackingStatusCode.New)
             throw new InvalidOperationException("仅「新建」状态的装箱单可以确认");
 
+        if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs)
+            await _customsV2FlowService.ValidateCustomsPackingReadyForDeclarationAsync(id, cancellationToken);
+
         packing.Status = PackingStatusCode.Confirmed;
         await _packingRepository.UpdateAsync(packing);
         await _unitOfWork.SaveChangesAsync();
-
-        if (StockOutTypeCode.NormalizeForNotify(packing.StockOutType) == StockOutTypeCode.Customs)
-            await _customsV2FlowService.GenerateDeclarationOnPackingConfirmAsync(id, actingUserId, cancellationToken);
     }
 
     /// <inheritdoc />

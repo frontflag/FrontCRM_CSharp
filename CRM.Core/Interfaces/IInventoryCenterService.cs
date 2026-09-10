@@ -73,8 +73,11 @@ namespace CRM.Core.Interfaces
             string packingItemId,
             string warehouseId);
 
-        /// <summary>保存/覆盖拣货明细（按装箱单：每行装箱明细数量须匹配；按通知：须等于出库通知数量）。</summary>
-        Task SavePickingTaskItemsAsync(string pickingTaskId, IReadOnlyList<SavePickingTaskItemLineRequest> lines);
+        /// <summary>保存/覆盖拣货明细（按装箱单：每行装箱明细数量须匹配；按通知：须等于出库通知数量）。报关装箱保存后按拣货行生成/重建报关单。</summary>
+        Task<SavePickingTaskItemsResultDto> SavePickingTaskItemsAsync(
+            string pickingTaskId,
+            IReadOnlyList<SavePickingTaskItemLineRequest> lines,
+            string? actingUserId = null);
 
         /// <summary>拣货单列表行（出库通知 + 销售订单 + 仓库等展示字段）。</summary>
         Task<IReadOnlyList<PickingTaskListItemDto>> GetPickingTaskListRowsAsync(PickingTaskListQueryRequest? query = null);
@@ -471,6 +474,11 @@ namespace CRM.Core.Interfaces
         public string? CustomsDeclarationCode { get; set; }
         /// <summary>报关摘要（Hub 跳转 + 报关公司名）。</summary>
         public StockOutCustomsSummaryDto? CustomsSummary { get; set; }
+    }
+
+    public class SavePickingTaskItemsResultDto
+    {
+        public SyncCustomsDeclarationAfterPickingResultDto? CustomsDeclaration { get; set; }
     }
 
     public class GeneratePickingTaskRequest

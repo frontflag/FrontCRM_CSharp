@@ -93,7 +93,7 @@ public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
     [StringLength(32)]
     public string DeclarationCode { get; set; } = string.Empty;
 
-    /// <summary>报关装箱单主键（装箱确认时写入）。</summary>
+    /// <summary>报关装箱单主键（拣货保存后写入）。</summary>
     [StringLength(36)]
     [Column("packing_id")]
     public string? PackingId { get; set; }
@@ -175,7 +175,7 @@ public class CustomsDeclarationItem : BaseGuidEntity, ISoftDeletable
 
     public int LineNo { get; set; }
 
-    /// <summary>拣货后回写；装箱生成报关明细时可为空。</summary>
+    /// <summary>拣货行在库明细；按拣货行生成报关明细时写入。</summary>
     [StringLength(36)]
     public string? SourceStockItemId { get; set; }
 
@@ -195,6 +195,11 @@ public class CustomsDeclarationItem : BaseGuidEntity, ISoftDeletable
     [StringLength(36)]
     [Column("packing_item_id")]
     public string? PackingItemId { get; set; }
+
+    /// <summary>对应拣货任务明细；一拣货行一报关明细，未删时唯一。</summary>
+    [StringLength(36)]
+    [Column("picking_task_item_id")]
+    public string? PickingTaskItemId { get; set; }
 
     [Column("original_purchase_price", TypeName = "numeric(18,6)")]
     public decimal OriginalPurchasePrice { get; set; }

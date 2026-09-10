@@ -548,6 +548,7 @@ import {
   type PickingTask,
   type PickingTaskLine,
   type SavePickingTaskItemLine,
+  type SavePickingTaskItemsResult,
   type WarehouseInfo
 } from '@/api/inventoryCenter'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -784,11 +785,11 @@ function pickingTaskMatchesCurrentRequest(t: PickingTask): boolean {
 const pendingPickingTask = computed(() => {
   if (isPickOnlyPage.value) {
     const t = pickPage.value?.pickingTask
-    if (!t || t.status === 100 || t.status === -1) return null
+    if (!t || t.status === -1) return null
     return t
   }
   return (
-    pickingTasks.value.find((t) => pickingTaskMatchesCurrentRequest(t) && t.status !== 100 && t.status !== -1) ??
+    pickingTasks.value.find((t) => pickingTaskMatchesCurrentRequest(t) && t.status !== -1) ??
     null
   )
 })
@@ -1424,8 +1425,20 @@ async function ensurePickPagePickingTask(): Promise<PickingTask | null> {
   })
   await loadPickPage()
   const t = pickPage.value?.pickingTask
-  if (!t || t.status === 100 || t.status === -1) return null
+  if (!t || t.status === -1) return null
   return t
+}
+
+function customsDeclarationSavedMessage(result: SavePickingTaskItemsResult | null | undefined): string {
+  const d = result?.customsDeclaration
+  const action = String(d?.action ?? '').trim()
+  const code = String(d?.declarationCode ?? '').trim()
+  const n = Number(d?.lineCount ?? 0)
+  if (action === 'Generated' && code)
+    return t('pickCreate.customsDeclarationGenerated', { code, n })
+  if (action === 'Rebuilt' && code)
+    return t('pickCreate.customsDeclarationRebuilt', { code, n })
+  return ''
 }
 
 /** 将已确认的拣货明细写入数据库（生成拣货单） */
@@ -1448,16 +1461,21 @@ const submitPickingOrder = async () => {
     } else if (!task?.id) {
       return
     }
-    await inventoryCenterApi.savePickingTaskItems(task.id, lines)
+    const saved = await inventoryCenterApi.savePickingTaskItems(task.id, lines)
     pickDraftConfirmed.value = false
+    const decMsg = customsDeclarationSavedMessage(saved)
     if (isPickOnlyPage.value) {
-      await ElMessageBox.alert(t('pickCreate.submitPickingOrderCreatedDialog'), t('pickCreate.submitPickingOrderCreatedTitle'), {
-        type: 'success',
-        confirmButtonText: t('common.confirm')
-      })
+      await ElMessageBox.alert(
+        decMsg || t('pickCreate.submitPickingOrderCreatedDialog'),
+        t('pickCreate.submitPickingOrderCreatedTitle'),
+        {
+          type: 'success',
+          confirmButtonText: t('common.confirm')
+        }
+      )
       await router.push({ name: 'PickingSlipList' })
     } else {
-      ElMessage.success(t('pickCreate.submitPickingOrderSuccess'))
+      ElMessage.success(decMsg || t('pickCreate.submitPickingOrderSuccess'))
       await loadPickingTasks()
     }
   } catch (e) {
@@ -1476,8 +1494,8 @@ const savePickingDraftToDb = async () => {
   const lines = buildPickLinesFromDraft()
   submittingPickingOrder.value = true
   try {
-    await inventoryCenterApi.savePickingTaskItems(task.id, lines)
-    ElMessage.success(t('pickCreate.savePickingLinesSuccess'))
+    const saved = await inventoryCenterApi.savePickingTaskItems(task.id, lines)
+    ElMessage.success(customsDeclarationSavedMessage(saved) || t('pickCreate.savePickingLinesSuccess'))
     await loadPickingTasks()
   } catch (e) {
     console.error(e)

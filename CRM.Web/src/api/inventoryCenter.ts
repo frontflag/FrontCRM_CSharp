@@ -333,6 +333,15 @@ export interface SavePickingTaskItemLine {
   qty: number
 }
 
+export interface SavePickingTaskItemsResult {
+  customsDeclaration?: {
+    action?: string
+    declarationId?: string
+    declarationCode?: string
+    lineCount?: number
+  } | null
+}
+
 export interface PickPagePackingLine {
   packingItemId: string
   itemCode?: string | null
@@ -821,8 +830,10 @@ export const inventoryCenterApi = {
       await apiClient.get(`/api/v1/inventory-center/picking-candidates?${qs.toString()}`)
     )
   },
-  async savePickingTaskItems(taskId: string, lines: SavePickingTaskItemLine[]): Promise<void> {
-    await apiClient.post(`/api/v1/inventory-center/picking-tasks/${encodeURIComponent(taskId)}/items`, lines)
+  async savePickingTaskItems(taskId: string, lines: SavePickingTaskItemLine[]): Promise<SavePickingTaskItemsResult> {
+    return unwrap<SavePickingTaskItemsResult>(
+      await apiClient.post(`/api/v1/inventory-center/picking-tasks/${encodeURIComponent(taskId)}/items`, lines)
+    )
   },
   async completePickingTask(taskId: string): Promise<void> {
     await apiClient.post(`/api/v1/inventory-center/picking-tasks/${encodeURIComponent(taskId)}/complete`, {})

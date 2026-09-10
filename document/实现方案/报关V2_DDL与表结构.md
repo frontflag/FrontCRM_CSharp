@@ -17,7 +17,7 @@
 | 报关装箱单 | `packing` | `StockOutType=20`；`customs_broker_id` |
 | 报关装箱明细 | `packing_item` | **1:1** 绑定报关出库通知（`stockout_notify_id`） |
 | 报关记录 | `customs_declaration` | 与装箱 **1:1**；**去掉** `StockOutRequestId` |
-| 报关明细 | `customs_declaration_item` | 装箱确认时生成；拣货后回写源在库行 |
+| 报关明细 | `customs_declaration_item` | 拣货保存后按拣货行生成（1 拣货行 = 1 明细） |
 | 报关到货 | `stockin_notify` | `StockInType=20` |
 | 报关 QC | `qcinfo` | `StockInType=20` |
 | 报关入库 | `stock_in` | `StockInType=20` |
@@ -119,7 +119,7 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 | 变更 | 列 | 说明 |
 |------|-----|------|
 | 新增 | `customs_broker_id` | varchar(36) NULL → `customs_broker."Id"`；**报关装箱必填**（应用校验） |
-| 新增 | `customs_declaration_id` | varchar(36) NULL；装箱确认后写入；**唯一**（未删且非空） |
+| 新增 | `customs_declaration_id` | varchar(36) NULL；拣货保存后写入；**唯一**（未删且非空） |
 
 报关装箱 **不使用** `customer_id` 表示报关公司。
 
@@ -148,11 +148,12 @@ customs_declaration_item ──→ stockin_notify.customs_declaration_item_id
 
 | 变更 | 列 | 说明 |
 |------|-----|------|
-| **改可空** | `SourceStockItemId` | 装箱生成时可为空；**拣货后回写** |
+| **改可空** | `SourceStockItemId` | 按拣货行生成时写入该拣货在库行 |
 | 保留 | `StockOutRequestId` | 仍指向 **销售**出库通知 |
 | 新增 | `customs_pendlist_id` | varchar(36) NOT NULL |
 | 新增 | `customs_stockout_notify_id` | varchar(36) NOT NULL（报关出库通知） |
-| 新增 | `packing_item_id` | varchar(36) NOT NULL，**唯一**（未删） |
+| 新增 | `packing_item_id` | varchar(36)，追溯装箱行，**非唯一** |
+| 新增 | `picking_task_item_id` | varchar(36)，**唯一**（未删且非空）；1 拣货行 = 1 报关明细 |
 | 新增 | `original_purchase_price` | numeric(18,6) DEFAULT 0；P0 快照 |
 | 新增 | `vendor_id` | varchar(36) NULL；原始供应商 |
 
