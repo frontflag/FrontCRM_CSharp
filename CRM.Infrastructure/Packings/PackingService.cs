@@ -390,15 +390,13 @@ public class PackingService : IPackingService
     }
 
     public async Task<PagedResult<PackingItemListRowDto>> GetPackingItemListPagedAsync(
-        string? keyword,
-        string? packingCode,
+        PackingItemListQueryRequest? filter,
         int page,
         int pageSize,
-        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         var paged = await _packingListQuery.GetPagedPackingItemIdsAsync(
-            keyword, packingCode, page, pageSize, currentUserId, cancellationToken);
+            filter, page, pageSize, cancellationToken);
         if (paged.TotalCount == 0)
         {
             return new PagedResult<PackingItemListRowDto>
@@ -430,6 +428,11 @@ public class PackingService : IPackingService
             : (await _sellOrderItemRepository.FindAsync(si => soItemIds.Contains(si.Id)))
                 .ToDictionary(si => si.Id.Trim(), si => si, StringComparer.OrdinalIgnoreCase);
 
+        var packingItemIds = lines.Select(x => x.Id).ToList();
+        var customerSoByPackingItemId = await LoadCustomerSoByPackingItemIdAsync(packingItemIds, cancellationToken);
+        var freightBySellOrderItemId = await LoadFreightForwarderOrderNoBySellOrderItemIdAsync(
+            soItemIds, cancellationToken);
+
         var rows = new List<PackingItemListRowDto>();
         foreach (var id in paged.Items)
         {
@@ -442,6 +445,20 @@ public class PackingService : IPackingService
             SellOrderItem? soItem = null;
             if (!string.IsNullOrWhiteSpace(line.SellOrderItemId))
                 sellItems.TryGetValue(line.SellOrderItemId.Trim(), out soItem);
+
+            string? customerSo = null;
+            if (customerSoByPackingItemId.TryGetValue(line.Id.Trim(), out var extSo) && !string.IsNullOrWhiteSpace(extSo))
+                customerSo = extSo.Trim();
+            else if (!string.IsNullOrWhiteSpace(soItem?.CustomerSo))
+                customerSo = soItem.CustomerSo.Trim();
+
+            string? freightForwarderOrderNo = null;
+            if (!string.IsNullOrWhiteSpace(line.SellOrderItemId)
+                && freightBySellOrderItemId.TryGetValue(line.SellOrderItemId.Trim(), out var ff)
+                && !string.IsNullOrWhiteSpace(ff))
+            {
+                freightForwarderOrderNo = ff;
+            }
 
             rows.Add(new PackingItemListRowDto
             {
@@ -459,6 +476,8 @@ public class PackingService : IPackingService
                 SellOrderItemCode = soItem?.SellOrderItemCode,
                 ItemCode = line.ItemCode,
                 CustomerName = so?.CustomerName,
+                CustomerSo = customerSo,
+                FreightForwarderOrderNo = freightForwarderOrderNo,
                 CreateTime = line.CreateTime
             });
         }
@@ -470,6 +489,74 @@ public class PackingService : IPackingService
             PageIndex = paged.PageIndex,
             PageSize = paged.PageSize
         };
+    }
+
+    private async Task<Dictionary<string, string>> LoadCustomerSoByPackingItemIdAsync(
+        IReadOnlyList<string> packingItemIds,
+        CancellationToken cancellationToken)
+    {
+        if (packingItemIds.Count == 0)
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var rows = await _db.PackingItemExtends
+            .AsNoTracking()
+            .Where(e => !e.IsDeleted && packingItemIds.Contains(e.PackingItemId) && e.CustomerSo != null)
+            .Select(e => new { e.PackingItemId, e.CustomerSo })
+            .ToListAsync(cancellationToken);
+
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            var so = row.CustomerSo?.Trim();
+            if (string.IsNullOrEmpty(so))
+                continue;
+            var key = row.PackingItemId.Trim();
+            if (!map.ContainsKey(key))
+                map[key] = so;
+        }
+
+        return map;
+    }
+
+    private async Task<Dictionary<string, string>> LoadFreightForwarderOrderNoBySellOrderItemIdAsync(
+        IReadOnlyCollection<string?> sellOrderItemIds,
+        CancellationToken cancellationToken)
+    {
+        var ids = sellOrderItemIds
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (ids.Count == 0)
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var poItems = await _db.PurchaseOrderItems
+            .AsNoTracking()
+            .Where(poi => !poi.IsDeleted && poi.SellOrderItemId != null && ids.Contains(poi.SellOrderItemId))
+            .Select(poi => new { poi.SellOrderItemId, poi.PurchaseOrderId })
+            .ToListAsync(cancellationToken);
+
+        var poIds = poItems
+            .Select(x => x.PurchaseOrderId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (poIds.Count == 0)
+            return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        var poById = await _db.PurchaseOrders
+            .AsNoTracking()
+            .Where(po => !po.IsDeleted && poIds.Contains(po.Id))
+            .ToDictionaryAsync(po => po.Id.Trim(), po => po, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        return poItems
+            .GroupBy(x => x.SellOrderItemId!.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => FreightForwarderOrderNoDisplay.JoinDistinct(
+                    g.Select(x => FreightForwarderOrderNoLookup.FromPurchaseOrderId(x.PurchaseOrderId, poById))),
+                StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<PackingDetailDto?> GetPackingByIdAsync(

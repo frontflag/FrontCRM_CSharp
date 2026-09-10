@@ -101,18 +101,16 @@ public sealed class PackingEfListQuery : IPackingListQuery
     }
 
     public async Task<PagedResult<string>> GetPagedPackingItemIdsAsync(
-        string? keyword,
-        string? packingCode,
+        PackingItemListQueryRequest? filter,
         int page,
         int pageSize,
-        string? currentUserId = null,
         CancellationToken cancellationToken = default)
     {
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
         var scopedPk = await _dataPermission.ApplyPackingListDataScopeAsync(
-            currentUserId,
+            filter?.CurrentUserId,
             _db.Packings.AsNoTracking().Where(x => !x.IsDeleted),
             _db.Customers.AsNoTracking(),
             cancellationToken);
@@ -122,21 +120,84 @@ public sealed class PackingEfListQuery : IPackingListQuery
                 where !pi.IsDeleted
                 select new { pi, pk };
 
-        if (!string.IsNullOrWhiteSpace(packingCode))
+        if (!string.IsNullOrWhiteSpace(filter?.PackingCode))
         {
-            var c = packingCode.Trim().ToLowerInvariant();
+            var c = filter.PackingCode.Trim().ToLowerInvariant();
             q = q.Where(x => x.pk.Code.ToLower().Contains(c));
         }
 
-        if (!string.IsNullOrWhiteSpace(keyword))
+        if (!string.IsNullOrWhiteSpace(filter?.CustomerName))
         {
-            var k = keyword.Trim().ToLowerInvariant();
+            var k = filter.CustomerName.Trim().ToLowerInvariant();
             q = q.Where(x =>
-                x.pk.Code.ToLower().Contains(k) ||
+                (x.pk.CustomerId != null
+                    && _db.Customers.Any(c =>
+                        c.Id == x.pk.CustomerId
+                        && ((c.OfficialName != null && c.OfficialName.ToLower().Contains(k))
+                            || (c.NickName != null && c.NickName.ToLower().Contains(k)))))
+                || (x.pi.SellOrderId != null
+                    && _db.SellOrders.Any(so =>
+                        so.Id == x.pi.SellOrderId
+                        && so.CustomerName != null
+                        && so.CustomerName.ToLower().Contains(k)))
+                || _db.PackingItemExtends.Any(e =>
+                    !e.IsDeleted
+                    && e.PackingItemId == x.pi.Id
+                    && e.CustomerId != null
+                    && _db.Customers.Any(c =>
+                        c.Id == e.CustomerId
+                        && ((c.OfficialName != null && c.OfficialName.ToLower().Contains(k))
+                            || (c.NickName != null && c.NickName.ToLower().Contains(k))))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter?.CustomerSo))
+        {
+            var k = filter.CustomerSo.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                _db.PackingItemExtends.Any(e =>
+                    !e.IsDeleted
+                    && e.PackingItemId == x.pi.Id
+                    && e.CustomerSo != null
+                    && e.CustomerSo.ToLower().Contains(k))
+                || (x.pi.SellOrderItemId != null
+                    && _db.SellOrderItems.Any(si =>
+                        !si.IsDeleted
+                        && si.Id == x.pi.SellOrderItemId
+                        && si.CustomerSo != null
+                        && si.CustomerSo.ToLower().Contains(k))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter?.SellOrderCode))
+        {
+            var k = filter.SellOrderCode.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                x.pi.SellOrderId != null
+                && _db.SellOrders.Any(so =>
+                    so.Id == x.pi.SellOrderId
+                    && so.SellOrderCode.ToLower().Contains(k)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter?.FreightForwarderOrderNo))
+        {
+            var k = filter.FreightForwarderOrderNo.Trim().ToLowerInvariant();
+            q = q.Where(x =>
+                x.pi.SellOrderItemId != null
+                && _db.PurchaseOrderItems.Any(poi =>
+                    !poi.IsDeleted
+                    && poi.SellOrderItemId == x.pi.SellOrderItemId
+                    && _db.PurchaseOrders.Any(po =>
+                        !po.IsDeleted
+                        && po.Id == poi.PurchaseOrderId
+                        && po.FreightForwarderOrderNo != null
+                        && po.FreightForwarderOrderNo.ToLower().Contains(k))));
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter?.Keyword))
+        {
+            var k = filter.Keyword.Trim().ToLowerInvariant();
+            q = q.Where(x =>
                 (x.pi.Pn != null && x.pi.Pn.ToLower().Contains(k)) ||
-                (x.pi.Brand != null && x.pi.Brand.ToLower().Contains(k)) ||
-                (x.pi.SellOrderId != null && _db.SellOrders.Any(so =>
-                    so.Id == x.pi.SellOrderId && so.SellOrderCode.ToLower().Contains(k))));
+                (x.pi.Brand != null && x.pi.Brand.ToLower().Contains(k)));
         }
 
         var total = await q.CountAsync(cancellationToken);

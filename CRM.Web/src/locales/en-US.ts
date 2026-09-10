@@ -9706,20 +9706,26 @@ const enUS = {
     title: 'Packing lines',
     count: '{count} total',
     filters: {
-      keywordPlaceholder: 'Packing no. / SO no. / MPN',
+      keywordPlaceholder: 'MPN / Brand',
       packingCode: 'Packing no.',
+      customerName: 'Customer',
+      customerSo: 'Customer PO no.',
+      sellOrderCode: 'SO no.',
+      freightForwarderOrderNo: 'Freight forwarder no.',
       search: 'Search',
       reset: 'Reset'
     },
     columns: {
       packingCode: 'Packing no.',
       status: 'Packing status',
-      itemCode: 'ItemCode',
+      itemCode: 'Packing line no.',
       pn: 'MPN',
       brand: 'Brand',
       qty: 'Qty',
       sellOrderCode: 'SO no.',
       sellOrderItemCode: 'SO line',
+      customerSo: 'Customer PO no.',
+      freightForwarderOrderNo: 'Freight forwarder no.',
       customerName: 'Customer',
       createTime: 'Created'
     },

@@ -9685,20 +9685,26 @@ const zhCN = {
     title: '装箱单明细',
     count: '共 {count} 条',
     filters: {
-      keywordPlaceholder: '装箱单号 / 销售单号 / 型号',
+      keywordPlaceholder: '物料型号/品牌',
       packingCode: '装箱单号',
+      customerName: '客户名称',
+      customerSo: '客户订单号',
+      sellOrderCode: '销售订单号',
+      freightForwarderOrderNo: '货代单号',
       search: '搜索',
       reset: '重置'
     },
     columns: {
       packingCode: '装箱单号',
       status: '装箱单状态',
-      itemCode: 'ItemCode',
+      itemCode: '装箱明细编号',
       pn: '物料型号',
       brand: '品牌',
       qty: '数量',
       sellOrderCode: '销售单号',
       sellOrderItemCode: '销售明细号',
+      customerSo: '客户订单号',
+      freightForwarderOrderNo: '货代单号',
       customerName: '客户',
       createTime: '创建时间'
     },

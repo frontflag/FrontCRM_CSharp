@@ -16,6 +16,36 @@
           @keyup.enter="() => void fetchList()"
         />
         <input
+          v-if="!maskSaleSensitiveFields"
+          v-model="filters.customerName"
+          class="search-input search-input--filter"
+          type="search"
+          :placeholder="t('packingItemList.filters.customerName')"
+          @keyup.enter="() => void fetchList()"
+        />
+        <input
+          v-if="!maskSaleSensitiveFields"
+          v-model="filters.customerSo"
+          class="search-input search-input--filter"
+          type="search"
+          :placeholder="t('packingItemList.filters.customerSo')"
+          @keyup.enter="() => void fetchList()"
+        />
+        <input
+          v-model="filters.sellOrderCode"
+          class="search-input search-input--filter"
+          type="search"
+          :placeholder="t('packingItemList.filters.sellOrderCode')"
+          @keyup.enter="() => void fetchList()"
+        />
+        <input
+          v-model="filters.freightForwarderOrderNo"
+          class="search-input search-input--filter search-input--wide"
+          type="search"
+          :placeholder="t('packingItemList.filters.freightForwarderOrderNo')"
+          @keyup.enter="() => void fetchList()"
+        />
+        <input
           v-model="keyword"
           class="search-input search-input--wide"
           :placeholder="t('packingItemList.filters.keywordPlaceholder')"
@@ -28,14 +58,66 @@
 
     <div class="table-card" v-loading="loading">
       <CrmDataTable
-        column-layout-key="packing-item-list-main"
+        column-layout-key="packing-item-list-main-v2"
         :columns="columns"
         :show-column-settings="false"
         :data="list"
         row-key="id"
         :row-class-name="flowPanelRowClassName"
         @row-click="onRowClick"
+        @row-dblclick="onRowDblClick"
       >
+        <template #col-packingCode="{ row }">
+          <router-link
+            v-if="row.packingId?.trim() && row.packingCode?.trim()"
+            class="link-text"
+            :to="{ name: 'PackingDetail', params: { id: row.packingId.trim() } }"
+            target="_blank"
+            rel="noopener noreferrer"
+            @click.stop
+          >
+            {{ row.packingCode.trim() }}
+          </router-link>
+          <span v-else>{{ row.packingCode?.trim() || '—' }}</span>
+        </template>
+        <template #col-sellOrderCode="{ row }">
+          <router-link
+            v-if="row.sellOrderId?.trim() && row.sellOrderCode?.trim()"
+            class="link-text"
+            :to="{ name: 'SalesOrderDetail', params: { id: row.sellOrderId.trim() } }"
+            target="_blank"
+            rel="noopener noreferrer"
+            @click.stop
+          >
+            {{ row.sellOrderCode.trim() }}
+          </router-link>
+          <span v-else>{{ row.sellOrderCode?.trim() || '—' }}</span>
+        </template>
+        <template #col-sellOrderItemCode="{ row }">
+          <router-link
+            v-if="row.sellOrderId?.trim() && row.sellOrderItemCode?.trim()"
+            class="link-text"
+            :to="{
+              name: 'SalesOrderDetail',
+              params: { id: row.sellOrderId.trim() },
+              query: row.sellOrderItemId?.trim()
+                ? { sellOrderItemId: row.sellOrderItemId.trim() }
+                : undefined
+            }"
+            target="_blank"
+            rel="noopener noreferrer"
+            @click.stop
+          >
+            {{ row.sellOrderItemCode.trim() }}
+          </router-link>
+          <span v-else>{{ row.sellOrderItemCode?.trim() || '—' }}</span>
+        </template>
+        <template #col-customerSo="{ row }">
+          <span>{{ maskSaleSensitiveFields ? '—' : (row.customerSo?.trim() || '—') }}</span>
+        </template>
+        <template #col-freightForwarderOrderNo="{ row }">
+          <CrmListCopyableTextCell :text="row.freightForwarderOrderNo?.trim() || ''" />
+        </template>
         <template #col-customerName="{ row }">
           <span>{{ maskSaleSensitiveFields ? '—' : (row.customerName?.trim() || '—') }}</span>
         </template>
@@ -59,10 +141,11 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref, inject, onBeforeUnmount } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import CrmDataTable from '@/components/CrmDataTable.vue'
+import CrmListCopyableTextCell from '@/components/CrmListCopyableTextCell.vue'
 import { packingApi, packingStatusLabel, type PackingItemListRow } from '@/api/packing'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -75,6 +158,7 @@ import { resetListRightPanelOnReload } from '@/composables/useListRightPanelRese
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const packingFlowStore = usePackingDetailFlowPanelStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
@@ -94,7 +178,13 @@ const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInte
 
 const loading = ref(false)
 const keyword = ref('')
-const filters = ref({ packingCode: '' })
+const filters = ref({
+  packingCode: '',
+  customerName: '',
+  customerSo: '',
+  sellOrderCode: '',
+  freightForwarderOrderNo: ''
+})
 const list = ref<PackingItemListRow[]>([])
 const listTotal = ref(0)
 const listPage = ref(1)
@@ -108,7 +198,9 @@ const columns = computed<CrmTableColumnDef[]>(() => [
   { key: 'brand', label: t('packingItemList.columns.brand'), prop: 'brand', width: 120, showOverflowTooltip: true },
   { key: 'qty', label: t('packingItemList.columns.qty'), prop: 'qty', width: 90, align: 'right' },
   { key: 'sellOrderCode', label: t('packingItemList.columns.sellOrderCode'), prop: 'sellOrderCode', width: 150, showOverflowTooltip: true },
+  { key: 'customerSo', label: t('packingItemList.columns.customerSo'), width: 150, showOverflowTooltip: true },
   { key: 'sellOrderItemCode', label: t('packingItemList.columns.sellOrderItemCode'), prop: 'sellOrderItemCode', width: 150, showOverflowTooltip: true },
+  { key: 'freightForwarderOrderNo', label: t('packingItemList.columns.freightForwarderOrderNo'), width: 160, showOverflowTooltip: true },
   { key: 'customerName', label: t('packingItemList.columns.customerName'), minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('packingItemList.columns.createTime'), width: 170 }
 ])
@@ -124,6 +216,10 @@ async function fetchList(resetPage = true) {
     const res = await packingApi.getItemListPaged({
       keyword: keyword.value.trim() || undefined,
       packingCode: filters.value.packingCode.trim() || undefined,
+      customerName: maskSaleSensitiveFields.value ? undefined : (filters.value.customerName.trim() || undefined),
+      customerSo: maskSaleSensitiveFields.value ? undefined : (filters.value.customerSo.trim() || undefined),
+      sellOrderCode: filters.value.sellOrderCode.trim() || undefined,
+      freightForwarderOrderNo: filters.value.freightForwarderOrderNo.trim() || undefined,
       page: listPage.value,
       pageSize: listPageSize.value
     })
@@ -146,7 +242,20 @@ function onPageSizeChange() {
 function resetFilters() {
   keyword.value = ''
   filters.value.packingCode = ''
+  filters.value.customerName = ''
+  filters.value.customerSo = ''
+  filters.value.sellOrderCode = ''
+  filters.value.freightForwarderOrderNo = ''
   void fetchList(true)
+}
+
+function goPackingDetail(row: PackingItemListRow) {
+  const id = String(row?.packingId || '').trim()
+  if (!id) {
+    ElMessage.warning(t('packingDetail.missingId'))
+    return
+  }
+  void router.push({ name: 'PackingDetail', params: { id } })
 }
 
 function onRowClick(row: PackingItemListRow) {
@@ -160,6 +269,10 @@ function onRowClick(row: PackingItemListRow) {
     t('packingItemList.flowPanel.itemNotFound')
   )
   void onCustomerPanelRowClick({ id: itemId })
+}
+
+function onRowDblClick(row: PackingItemListRow) {
+  goPackingDetail(row)
 }
 
 function flowPanelRowClassName({ row }: { row: PackingItemListRow }) {
@@ -247,6 +360,18 @@ onBeforeUnmount(() => {
 
 :deep(.el-table__body tr.el-table__row.so-item-row--active > td.el-table__cell) {
   background: rgba(0, 160, 220, 0.1) !important;
+}
+
+.link-text {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+
+  &:hover {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }
 
 .btn-primary {

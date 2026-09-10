@@ -92,6 +92,8 @@ export interface PackingItemListRow {
   sellOrderItemCode?: string | null
   itemCode?: string | null
   customerName?: string | null
+  customerSo?: string | null
+  freightForwarderOrderNo?: string | null
   createTime: string
 }
 
@@ -822,6 +824,10 @@ export const packingApi = {
   async getItemListPaged(params: {
     keyword?: string
     packingCode?: string
+    customerName?: string
+    customerSo?: string
+    sellOrderCode?: string
+    freightForwarderOrderNo?: string
     page?: number
     pageSize?: number
   }): Promise<PackingItemListPaged> {

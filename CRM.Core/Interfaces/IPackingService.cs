@@ -17,11 +17,9 @@ public interface IPackingService
         CancellationToken cancellationToken = default);
 
     Task<PagedResult<PackingItemListRowDto>> GetPackingItemListPagedAsync(
-        string? keyword,
-        string? packingCode,
+        PackingItemListQueryRequest? filter,
         int page,
         int pageSize,
-        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 
     Task<PackingDetailDto?> GetPackingByIdAsync(
@@ -299,6 +297,10 @@ public class PackingItemListRowDto
     public string? SellOrderItemCode { get; set; }
     public string? ItemCode { get; set; }
     public string? CustomerName { get; set; }
+    /// <summary>客户订单号：装箱明细扩展优先，否则销售明细 <c>customer_so</c>。</summary>
+    public string? CustomerSo { get; set; }
+    /// <summary>货代单号：销售明细关联采购订单头，多值去重拼接。</summary>
+    public string? FreightForwarderOrderNo { get; set; }
     public string? StockOutRequestCode { get; set; }
     public DateTime CreateTime { get; set; }
 }

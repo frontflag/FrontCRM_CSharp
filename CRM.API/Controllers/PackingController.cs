@@ -96,6 +96,10 @@ public class PackingController : ControllerBase
     public async Task<ActionResult<ApiResponse<object>>> ItemList(
         [FromQuery] string? keyword,
         [FromQuery] string? packingCode,
+        [FromQuery] string? customerName,
+        [FromQuery] string? customerSo,
+        [FromQuery] string? sellOrderCode,
+        [FromQuery] string? freightForwarderOrderNo,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -103,16 +107,26 @@ public class PackingController : ControllerBase
         try
         {
             var result = await _packingService.GetPackingItemListPagedAsync(
-                keyword,
-                packingCode,
+                new PackingItemListQueryRequest
+                {
+                    Keyword = keyword,
+                    PackingCode = packingCode,
+                    CustomerName = customerName,
+                    CustomerSo = customerSo,
+                    SellOrderCode = sellOrderCode,
+                    FreightForwarderOrderNo = freightForwarderOrderNo,
+                    CurrentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                },
                 page,
                 pageSize,
-                User.FindFirst(ClaimTypes.NameIdentifier)?.Value,
                 cancellationToken);
             if (await SaleMaskHttp.ShouldMaskSale521Async(_rbacService, User))
             {
                 foreach (var row in result.Items)
+                {
                     row.CustomerName = null;
+                    row.CustomerSo = null;
+                }
             }
 
             return Ok(ApiResponse<object>.Ok(new

@@ -9,10 +9,8 @@ public interface IPackingListQuery
         CancellationToken cancellationToken = default);
 
     Task<PagedResult<string>> GetPagedPackingItemIdsAsync(
-        string? keyword,
-        string? packingCode,
+        PackingItemListQueryRequest? filter,
         int page,
         int pageSize,
-        string? currentUserId = null,
         CancellationToken cancellationToken = default);
 }
