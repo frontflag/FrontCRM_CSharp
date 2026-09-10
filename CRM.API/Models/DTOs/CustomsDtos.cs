@@ -5,6 +5,7 @@ public sealed class CustomsDeclarationListItemDto
     public string Id { get; set; } = string.Empty;
     public string DeclarationCode { get; set; } = string.Empty;
     public string? PackingId { get; set; }
+    public string? PackingCode { get; set; }
     /// <summary>列表展示用：取首条明细关联的销售出库通知。</summary>
     public string? StockOutRequestId { get; set; }
     /// <summary>列表展示用：<see cref="StockOutRequestId"/> 对应业务单号。</summary>
@@ -27,6 +28,8 @@ public sealed class CustomsDeclarationItemListItemDto
     public string Id { get; set; } = string.Empty;
     public string DeclarationId { get; set; } = string.Empty;
     public string DeclarationCode { get; set; } = string.Empty;
+    public string? PackingId { get; set; }
+    public string? PackingCode { get; set; }
     public DateTime DeclareDate { get; set; }
     public int LineNo { get; set; }
     public string StockOutRequestId { get; set; } = string.Empty;

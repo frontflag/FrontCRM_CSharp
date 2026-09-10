@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
@@ -30,17 +32,36 @@ public class CustomsBrokersController : ControllerBase
     }
 
     /// <param name="all">为 true 时返回全部（管理页）；默认 false 仅启用（下拉等）。</param>
+    /// <param name="includeId">下拉场景：当前筛选 Id 已停用时仍补入该行，避免条件消失。</param>
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<IReadOnlyList<CustomsBroker>>>> GetList([FromQuery] bool all = false)
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<CustomsBroker>>>> GetList(
+        [FromQuery] bool all = false,
+        [FromQuery] string? includeId = null)
     {
         try
         {
-            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
-                return StatusCode(403, ApiResponse<IReadOnlyList<CustomsBroker>>.Fail("当前账号无权访问报关模块", 403));
+            if (all)
+            {
+                if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                    return StatusCode(403, ApiResponse<IReadOnlyList<CustomsBroker>>.Fail("当前账号无权访问报关模块", 403));
 
-            var list = all
-                ? await _service.GetAllOrderedForAdminAsync()
-                : await _service.GetActiveListAsync();
+                var adminList = await _service.GetAllOrderedForAdminAsync();
+                return Ok(ApiResponse<IReadOnlyList<CustomsBroker>>.Ok(adminList, "OK"));
+            }
+
+            if (!await CanReadActiveBrokerDropdownAsync())
+                return StatusCode(403, ApiResponse<IReadOnlyList<CustomsBroker>>.Fail("当前账号无权访问报关公司下拉", 403));
+
+            var list = (await _service.GetActiveListAsync()).ToList();
+            var extraId = includeId?.Trim();
+            if (!string.IsNullOrEmpty(extraId)
+                && !list.Any(b => string.Equals(b.Id, extraId, StringComparison.OrdinalIgnoreCase)))
+            {
+                var extra = await _service.GetByIdAsync(extraId);
+                if (extra != null)
+                    list.Add(extra);
+            }
+
             return Ok(ApiResponse<IReadOnlyList<CustomsBroker>>.Ok(list, "OK"));
         }
         catch (Exception ex)
@@ -191,6 +212,19 @@ public class CustomsBrokersController : ControllerBase
             _logger.LogError(ex, "软删除报关公司失败 {Id}", id);
             return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
         }
+    }
+
+    private async Task<bool> CanReadActiveBrokerDropdownAsync()
+    {
+        if (await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+            return true;
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userId))
+            return false;
+
+        var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+        return summary.HasPermissionCode("purchase-order.read");
     }
 
     private static CustomsBrokerWriteFields MapWriteFields(CreateCustomsBrokerRequest body) =>

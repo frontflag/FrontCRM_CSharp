@@ -64,6 +64,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? pn,
             [FromQuery] string? vendorName,
             [FromQuery] short? purchaseCurrency,
+            [FromQuery] string? customsBrokerId,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -83,6 +84,7 @@ namespace CRM.API.Controllers
                     string.IsNullOrWhiteSpace(pn) ? null : pn.Trim(),
                     mask511 || string.IsNullOrWhiteSpace(vendorName) ? null : vendorName.Trim(),
                     purchaseCurrency,
+                    string.IsNullOrWhiteSpace(customsBrokerId) ? null : customsBrokerId.Trim(),
                     page,
                     pageSize,
                     userId,

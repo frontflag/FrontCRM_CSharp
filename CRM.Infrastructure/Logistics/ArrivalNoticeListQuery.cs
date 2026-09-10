@@ -37,6 +37,7 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
         string? pn,
         string? vendorName,
         short? purchaseCurrency,
+        string? customsBrokerId,
         int page,
         int pageSize,
         string? currentUserId = null,
@@ -126,6 +127,21 @@ public sealed class ArrivalNoticeListQuery : IArrivalNoticeListQuery
                 _db.PurchaseOrderItems.Any(poi => poi.Id == x.PurchaseOrderItemId && poi.Currency == ccy)
                 || (x.PurchaseOrderItemId == ""
                     && _db.PurchaseOrders.Any(po => po.Id == x.PurchaseOrderId && po.Currency == ccy)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(customsBrokerId))
+        {
+            var bid = customsBrokerId.Trim();
+            q = q.Where(x =>
+                x.CustomsDeclarationItemId != null
+                && x.CustomsDeclarationItemId != ""
+                && _db.CustomsDeclarationItems.Any(i =>
+                    i.Id == x.CustomsDeclarationItemId
+                    && !i.IsDeleted
+                    && _db.CustomsDeclarations.Any(d =>
+                        d.Id == i.DeclarationId
+                        && !d.IsDeleted
+                        && d.CustomsBrokerId == bid)));
         }
 
         var total = await q.CountAsync(cancellationToken);

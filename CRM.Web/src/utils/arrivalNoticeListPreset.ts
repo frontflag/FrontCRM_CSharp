@@ -62,7 +62,8 @@ export const ARRIVAL_NOTICE_KEYWORD_QUERY_KEYS = [
   'freightForwarderOrderNo',
   'pn',
   'vendorName',
-  'purchaseCurrency'
+  'purchaseCurrency',
+  'customsBrokerId'
 ] as const
 
 export function pickArrivalNoticeKeywordQuery(query: Record<string, unknown>): Record<string, string> {

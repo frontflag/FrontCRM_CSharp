@@ -81,6 +81,7 @@ public class CustomsDeclarationItemsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<CustomsDeclarationItemListItemDto>>>> GetList(
         [FromQuery] string? declarationCode,
+        [FromQuery] string? packingCode,
         [FromQuery] string? purchasePn,
         [FromQuery] string? customer,
         [FromQuery] string? salesUserId,
@@ -96,6 +97,7 @@ public class CustomsDeclarationItemsController : ControllerBase
 
             var n = Math.Clamp(take, 1, 1000);
             var decQ = (declarationCode ?? string.Empty).Trim();
+            var packingQ = (packingCode ?? string.Empty).Trim();
             var pnQ = (purchasePn ?? string.Empty).Trim();
             var custQ = (customer ?? string.Empty).Trim();
             var suQ = (salesUserId ?? string.Empty).Trim();
@@ -130,6 +132,12 @@ public class CustomsDeclarationItemsController : ControllerBase
                 join u in _db.Users.AsNoTracking() on i.SalesUserId equals u.Id into uj
                 from u in uj.DefaultIfEmpty()
                 where string.IsNullOrEmpty(decQ) || EF.Functions.ILike(d.DeclarationCode, $"%{decQ}%")
+                where string.IsNullOrEmpty(packingQ)
+                      || _db.Packings.Any(p =>
+                          !p.IsDeleted
+                          && EF.Functions.ILike(p.Code, $"%{packingQ}%")
+                          && ((d.PackingId != null && d.PackingId != "" && p.Id == d.PackingId)
+                              || (p.CustomsDeclarationId != null && p.CustomsDeclarationId == d.Id)))
                 where string.IsNullOrEmpty(custQ)
                       || (i.CustomerId != null && i.CustomerId == custQ)
                       || (c != null && c.OfficialName != null && EF.Functions.ILike(c.OfficialName, $"%{custQ}%"))
@@ -158,6 +166,10 @@ public class CustomsDeclarationItemsController : ControllerBase
                 .Where(p => poItemIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id, p => p.PurchaseOrderId, StringComparer.OrdinalIgnoreCase);
 
+            var packingByDec = await CustomsDeclarationPackingLookup.LoadByDeclarationsAsync(
+                _db,
+                rows.Select(x => (x.d.Id, x.d.PackingId)).ToList());
+
             var list = rows.Select(x =>
             {
                 string? poCode = null;
@@ -184,6 +196,12 @@ public class CustomsDeclarationItemsController : ControllerBase
                     Id = x.i.Id,
                     DeclarationId = x.i.DeclarationId,
                     DeclarationCode = x.d.DeclarationCode,
+                    PackingId = packingByDec.TryGetValue(x.d.Id.Trim(), out var packHit)
+                        ? packHit.Id
+                        : x.d.PackingId,
+                    PackingCode = packingByDec.TryGetValue(x.d.Id.Trim(), out var packCode)
+                        ? packCode.Code
+                        : null,
                     DeclareDate = x.d.DeclareDate,
                     LineNo = x.i.LineNo,
                     StockOutRequestId = x.i.StockOutRequestId,

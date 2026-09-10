@@ -55,6 +55,15 @@
           @clear="handleSearch"
         />
         <el-input
+          v-model="filters.packingCode"
+          clearable
+          :placeholder="t('customsPages.declarations.filterPackingCode')"
+          class="search-input"
+          style="width: 150px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-input
           v-model="filters.stockOutRequestId"
           clearable
           :placeholder="t('customsPages.declarations.filterSor')"
@@ -150,7 +159,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="customs-declaration-list-main"
+      column-layout-key="customs-declaration-list-main-v2"
       :columns="tableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -172,6 +181,17 @@
       </template>
       <template #col-declarationCode="{ row }">
         <span class="code-text">{{ row.declarationCode || '—' }}</span>
+      </template>
+      <template #col-packingCode="{ row }">
+        <router-link
+          v-if="row.packingId?.trim() && row.packingCode?.trim()"
+          :to="{ name: 'PackingDetail', params: { id: row.packingId.trim() } }"
+          class="cell-link"
+          @click.stop
+        >
+          {{ row.packingCode.trim() }}
+        </router-link>
+        <span v-else>{{ row.packingCode?.trim() || '—' }}</span>
       </template>
       <template #col-declareDate="{ row }">
         <span class="text-secondary">{{ row.declareDate ? formatDisplayDate(row.declareDate) : '—' }}</span>
@@ -381,10 +401,12 @@ const filters = reactive<{
   internalStatus?: number
   customsClearanceStatus?: number
   declarationCode: string
+  packingCode: string
   stockOutRequestId: string
   declareRange: string[] | null
 }>({
   declarationCode: '',
+  packingCode: '',
   stockOutRequestId: '',
   declareRange: null
 })
@@ -520,6 +542,7 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'internalStatus', label: t('customsPages.declarations.colInternal'), prop: 'internalStatus', width: 120, align: 'center' },
   { key: 'customsClearanceStatus', label: t('customsPages.declarations.colClearance'), prop: 'customsClearanceStatus', width: 110, align: 'center' },
   { key: 'declarationCode', label: t('customsPages.declarations.colDecCode'), prop: 'declarationCode', width: 140, minWidth: 130 },
+  { key: 'packingCode', label: t('customsPages.declarations.colPackingCode'), prop: 'packingCode', width: 150, minWidth: 130, showOverflowTooltip: true },
   { key: 'declareDate', label: t('customsPages.declarations.colDeclareDate'), prop: 'declareDate', width: 120 },
   { key: 'customsBrokerName', label: t('customsPages.declarations.colBroker'), prop: 'customsBrokerName', minWidth: 140, showOverflowTooltip: true },
   { key: 'totalTaxAmount', label: t('customsPages.declarations.colTotal'), prop: 'totalTaxAmount', width: 120, align: 'right' },
@@ -601,6 +624,7 @@ function resetFilters() {
   filters.internalStatus = undefined
   filters.customsClearanceStatus = undefined
   filters.declarationCode = ''
+  filters.packingCode = ''
   filters.stockOutRequestId = ''
   filters.declareRange = null
   handleSearch()
@@ -614,6 +638,7 @@ async function load() {
     if (filters.internalStatus != null) params.internalStatus = filters.internalStatus
     if (filters.customsClearanceStatus != null) params.customsClearanceStatus = filters.customsClearanceStatus
     if (filters.declarationCode.trim()) params.declarationCode = filters.declarationCode.trim()
+    if (filters.packingCode.trim()) params.packingCode = filters.packingCode.trim()
     if (filters.stockOutRequestId.trim()) params.stockOutRequestId = filters.stockOutRequestId.trim()
     if (filters.declareRange?.length === 2) {
       params.declareDateFrom = filters.declareRange[0]

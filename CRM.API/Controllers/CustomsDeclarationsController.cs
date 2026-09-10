@@ -53,6 +53,7 @@ public class CustomsDeclarationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<CustomsDeclarationListItemDto>>>> GetList(
         [FromQuery] string? declarationCode,
+        [FromQuery] string? packingCode,
         [FromQuery] string? stockOutRequestId,
         [FromQuery] short? internalStatus,
         [FromQuery] short? customsClearanceStatus,
@@ -68,6 +69,7 @@ public class CustomsDeclarationsController : ControllerBase
 
             var n = Math.Clamp(take, 1, 1000);
             var codeQ = (declarationCode ?? string.Empty).Trim();
+            var packingQ = (packingCode ?? string.Empty).Trim();
             var sorQ = (stockOutRequestId ?? string.Empty).Trim();
 
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -75,6 +77,8 @@ public class CustomsDeclarationsController : ControllerBase
 
             if (!string.IsNullOrEmpty(codeQ))
                 dq = dq.Where(d => EF.Functions.ILike(d.DeclarationCode, $"%{codeQ}%"));
+            if (!string.IsNullOrEmpty(packingQ))
+                dq = CustomsDeclarationPackingLookup.WherePackingCode(dq, _db, packingQ);
             if (!string.IsNullOrEmpty(sorQ))
             {
                 var decIdsForSor = await _db.CustomsDeclarationItems.AsNoTracking()
@@ -130,11 +134,19 @@ public class CustomsDeclarationsController : ControllerBase
                         r => r.Id.Trim(),
                         r => r.RequestCode?.Trim() ?? string.Empty,
                         StringComparer.OrdinalIgnoreCase);
+            var packingByDec = await CustomsDeclarationPackingLookup.LoadByDeclarationsAsync(
+                _db,
+                rows.Select(x => (x.d.Id, x.d.PackingId)).ToList());
             var list = rows.Select(x => new CustomsDeclarationListItemDto
             {
                 Id = x.d.Id,
                 DeclarationCode = x.d.DeclarationCode,
-                PackingId = x.d.PackingId,
+                PackingId = packingByDec.TryGetValue(x.d.Id.Trim(), out var packHit)
+                    ? packHit.Id
+                    : x.d.PackingId,
+                PackingCode = packingByDec.TryGetValue(x.d.Id.Trim(), out var packCode)
+                    ? packCode.Code
+                    : null,
                 StockOutRequestId = firstSorByDec.TryGetValue(x.d.Id, out var sor) ? sor : null,
                 StockOutRequestCode = firstSorByDec.TryGetValue(x.d.Id, out var sorId)
                     && !string.IsNullOrWhiteSpace(sorId)

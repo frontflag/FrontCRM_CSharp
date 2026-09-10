@@ -351,6 +351,8 @@ export const logisticsApi = {
     vendorName?: string
     /** 采购币种（CurrencyCode 1–6，按采购明细币别精确匹配） */
     purchaseCurrency?: number
+    /** 报关公司主键（精确匹配报关单 CustomsBrokerId） */
+    customsBrokerId?: string
     /** 按到货通知主键精确查（编辑/联动场景） */
     id?: string
     page?: number

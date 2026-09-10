@@ -50,6 +50,20 @@
             :value="v"
           />
         </el-select>
+        <el-select
+          v-model="filters.customsBrokerId"
+          clearable
+          :placeholder="t('arrivalNoticeList.filters.customsBrokerPlaceholder')"
+          class="customs-broker-select"
+          :teleported="false"
+        >
+          <el-option
+            v-for="b in customsBrokers"
+            :key="b.id"
+            :label="b.cname"
+            :value="b.id"
+          />
+        </el-select>
         <div class="search-input-wrap">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="search-icon">
             <circle cx="11" cy="11" r="8" />
@@ -456,6 +470,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Setting, ArrowRight } from '@element-plus/icons-vue'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
+import { fetchCustomsBrokers, type CustomsBrokerDto } from '@/api/customs'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { useRouter, useRoute } from 'vue-router'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
@@ -576,6 +591,8 @@ const detailNotice = ref<StockInNotifyDto | null>(null)
 
 /** 标签区至少单行容纳 6 个汉字 */
 const arrivalDetailLabelStyle = { minWidth: '8.5em', whiteSpace: 'nowrap' as const }
+const customsBrokers = ref<CustomsBrokerDto[]>([])
+
 const filters = ref<{
   status?: number
   stockInType?: number
@@ -584,6 +601,7 @@ const filters = ref<{
   pn: string
   vendorName: string
   purchaseCurrency?: number
+  customsBrokerId?: string
   expectedArrivalDate: string
 }>({
   status: undefined,
@@ -593,6 +611,7 @@ const filters = ref<{
   pn: '',
   vendorName: '',
   purchaseCurrency: undefined,
+  customsBrokerId: undefined,
   expectedArrivalDate: ''
 })
 
@@ -841,6 +860,8 @@ function collectKeywordQuery(): Record<string, string> {
   }
   const ccy = filters.value.purchaseCurrency
   if (ccy != null && isKnownPurchaseCurrency(ccy)) keywords.purchaseCurrency = String(ccy)
+  const brokerId = (filters.value.customsBrokerId ?? '').trim()
+  if (brokerId) keywords.customsBrokerId = brokerId
   return keywords
 }
 
@@ -874,6 +895,8 @@ function syncFiltersFromRoute() {
   filters.value.vendorName = typeof q.vendorName === 'string' ? q.vendorName : ''
   const ccy = typeof q.purchaseCurrency === 'string' ? Number(q.purchaseCurrency) : NaN
   filters.value.purchaseCurrency = isKnownPurchaseCurrency(ccy) ? ccy : undefined
+  filters.value.customsBrokerId =
+    typeof q.customsBrokerId === 'string' && q.customsBrokerId.trim() ? q.customsBrokerId.trim() : undefined
 
   const preset = activePreset.value
   if (preset) {
@@ -916,6 +939,7 @@ function applyArrivalList(resetPage: boolean) {
       filters.value.purchaseCurrency != null && isKnownPurchaseCurrency(filters.value.purchaseCurrency)
         ? filters.value.purchaseCurrency
         : undefined,
+    customsBrokerId: (filters.value.customsBrokerId ?? '').trim() || undefined,
     id: noticeIdFromRoute,
     page: listPage.value,
     pageSize: listPageSize.value
@@ -1058,6 +1082,14 @@ watch(
   { deep: true, immediate: true }
 )
 
+async function loadCustomsBrokers(includeId?: string) {
+  try {
+    customsBrokers.value = await fetchCustomsBrokers({ includeId })
+  } catch {
+    customsBrokers.value = []
+  }
+}
+
 onMounted(async () => {
   arrivalNoticeOpsStore.registerHandlers({
     confirmArrived: (row) => {
@@ -1072,7 +1104,18 @@ onMounted(async () => {
   } catch {
     /* 字典失败时仍回退显示原始码 */
   }
+  await loadCustomsBrokers(filters.value.customsBrokerId)
 })
+
+watch(
+  () => filters.value.customsBrokerId,
+  (id) => {
+    const key = (id ?? '').trim()
+    if (key && !customsBrokers.value.some((b) => b.id === key)) {
+      void loadCustomsBrokers(key)
+    }
+  }
+)
 
 onBeforeUnmount(() => {
   arrivalNoticeOpsStore.unregisterHandlers()
@@ -1221,7 +1264,8 @@ html[data-theme='dark'] .inv-list-qty {
 
 .status-select,
 .arrival-type-select,
-.purchase-currency-select {
+.purchase-currency-select,
+.customs-broker-select {
   width: 140px;
   :deep(.el-select__wrapper) {
     background: $layer-2 !important;
@@ -1235,6 +1279,10 @@ html[data-theme='dark'] .inv-list-qty {
   :deep(.el-select__selected-item) {
     color: $text-primary !important;
   }
+}
+
+.customs-broker-select {
+  width: 200px;
 }
 
 .filter-date-single {

@@ -16,6 +16,7 @@ public interface IArrivalNoticeListQuery
         string? pn,
         string? vendorName,
         short? purchaseCurrency,
+        string? customsBrokerId,
         int page,
         int pageSize,
         string? currentUserId = null,

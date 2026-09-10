@@ -21,6 +21,12 @@
           />
         </div>
         <input
+          v-model="filters.packingCode"
+          class="search-input search-input--filter"
+          :placeholder="t('customsPages.items.filterPackingCode')"
+          @keyup.enter="handleSearch"
+        />
+        <input
           v-model="filters.purchasePn"
           class="search-input search-input--filter"
           :placeholder="t('customsPages.items.filterPn')"
@@ -68,7 +74,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="customs-declaration-item-list-main-v4"
+      column-layout-key="customs-declaration-item-list-main-v5"
       :columns="tableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -90,6 +96,17 @@
           {{ row.declarationCode || '—' }}
         </router-link>
         <span v-else>{{ row.declarationCode || '—' }}</span>
+      </template>
+      <template #col-packingCode="{ row }">
+        <router-link
+          v-if="row.packingId?.trim() && row.packingCode?.trim()"
+          class="link-text"
+          :to="{ name: 'PackingDetail', params: { id: row.packingId.trim() } }"
+          @click.stop
+        >
+          {{ row.packingCode.trim() }}
+        </router-link>
+        <span v-else>{{ row.packingCode?.trim() || '—' }}</span>
       </template>
       <template #col-customerName="{ row }">
         <span>{{ row.customerName || '—' }}</span>
@@ -269,6 +286,7 @@ const query = reactive({ page: 1, pageSize: 20 })
 
 const filters = reactive({
   declarationCode: '',
+  packingCode: '',
   purchasePn: '',
   customer: '',
   salesUserId: '',
@@ -296,6 +314,14 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
       prop: 'declarationCode',
       width: colW(t('customsPages.items.colDecCode'), 8),
       minWidth: colW(t('customsPages.items.colDecCode'), 8)
+    },
+    {
+      key: 'packingCode',
+      label: t('customsPages.items.colPackingCode'),
+      prop: 'packingCode',
+      width: colW(t('customsPages.items.colPackingCode'), 8),
+      minWidth: colW(t('customsPages.items.colPackingCode'), 8),
+      showOverflowTooltip: true
     },
     {
       key: 'customerName',
@@ -496,6 +522,7 @@ function handleSearch() {
 
 function resetFilters() {
   filters.declarationCode = ''
+  filters.packingCode = ''
   filters.purchasePn = ''
   filters.customer = ''
   filters.salesUserId = ''
@@ -510,6 +537,7 @@ async function load() {
   try {
     const params: Record<string, unknown> = { take: 500 }
     if (filters.declarationCode.trim()) params.declarationCode = filters.declarationCode.trim()
+    if (filters.packingCode.trim()) params.packingCode = filters.packingCode.trim()
     if (filters.purchasePn.trim()) params.purchasePn = filters.purchasePn.trim()
     if (filters.customer.trim()) params.customer = filters.customer.trim()
     if (filters.salesUserId.trim()) params.salesUserId = filters.salesUserId.trim()

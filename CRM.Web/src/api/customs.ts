@@ -105,6 +105,8 @@ export interface CreateCustomsOutNotifyResultDto {
 export interface CustomsDeclarationListItemDto {
   id: string
   declarationCode: string
+  packingId?: string | null
+  packingCode?: string | null
   stockOutRequestId?: string | null
   stockOutRequestCode?: string | null
   customsBrokerId: string
@@ -124,6 +126,8 @@ export interface CustomsDeclarationItemListItemDto {
   id: string
   declarationId: string
   declarationCode: string
+  packingId?: string | null
+  packingCode?: string | null
   declareDate: string
   lineNo: number
   stockOutRequestId: string
@@ -257,6 +261,16 @@ export interface CustomsDeclarationDetailDto {
 
 export async function fetchCustomsBrokersAdmin(): Promise<CustomsBrokerDto[]> {
   const raw = await apiClient.get<unknown>('/api/v1/customs-brokers', { params: { all: true } })
+  const list = Array.isArray(raw) ? raw : []
+  return list.map(normalizeCustomsBroker).filter((x): x is CustomsBrokerDto => x != null)
+}
+
+/** 启用报关公司下拉；`includeId` 用于补入当前已选但已停用的公司。 */
+export async function fetchCustomsBrokers(opts?: { includeId?: string | null }): Promise<CustomsBrokerDto[]> {
+  const includeId = opts?.includeId?.trim()
+  const raw = await apiClient.get<unknown>('/api/v1/customs-brokers', {
+    params: includeId ? { includeId } : undefined
+  })
   const list = Array.isArray(raw) ? raw : []
   return list.map(normalizeCustomsBroker).filter((x): x is CustomsBrokerDto => x != null)
 }
