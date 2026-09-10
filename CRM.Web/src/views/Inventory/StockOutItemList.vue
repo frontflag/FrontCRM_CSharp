@@ -243,7 +243,7 @@
       v-show="viewMode === 'list'"
       ref="dataTableRef"
       class="stockout-item-list-crm-table"
-      column-layout-key="stock-out-item-list-main-v1"
+      column-layout-key="stock-out-item-list-main-v2"
       :columns="stockOutItemTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -253,33 +253,47 @@
       :row-class-name="highlightRowClassName"
       @row-dblclick="onRowDblclick"
       @row-click="onRowClick"
+      @header-dragend="onStockOutItemTableHeaderDragEnd"
     >
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
+      </template>
       <template #col-stockOutCode="{ row }">
         <router-link
           v-if="row.stockOutId?.trim() && row.stockOutCode?.trim()"
-          class="link-text mono-cell"
+          class="link-text"
           :to="`/inventory/stock-out/${encodeURIComponent(row.stockOutId.trim())}`"
           @click.stop
         >
           {{ row.stockOutCode.trim() }}
         </router-link>
-        <span v-else class="mono-cell">{{ row.stockOutCode || t('quoteList.na') }}</span>
+        <span v-else>{{ row.stockOutCode || t('quoteList.na') }}</span>
       </template>
       <template #col-stockOutItemCode="{ row }">{{ row.stockOutItemCode || t('quoteList.na') }}</template>
       <template #col-stockInCode="{ row }">{{ row.stockInCode || t('quoteList.na') }}</template>
       <template #col-packingCode="{ row }">
         <router-link
           v-if="row.packingId?.trim() && row.packingCode?.trim()"
-          class="link-text mono-cell"
+          class="link-text"
           :to="`/inventory/packing/${row.packingId.trim()}`"
           @click.stop
         >
           {{ row.packingCode.trim() }}
         </router-link>
-        <span v-else-if="row.packingCode?.trim()" class="mono-cell">{{ row.packingCode.trim() }}</span>
+        <span v-else-if="row.packingCode?.trim()">{{ row.packingCode.trim() }}</span>
         <span v-else>{{ t('quoteList.na') }}</span>
       </template>
       <template #col-freightForwarderOrderNo="{ row }">
@@ -313,7 +327,12 @@
         <span class="so-item-list-qty">{{ formatQtyCell(row.outQuantity) }}</span>
       </template>
       <template #col-stockOutType="{ row }">
-        <StockBizTypeTag biz="out" :type="row.stockOutType" />
+        <StockBizTypeTag
+          biz="out"
+          :type="row.stockOutType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-shipmentMethod="{ row }">{{ shipmentMethodDisplay(row.shipmentMethod) }}</template>
       <template #col-courierTrackingNo="{ row }">{{ row.courierTrackingNo || t('quoteList.na') }}</template>
@@ -370,6 +389,9 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { buildStockOutItemListColumns } from '@/composables/buildStockOutItemListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
@@ -467,7 +489,32 @@ function shipmentMethodDisplay(code?: string | number | null): string {
 
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
-const stockOutItemTableColumns = computed<CrmTableColumnDef[]>(() => buildStockOutItemListColumns({ t }))
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
+
+function onStockOutItemTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
+}
+
+const stockOutItemTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
+  return buildStockOutItemListColumns({
+    t,
+    customsExtendColWidth: customsExtendColWidth.value,
+    customsExtendColMinWidth: customsExtendColMinWidth.value
+  })
+})
 
 const tabModeDimension = ref<StockOutItemListTabModeDimension>(readStockOutItemListTabMode())
 const settingsMenuOpen = ref(false)
@@ -1011,11 +1058,6 @@ onBeforeUnmount(() => {
     text-decoration: underline;
     cursor: pointer;
   }
-}
-
-.mono-cell {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 12px;
 }
 
 .so-item-list-qty {

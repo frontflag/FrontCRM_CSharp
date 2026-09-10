@@ -256,6 +256,19 @@
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
+      </template>
       <template #col-materialModel="{ row }">
         <CrmListCopyableTextCell :text="stockInMaterialModelCopyValue(row)" />
       </template>
@@ -267,6 +280,18 @@
         <span class="text-secondary">{{ formatDate(row.stockInDate) }}</span>
       </template>
       <template #col-totalQuantity="{ row }">{{ formatNum(row.totalQuantity) }}</template>
+      <template #col-unitPrice="{ row }">
+        <span v-if="maskPurchaseSensitiveFields">—</span>
+        <span v-else class="amount-with-code">
+          <span>{{ stockInUnitPriceText(row) }}</span>
+          <template v-if="stockInUnitPriceText(row) !== '—' && stockInUnitPriceCurrencyCode(row) != null">
+            <span class="dock-tier-ccy-gap">&nbsp;</span>
+            <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(stockInUnitPriceCurrencyCode(row))]">
+              {{ listAmountCurrencyIso(stockInUnitPriceCurrencyCode(row)) }}
+            </span>
+          </template>
+        </span>
+      </template>
       <template #col-hasBatchEntered="{ row }">
         <span :class="row.hasBatchEntered ? 'batch-flag batch-flag--yes' : 'batch-flag batch-flag--no'">
           {{ row.hasBatchEntered ? t('stockInList.hasBatchEntered.yes') : t('stockInList.hasBatchEntered.no') }}
@@ -288,7 +313,15 @@
       </template>
       <template #col-totalAmount="{ row }">
         <span v-if="maskPurchaseSensitiveFields">—</span>
-        <span v-else>{{ formatMoney(row.totalAmount) }}<template v-if="stockInCurrencyLabel(row)"><span class="text-secondary"> {{ stockInCurrencyLabel(row) }}</span></template></span>
+        <span v-else class="amount-with-code">
+          <span>{{ formatTotalAmountNumber(row.totalAmount) }}</span>
+          <template v-if="formatTotalAmountNumber(row.totalAmount) !== '—' && stockInAmountCurrencyCode(row) != null">
+            <span class="dock-tier-ccy-gap">&nbsp;</span>
+            <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(stockInAmountCurrencyCode(row))]">
+              {{ listAmountCurrencyIso(stockInAmountCurrencyCode(row)) }}
+            </span>
+          </template>
+        </span>
       </template>
       <template #col-createTime="{ row }">{{ formatDate((row as any).createTime || (row as any).createdAt) }}</template>
       <template #col-createUser="{ row }">{{ (row as any).createUserName || (row as any).createdBy || t('quoteList.na') }}</template>
@@ -392,6 +425,12 @@ import { stockInApi, type StockInListItemDto } from '@/api/stockIn'
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import {
+  formatTotalAmountNumber,
+  formatUnitPriceNumber,
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso
+} from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -400,6 +439,9 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import { StockInTypeCode, STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import {
   INVENTORY_WAREHOUSE_TAB_MAX,
@@ -443,14 +485,27 @@ const {
   setActiveField: setVendorExtendActiveField,
   applyOuterWidthFromTable: applyVendorExtendOuterWidth
 } = useVendorExtendColumn()
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
 
 function onStockInTableHeaderDragEnd(
   newWidth: number,
   _oldWidth: number,
   column: { property?: string; label?: string }
 ) {
-  if (!isVendorExtendTableColumn(column)) return
-  applyVendorExtendOuterWidth(newWidth)
+  if (isVendorExtendTableColumn(column)) {
+    applyVendorExtendOuterWidth(newWidth)
+    return
+  }
+  if (isCustomsExtendTableColumn(column)) {
+    applyCustomsExtendOuterWidth(newWidth)
+  }
 }
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 
@@ -487,8 +542,19 @@ function toggleOpCol() {
 const stockInTableColumns = computed<CrmTableColumnDef[]>(() => {
   void vendorExtendExpanded.value
   void vendorExtendColWidth.value
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
   return [
   { key: 'status', label: t('stockInList.columns.status'), prop: 'status', width: 110, align: 'center' },
+  {
+    key: 'customs',
+    label: t('common.customsExtendCol.columnTitle'),
+    prop: 'customs',
+    minWidth: customsExtendColMinWidth.value,
+    width: customsExtendColWidth.value,
+    className: 'customs-extend-col',
+    labelClassName: 'customs-extend-col'
+  },
   {
     key: 'stockInType',
     label: t('stockInList.columns.stockInType'),
@@ -514,6 +580,7 @@ const stockInTableColumns = computed<CrmTableColumnDef[]>(() => {
   },
   { key: 'stockInDate', label: t('stockInList.columns.stockInDate'), prop: 'stockInDate', width: 160 },
   { key: 'totalQuantity', label: t('stockInList.columns.totalQuantity'), prop: 'totalQuantity', width: 110, align: 'right' },
+  { key: 'unitPrice', label: t('stockInList.columns.unitPrice'), prop: 'unitPriceSummary', width: 140, align: 'right' },
   { key: 'hasBatchEntered', label: t('stockInList.columns.hasBatchEntered'), prop: 'hasBatchEntered', width: 120, align: 'center' },
   { key: 'totalAmount', label: t('stockInList.columns.totalAmount'), prop: 'totalAmount', width: 130, align: 'right' },
   { key: 'remark', label: t('stockInList.columns.remark'), prop: 'remark', minWidth: 160, showOverflowTooltip: true },
@@ -752,7 +819,6 @@ const remarkForm = reactive<{ id: string; remark: string }>({
 })
 
 const formatNum = (v: number) => (v == null ? t('quoteList.na') : Number(v).toLocaleString())
-const formatMoney = (v: number) => (v == null ? t('quoteList.na') : Number(v).toFixed(2))
 const formatDate = (v?: string) => formatDisplayDateTime(v)
 
 function pickRowStr(row: Record<string, unknown>, camel: string, pascal: string): string {
@@ -770,14 +836,31 @@ const stockInMaterialBrandCopyValue = (row: StockInListItemDto) => {
   return pickRowStr(r, 'materialBrandSummary', 'MaterialBrandSummary')
 }
 
-/** 列表金额后展示的 ISO 币别（RMB/USD 等）；无编码时返回空串 */
-const stockInCurrencyLabel = (row: StockInListItemDto) => {
+function pickRowCurrencyCode(row: StockInListItemDto, camel: string, pascal: string): number | null {
   const r = row as unknown as Record<string, unknown>
-  const raw = r.currencyCode ?? r.CurrencyCode
-  if (raw == null || raw === '') return ''
+  const raw = r[camel] ?? r[pascal]
+  if (raw == null || raw === '') return null
   const n = Number(raw)
-  if (Number.isNaN(n)) return ''
-  return CURRENCY_CODE_TO_TEXT[n] ?? String(n)
+  return Number.isFinite(n) ? n : null
+}
+
+const stockInAmountCurrencyCode = (row: StockInListItemDto) =>
+  pickRowCurrencyCode(row, 'currencyCode', 'CurrencyCode')
+
+const stockInUnitPriceCurrencyCode = (row: StockInListItemDto) =>
+  pickRowCurrencyCode(row, 'unitPriceCurrencyCode', 'UnitPriceCurrencyCode')
+  ?? stockInAmountCurrencyCode(row)
+
+const stockInUnitPriceText = (row: StockInListItemDto) => {
+  const r = row as unknown as Record<string, unknown>
+  const raw = r.unitPriceSummary ?? r.UnitPriceSummary
+  if (raw == null || String(raw).trim() === '') return '—'
+  const parts = String(raw)
+    .split(',')
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+  if (parts.length === 0) return '—'
+  return parts.map((p) => formatUnitPriceNumber(p)).join(', ')
 }
 
 const statusLabel = (s: number) => {
@@ -1367,6 +1450,10 @@ const handleForceDeleteRow = async (row: StockInListItemDto) => {
   &:hover { text-decoration: underline; }
 }
 .text-secondary { color: $text-muted; }
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+}
 .status-badge {
   display: inline-block;
   padding: 2px 8px;

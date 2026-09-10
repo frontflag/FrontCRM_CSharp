@@ -257,16 +257,44 @@ public class PackingService : IPackingService
             .Cast<string>()
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        var decCodeById = decIds.Count == 0
-            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        var decRows = decIds.Count == 0
+            ? new List<(string Id, string Code, string? BrokerId, short Clearance)>()
             : (await _db.CustomsDeclarations.AsNoTracking()
                     .Where(d => decIds.Contains(d.Id) && !d.IsDeleted)
-                    .Select(d => new { d.Id, d.DeclarationCode })
+                    .Select(d => new { d.Id, d.DeclarationCode, d.CustomsBrokerId, d.CustomsClearanceStatus })
+                    .ToListAsync(cancellationToken))
+                .Select(d => (
+                    Id: d.Id.Trim(),
+                    Code: d.DeclarationCode.Trim(),
+                    BrokerId: string.IsNullOrWhiteSpace(d.CustomsBrokerId) ? null : d.CustomsBrokerId.Trim(),
+                    Clearance: d.CustomsClearanceStatus))
+                .ToList();
+        var decCodeById = decRows.ToDictionary(d => d.Id, d => d.Code, StringComparer.OrdinalIgnoreCase);
+        var decClearanceById = decRows.ToDictionary(d => d.Id, d => d.Clearance, StringComparer.OrdinalIgnoreCase);
+        var brokerIds = decRows
+            .Select(d => d.BrokerId)
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var brokerNameById = brokerIds.Count == 0
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.CustomsBrokers.AsNoTracking()
+                    .Where(b => brokerIds.Contains(b.Id))
+                    .Select(b => new { b.Id, b.Cname })
                     .ToListAsync(cancellationToken))
                 .ToDictionary(
-                    d => d.Id.Trim(),
-                    d => d.DeclarationCode.Trim(),
+                    b => b.Id.Trim(),
+                    b => (b.Cname ?? string.Empty).Trim(),
                     StringComparer.OrdinalIgnoreCase);
+        var decBrokerById = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dec in decRows)
+        {
+            string? brokerName = null;
+            if (!string.IsNullOrEmpty(dec.BrokerId))
+                brokerNameById.TryGetValue(dec.BrokerId, out brokerName);
+            decBrokerById[dec.Id] = string.IsNullOrWhiteSpace(brokerName) ? null : brokerName;
+        }
 
         static string? FormatUserName(User? user) =>
             user == null
@@ -308,13 +336,20 @@ public class PackingService : IPackingService
 
             string? customsDeclarationId = null;
             string? customsDeclarationCode = null;
+            string? customsBrokerName = null;
+            short? customsClearanceStatus = null;
             if (StockOutTypeCode.NormalizeForNotify(pk.StockOutType) == StockOutTypeCode.Customs)
             {
                 customsDeclarationId = string.IsNullOrWhiteSpace(pk.CustomsDeclarationId)
                     ? null
                     : pk.CustomsDeclarationId.Trim();
                 if (!string.IsNullOrEmpty(customsDeclarationId))
+                {
                     decCodeById.TryGetValue(customsDeclarationId, out customsDeclarationCode);
+                    decBrokerById.TryGetValue(customsDeclarationId, out customsBrokerName);
+                    if (decClearanceById.TryGetValue(customsDeclarationId, out var clearance))
+                        customsClearanceStatus = clearance;
+                }
             }
 
             soCustomerNameByPackingId.TryGetValue(pk.Id.Trim(), out var soCustomerName);
@@ -345,7 +380,9 @@ public class PackingService : IPackingService
                 ShipCompany = ship?.ShipCompany,
                 ShipAddress = ship?.ShipAddress,
                 CustomsDeclarationId = customsDeclarationId,
-                CustomsDeclarationCode = customsDeclarationCode
+                CustomsDeclarationCode = customsDeclarationCode,
+                CustomsBrokerName = customsBrokerName,
+                CustomsClearanceStatus = customsClearanceStatus
             });
         }
 

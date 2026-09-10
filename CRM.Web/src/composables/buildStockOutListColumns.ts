@@ -1,4 +1,5 @@
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildCustomsExtendColumnDef } from '@/composables/buildCustomsExtendColumnDef'
 
 export type BuildStockOutListColumnsParams = {
   t: (key: string, ...args: unknown[]) => string
@@ -9,6 +10,8 @@ export type BuildStockOutListColumnsParams = {
   withCustomerExtend?: boolean
   customerExtendColWidth?: number
   customerExtendColMinWidth?: number
+  customsExtendColWidth?: number
+  customsExtendColMinWidth?: number
 }
 
 /** 与 `StockOutList.vue` 中 CrmDataTable 列配置一致，供列表页与嵌入场景复用。 */
@@ -40,6 +43,11 @@ export function buildStockOutListColumns(p: BuildStockOutListColumnsParams): Crm
       showOverflowTooltip: true
     },
     { key: 'status', label: p.t('stockOutList.columns.status'), prop: 'status', width: 110, align: 'center' },
+    buildCustomsExtendColumnDef(
+      p.t,
+      p.customsExtendColWidth ?? 160,
+      p.customsExtendColMinWidth ?? 160
+    ),
     {
       key: 'stockOutType',
       label: p.t('stockOutList.columns.stockOutType'),

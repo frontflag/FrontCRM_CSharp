@@ -25,9 +25,19 @@ public interface ICustomsTraceQuery
         IReadOnlyList<StockOutRequestListItemDto> rows,
         CancellationToken cancellationToken = default);
 
-    /// <summary>出库单列表：回填报关单号（不写库）。</summary>
+    /// <summary>出库单列表：回填报关单号与报关公司（不写库）。</summary>
     Task EnrichStockOutListItemsAsync(
         IReadOnlyList<StockOutListItemDto> rows,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>出库明细列表：回填报关单号与报关公司（不写库）。</summary>
+    Task EnrichStockOutItemListItemsAsync(
+        IReadOnlyList<StockOutItemListRowDto> rows,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>库存明细列表：按入库单溯源回填报关字段（不写库）。</summary>
+    Task EnrichStockItemListItemsAsync(
+        IReadOnlyList<InventoryStockItemListRowDto> rows,
         CancellationToken cancellationToken = default);
 
     /// <summary>报关出库通知详情：轻量报关摘要（报关单 + 报关公司）。</summary>

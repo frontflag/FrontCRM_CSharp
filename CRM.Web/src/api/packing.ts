@@ -56,6 +56,8 @@ export interface PackingListItem {
   shipAddress?: string | null
   customsDeclarationId?: string | null
   customsDeclarationCode?: string | null
+  customsBrokerName?: string | null
+  customsClearanceStatus?: number | null
 }
 
 /** 装箱流程出库站：与装箱行对齐的出库明细 */
@@ -339,7 +341,12 @@ export function normalizePackingListItem(row: unknown): PackingListItem {
     shipCompany: (r.shipCompany ?? r.ShipCompany) as string | null | undefined,
     shipAddress: (r.shipAddress ?? r.ShipAddress) as string | null | undefined,
     customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
-    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined
+    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined,
+    customsBrokerName: (r.customsBrokerName ?? r.CustomsBrokerName) as string | null | undefined,
+    customsClearanceStatus:
+      r.customsClearanceStatus != null || r.CustomsClearanceStatus != null
+        ? Number(r.customsClearanceStatus ?? r.CustomsClearanceStatus)
+        : null
   }
 }
 

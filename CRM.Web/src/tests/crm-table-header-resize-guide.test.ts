@@ -72,6 +72,12 @@ describe('header target helpers', () => {
     document.body.appendChild(resizer)
     expect(isHeaderResizeControlTarget(resizer)).toBe(true)
 
+    const customsResizer = document.createElement('span')
+    customsResizer.className = 'customs-extend-sub-col-resizer'
+    document.body.appendChild(customsResizer)
+    expect(isHeaderResizeControlTarget(customsResizer)).toBe(true)
+    customsResizer.remove()
+
     const th = document.createElement('th')
     th.className = 'el-table__cell'
     const wrap = document.createElement('div')

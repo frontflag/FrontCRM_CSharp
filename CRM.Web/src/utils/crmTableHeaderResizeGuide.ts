@@ -7,12 +7,13 @@ export const CRM_COL_RESIZE_MIN_PX = 30
 export const CRM_COL_RESIZE_MAX_PX = 4000
 
 const SUB_COL_RESIZER_SELECTOR =
-  '.customer-extend-sub-col-resizer, .vendor-extend-sub-col-resizer'
+  '.customer-extend-sub-col-resizer, .vendor-extend-sub-col-resizer, .customs-extend-sub-col-resizer'
 
 const HEADER_CONTROL_SELECTOR = [
   SUB_COL_RESIZER_SELECTOR,
   '.customer-extend-col-toggle-btn',
   '.vendor-extend-col-toggle-btn',
+  '.customs-extend-col-toggle-btn',
   '.op-col-toggle-btn',
   '.op-col-header'
 ].join(', ')

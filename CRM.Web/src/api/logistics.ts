@@ -52,6 +52,8 @@ export interface StockInNotifyDto {
   customsDeclarationCode?: string | null
   /** 报关入库时关联报关公司名称（列表/操作面板展示） */
   customsBrokerName?: string | null
+  /** 关联报关单海关状态（0未维护 10放行 100已结关） */
+  customsClearanceStatus?: number | null
   createTime: string
   modifyTime?: string
   createUserName?: string | null
@@ -108,6 +110,10 @@ export function normalizeStockInNotifyRow(row: unknown): StockInNotifyDto {
     customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
     customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined,
     customsBrokerName: (r.customsBrokerName ?? r.CustomsBrokerName) as string | null | undefined,
+    customsClearanceStatus:
+      r.customsClearanceStatus != null || r.CustomsClearanceStatus != null
+        ? Number(r.customsClearanceStatus ?? r.CustomsClearanceStatus)
+        : null,
     createTime: String(r.createTime ?? r.CreateTime ?? ''),
     modifyTime: (r.modifyTime ?? r.ModifyTime) as string | undefined,
     createUserName: (r.createUserName ?? r.CreateUserName) as string | null | undefined,
@@ -142,6 +148,10 @@ export interface QcInfoDto {
   customsDeclarationId?: string | null
   /** 关联报关单号（报关质检 Type=20） */
   customsDeclarationCode?: string | null
+  /** 报关公司名称（展示用） */
+  customsBrokerName?: string | null
+  /** 关联报关单海关状态（0未维护 10放行 100已结关） */
+  customsClearanceStatus?: number | null
   /** 质检保存的计划入库日（ISO）；生成入库单时优先使用 */
   stockInPlanDate?: string | null
   /** 部分接口仍返回 PascalCase */

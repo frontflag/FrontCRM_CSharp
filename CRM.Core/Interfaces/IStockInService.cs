@@ -54,6 +54,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>报关入库时关联报关公司名称（展示用，溯源填充）。</summary>
         public string? CustomsBrokerName { get; set; }
+
+        /// <summary>关联报关单海关状态（<see cref="CRM.Core.Constants.CustomsClearanceStatusCodes"/>）。</summary>
+        public short? CustomsClearanceStatus { get; set; }
     }
 
     /// <summary>

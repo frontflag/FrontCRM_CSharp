@@ -45,6 +45,25 @@ const zhCN = {
         code: '编号'
       }
     },
+    customsExtendCol: {
+      columnTitle: '报关',
+      expand: '展开报关列',
+      collapse: '收起报关列',
+      pickField: '选择显示字段',
+      resizeSubCol: '拖动调整子列宽度',
+      fields: {
+        icon: '报关图标',
+        declarationCode: '报关单号',
+        broker: '报关公司',
+        status: '报关状态'
+      },
+      fieldShort: {
+        icon: '图标',
+        declarationCode: '报关单号',
+        broker: '报关公司',
+        status: '报关状态'
+      }
+    },
     vendorExtendCol: {
       columnTitle: '供应商',
       expand: '展开供应商列',
@@ -8138,6 +8157,7 @@ const zhCN = {
       salesOrderCode: '销售订单号',
       stockInDate: '入库日期',
       totalQuantity: '入库数量',
+      unitPrice: '入库单价',
       hasBatchEntered: '是否录入批次',
       totalAmount: '入库金额',
       remark: '备注',

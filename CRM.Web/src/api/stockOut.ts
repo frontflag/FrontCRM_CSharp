@@ -42,6 +42,10 @@ export interface StockOutDto {
   customsDeclarationId?: string | null
   /** 关联报关单号 */
   customsDeclarationCode?: string | null
+  /** 报关公司名称（展示用） */
+  customsBrokerName?: string | null
+  /** 关联报关单海关状态（0未维护 10放行 100已结关） */
+  customsClearanceStatus?: number | null
 }
 
 export interface StockOutCustomsSummaryDto {
@@ -568,6 +572,14 @@ export interface StockOutItemListRow {
   salesPrice?: number | null
   /** 销售币别（1=RMB 2=USD …） */
   salesCurrency?: number | null
+  /** 关联报关单主键（报关出库 Type=20） */
+  customsDeclarationId?: string | null
+  /** 关联报关单号 */
+  customsDeclarationCode?: string | null
+  /** 报关公司名称（展示用） */
+  customsBrokerName?: string | null
+  /** 关联报关单海关状态（0未维护 10放行 100已结关） */
+  customsClearanceStatus?: number | null
 }
 
 export interface StockOutRequestDto {
@@ -735,7 +747,12 @@ export function normalizeStockOutListRow(row: unknown): StockOutDto {
     salesStockOutNotifyId: (r.salesStockOutNotifyId ?? r.SalesStockOutNotifyId) as string | null | undefined,
     salesStockOutNotifyCode: (r.salesStockOutNotifyCode ?? r.SalesStockOutNotifyCode) as string | null | undefined,
     customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
-    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined
+    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined,
+    customsBrokerName: (r.customsBrokerName ?? r.CustomsBrokerName) as string | null | undefined,
+    customsClearanceStatus:
+      r.customsClearanceStatus != null || r.CustomsClearanceStatus != null
+        ? Number(r.customsClearanceStatus ?? r.CustomsClearanceStatus)
+        : null
   }
 }
 
@@ -835,7 +852,14 @@ function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
     salesPrice:
       r.salesPrice != null || r.SalesPrice != null ? Number(r.salesPrice ?? r.SalesPrice) : null,
     salesCurrency:
-      r.salesCurrency != null || r.SalesCurrency != null ? Number(r.salesCurrency ?? r.SalesCurrency) : null
+      r.salesCurrency != null || r.SalesCurrency != null ? Number(r.salesCurrency ?? r.SalesCurrency) : null,
+    customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
+    customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined,
+    customsBrokerName: (r.customsBrokerName ?? r.CustomsBrokerName) as string | null | undefined,
+    customsClearanceStatus:
+      r.customsClearanceStatus != null || r.CustomsClearanceStatus != null
+        ? Number(r.customsClearanceStatus ?? r.CustomsClearanceStatus)
+        : null
   }
 }
 

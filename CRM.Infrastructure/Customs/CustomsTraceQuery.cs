@@ -53,16 +53,17 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         var decById = decIds.Count == 0
-            ? new Dictionary<string, (string Code, string? BrokerId)>(StringComparer.OrdinalIgnoreCase)
+            ? new Dictionary<string, (string Code, string? BrokerId, short Clearance)>(StringComparer.OrdinalIgnoreCase)
             : (await _db.CustomsDeclarations.AsNoTracking()
                 .Where(d => decIds.Contains(d.Id) && !d.IsDeleted)
-                .Select(d => new { d.Id, d.DeclarationCode, d.CustomsBrokerId })
+                .Select(d => new { d.Id, d.DeclarationCode, d.CustomsBrokerId, d.CustomsClearanceStatus })
                 .ToListAsync(cancellationToken))
             .ToDictionary(
                 d => d.Id.Trim(),
                 d => (
                     Code: d.DeclarationCode.Trim(),
-                    BrokerId: string.IsNullOrWhiteSpace(d.CustomsBrokerId) ? null : d.CustomsBrokerId.Trim()),
+                    BrokerId: string.IsNullOrWhiteSpace(d.CustomsBrokerId) ? null : d.CustomsBrokerId.Trim(),
+                    Clearance: d.CustomsClearanceStatus),
                 StringComparer.OrdinalIgnoreCase);
 
         var brokerIds = decById.Values
@@ -122,7 +123,8 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
                 VendorId = vendorId,
                 VendorName = vendorName,
                 CustomsBrokerId = dec.BrokerId,
-                CustomsBrokerName = string.IsNullOrWhiteSpace(brokerName) ? null : brokerName
+                CustomsBrokerName = string.IsNullOrWhiteSpace(brokerName) ? null : brokerName,
+                CustomsClearanceStatus = dec.Clearance
             };
         }
 
@@ -161,6 +163,7 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
             row.CustomsBrokerName = string.IsNullOrWhiteSpace(trace.CustomsBrokerName)
                 ? null
                 : trace.CustomsBrokerName.Trim();
+            row.CustomsClearanceStatus = trace.CustomsClearanceStatus;
             if (string.IsNullOrWhiteSpace(row.VendorId) && !string.IsNullOrWhiteSpace(trace.VendorId))
                 row.VendorId = trace.VendorId;
             if (string.IsNullOrWhiteSpace(row.VendorName) && !string.IsNullOrWhiteSpace(trace.VendorName))
@@ -408,6 +411,303 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
                 continue;
             row.CustomsDeclarationId = trace.CustomsDeclarationId;
             row.CustomsDeclarationCode = trace.CustomsDeclarationCode;
+            row.CustomsBrokerName = string.IsNullOrWhiteSpace(trace.CustomsBrokerName)
+                ? null
+                : trace.CustomsBrokerName.Trim();
+            row.CustomsClearanceStatus = trace.CustomsClearanceStatus;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task EnrichStockOutItemListItemsAsync(
+        IReadOnlyList<StockOutItemListRowDto> rows,
+        CancellationToken cancellationToken = default)
+    {
+        if (rows.Count == 0)
+            return;
+
+        var customsRows = rows
+            .Where(r => StockOutTypeCode.NormalizeForNotify(r.StockOutType) == StockOutTypeCode.Customs)
+            .ToList();
+        if (customsRows.Count == 0)
+            return;
+
+        var itemIds = customsRows
+            .Select(r => r.StockOutItemId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var extendByItemId = itemIds.Count == 0
+            ? new Dictionary<string, (string? CdiId, string? StockInItemId)>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.StockOutItemExtends.AsNoTracking()
+                .Where(e => itemIds.Contains(e.Id) && !e.IsDeleted)
+                .Select(e => new { e.Id, e.CustomsDeclarationItemId, e.StockInItemId })
+                .ToListAsync(cancellationToken))
+            .ToDictionary(
+                e => e.Id.Trim(),
+                e => (
+                    CdiId: string.IsNullOrWhiteSpace(e.CustomsDeclarationItemId) ? null : e.CustomsDeclarationItemId.Trim(),
+                    StockInItemId: string.IsNullOrWhiteSpace(e.StockInItemId) ? null : e.StockInItemId.Trim()),
+                StringComparer.OrdinalIgnoreCase);
+
+        var cdiIds = extendByItemId.Values
+            .Select(x => x.CdiId)
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (cdiIds.Count > 0)
+        {
+            var cdiToDecl = (await _db.CustomsDeclarationItems.AsNoTracking()
+                    .Where(i => cdiIds.Contains(i.Id) && !i.IsDeleted)
+                    .Select(i => new { i.Id, i.DeclarationId })
+                    .ToListAsync(cancellationToken))
+                .Where(i => !string.IsNullOrWhiteSpace(i.DeclarationId))
+                .ToDictionary(
+                    i => i.Id.Trim(),
+                    i => i.DeclarationId.Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+            var summaries = await LoadSummariesByDeclarationIdsAsync(cdiToDecl.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), cancellationToken);
+            foreach (var row in customsRows)
+            {
+                var itemId = row.StockOutItemId?.Trim();
+                if (string.IsNullOrEmpty(itemId) || !extendByItemId.TryGetValue(itemId, out var ext) || ext.CdiId == null)
+                    continue;
+                if (!cdiToDecl.TryGetValue(ext.CdiId, out var declId))
+                    continue;
+                if (!summaries.TryGetValue(declId, out var summary))
+                    continue;
+                ApplyStockOutItemCustoms(row, summary);
+            }
+        }
+
+        await ApplyPackingDeclarationsToStockOutItemRowsAsync(
+            customsRows.Where(r => string.IsNullOrWhiteSpace(r.CustomsDeclarationId)).ToList(),
+            r => r.PackingId,
+            cancellationToken);
+
+        var missing = customsRows
+            .Where(r => string.IsNullOrWhiteSpace(r.CustomsDeclarationId))
+            .ToList();
+        if (missing.Count == 0)
+            return;
+
+        var stockOutIds = missing
+            .Select(r => r.StockOutId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var sourceByOutId = stockOutIds.Count == 0
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.StockOuts.AsNoTracking()
+                    .Where(s => stockOutIds.Contains(s.Id) && !s.IsDeleted)
+                    .Select(s => new { s.Id, s.SourceId })
+                    .ToListAsync(cancellationToken))
+                .Where(s => !string.IsNullOrWhiteSpace(s.SourceId))
+                .ToDictionary(
+                    s => s.Id.Trim(),
+                    s => s.SourceId!.Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+
+        if (sourceByOutId.Count > 0)
+        {
+            var traceMap = await GetByStockOutNotifyIdsAsync(sourceByOutId.Values, cancellationToken);
+            foreach (var row in missing)
+            {
+                var outId = row.StockOutId?.Trim();
+                if (string.IsNullOrEmpty(outId) || !sourceByOutId.TryGetValue(outId, out var sourceId))
+                    continue;
+                if (!traceMap.TryGetValue(sourceId, out var trace))
+                    continue;
+                ApplyStockOutItemCustoms(row, trace);
+            }
+
+            // 按箱出库时 SourceId 是装箱单 Id，不是出库通知 Id。
+            var stillMissing = missing.Where(r => string.IsNullOrWhiteSpace(r.CustomsDeclarationId)).ToList();
+            if (stillMissing.Count > 0)
+            {
+                await ApplyPackingDeclarationsToStockOutItemRowsAsync(
+                    stillMissing,
+                    r =>
+                    {
+                        var outId = r.StockOutId?.Trim();
+                        return string.IsNullOrEmpty(outId) ? null : sourceByOutId.GetValueOrDefault(outId);
+                    },
+                    cancellationToken);
+            }
+        }
+
+        missing = customsRows
+            .Where(r => string.IsNullOrWhiteSpace(r.CustomsDeclarationId))
+            .ToList();
+        if (missing.Count == 0)
+            return;
+
+        var stockInItemIds = missing
+            .Select(r =>
+            {
+                var itemId = r.StockOutItemId?.Trim();
+                if (string.IsNullOrEmpty(itemId) || !extendByItemId.TryGetValue(itemId, out var ext))
+                    return null;
+                return ext.StockInItemId;
+            })
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (stockInItemIds.Count == 0)
+            return;
+
+        var stockInIdByItemId = (await _db.StockInItems.AsNoTracking()
+                .Where(i => stockInItemIds.Contains(i.Id) && !i.IsDeleted)
+                .Select(i => new { i.Id, i.StockInId })
+                .ToListAsync(cancellationToken))
+            .Where(i => !string.IsNullOrWhiteSpace(i.StockInId))
+            .ToDictionary(
+                i => i.Id.Trim(),
+                i => i.StockInId.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+        if (stockInIdByItemId.Count == 0)
+            return;
+
+        var notifyByStockInId = (await _db.StockIns.AsNoTracking()
+                .Where(s => stockInIdByItemId.Values.Contains(s.Id) && !s.IsDeleted)
+                .Select(s => new { s.Id, s.SourceId })
+                .ToListAsync(cancellationToken))
+            .Where(s => !string.IsNullOrWhiteSpace(s.SourceId))
+            .ToDictionary(
+                s => s.Id.Trim(),
+                s => s.SourceId!.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+        if (notifyByStockInId.Count == 0)
+            return;
+
+        var inboundTrace = await GetByStockInNotifyIdsAsync(notifyByStockInId.Values, cancellationToken);
+        foreach (var row in missing)
+        {
+            var itemId = row.StockOutItemId?.Trim();
+            if (string.IsNullOrEmpty(itemId) || !extendByItemId.TryGetValue(itemId, out var ext) || ext.StockInItemId == null)
+                continue;
+            if (!stockInIdByItemId.TryGetValue(ext.StockInItemId, out var stockInId))
+                continue;
+            if (!notifyByStockInId.TryGetValue(stockInId, out var notifyId))
+                continue;
+            if (!inboundTrace.TryGetValue(notifyId, out var trace))
+                continue;
+            ApplyStockOutItemCustoms(row, trace);
+        }
+    }
+
+    private async Task ApplyPackingDeclarationsToStockOutItemRowsAsync(
+        IReadOnlyList<StockOutItemListRowDto> rows,
+        Func<StockOutItemListRowDto, string?> packingIdSelector,
+        CancellationToken cancellationToken)
+    {
+        var packingIds = rows
+            .Select(r => packingIdSelector(r)?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (packingIds.Count == 0)
+            return;
+
+        var packingDecls = await _db.Packings.AsNoTracking()
+            .Where(p => packingIds.Contains(p.Id) && !p.IsDeleted)
+            .Select(p => new { p.Id, p.CustomsDeclarationId })
+            .ToListAsync(cancellationToken);
+        var packingToDecl = packingDecls
+            .Where(p => !string.IsNullOrWhiteSpace(p.CustomsDeclarationId))
+            .ToDictionary(
+                p => p.Id.Trim(),
+                p => p.CustomsDeclarationId!.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+        if (packingToDecl.Count == 0)
+            return;
+
+        var summaries = await LoadSummariesByDeclarationIdsAsync(packingToDecl.Values.Distinct(StringComparer.OrdinalIgnoreCase).ToList(), cancellationToken);
+        foreach (var row in rows)
+        {
+            var packingId = packingIdSelector(row)?.Trim();
+            if (string.IsNullOrEmpty(packingId) || !packingToDecl.TryGetValue(packingId, out var declId))
+                continue;
+            if (!summaries.TryGetValue(declId, out var summary))
+                continue;
+            ApplyStockOutItemCustoms(row, summary);
+        }
+    }
+
+    private static void ApplyStockOutItemCustoms(StockOutItemListRowDto row, StockOutCustomsSummaryDto summary)
+    {
+        row.CustomsDeclarationId = summary.DeclarationId;
+        row.CustomsDeclarationCode = summary.DeclarationCode;
+        row.CustomsBrokerName = string.IsNullOrWhiteSpace(summary.CustomsBrokerName)
+            ? null
+            : summary.CustomsBrokerName.Trim();
+        row.CustomsClearanceStatus = summary.CustomsClearanceStatus;
+    }
+
+    private static void ApplyStockOutItemCustoms(StockOutItemListRowDto row, CustomsTraceLinkDto trace)
+    {
+        row.CustomsDeclarationId = trace.CustomsDeclarationId;
+        row.CustomsDeclarationCode = trace.CustomsDeclarationCode;
+        row.CustomsBrokerName = string.IsNullOrWhiteSpace(trace.CustomsBrokerName)
+            ? null
+            : trace.CustomsBrokerName.Trim();
+        row.CustomsClearanceStatus = trace.CustomsClearanceStatus;
+    }
+
+    /// <inheritdoc />
+    public async Task EnrichStockItemListItemsAsync(
+        IReadOnlyList<InventoryStockItemListRowDto> rows,
+        CancellationToken cancellationToken = default)
+    {
+        if (rows.Count == 0)
+            return;
+
+        var customsRows = rows
+            .Where(r => StockInTypeCode.NormalizeForNotify(r.StockInType) == StockInTypeCode.Customs)
+            .ToList();
+        if (customsRows.Count == 0)
+            return;
+
+        var stockInIds = customsRows
+            .Select(r => r.StockInId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (stockInIds.Count == 0)
+            return;
+
+        var notifyByStockInId = (await _db.StockIns.AsNoTracking()
+                .Where(s => stockInIds.Contains(s.Id) && !s.IsDeleted)
+                .Select(s => new { s.Id, s.SourceId })
+                .ToListAsync(cancellationToken))
+            .Where(s => !string.IsNullOrWhiteSpace(s.SourceId))
+            .ToDictionary(
+                s => s.Id.Trim(),
+                s => s.SourceId!.Trim(),
+                StringComparer.OrdinalIgnoreCase);
+        if (notifyByStockInId.Count == 0)
+            return;
+
+        var traceMap = await GetByStockInNotifyIdsAsync(notifyByStockInId.Values, cancellationToken);
+        foreach (var row in customsRows)
+        {
+            var stockInId = row.StockInId?.Trim();
+            if (string.IsNullOrEmpty(stockInId) || !notifyByStockInId.TryGetValue(stockInId, out var notifyId))
+                continue;
+            if (!traceMap.TryGetValue(notifyId, out var trace))
+                continue;
+            row.CustomsDeclarationId = trace.CustomsDeclarationId;
+            row.CustomsDeclarationCode = trace.CustomsDeclarationCode;
+            row.CustomsBrokerName = string.IsNullOrWhiteSpace(trace.CustomsBrokerName)
+                ? null
+                : trace.CustomsBrokerName.Trim();
+            row.CustomsClearanceStatus = trace.CustomsClearanceStatus;
         }
     }
 
@@ -456,37 +756,62 @@ public sealed class CustomsTraceQuery : ICustomsTraceQuery
         string declarationId,
         CancellationToken cancellationToken)
     {
-        var declId = declarationId.Trim();
-        if (string.IsNullOrEmpty(declId))
-            return null;
+        var map = await LoadSummariesByDeclarationIdsAsync(new[] { declarationId }, cancellationToken);
+        return map.TryGetValue(declarationId.Trim(), out var summary) ? summary : null;
+    }
 
-        var dec = await _db.CustomsDeclarations.AsNoTracking()
-            .Where(d => d.Id == declId && !d.IsDeleted)
+    private async Task<IReadOnlyDictionary<string, StockOutCustomsSummaryDto>> LoadSummariesByDeclarationIdsAsync(
+        IReadOnlyList<string> declarationIds,
+        CancellationToken cancellationToken)
+    {
+        var idList = declarationIds
+            .Select(x => x?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Cast<string>()
+            .ToList();
+        if (idList.Count == 0)
+            return new Dictionary<string, StockOutCustomsSummaryDto>(StringComparer.OrdinalIgnoreCase);
+
+        var decs = await _db.CustomsDeclarations.AsNoTracking()
+            .Where(d => idList.Contains(d.Id) && !d.IsDeleted)
             .Select(d => new { d.Id, d.DeclarationCode, d.CustomsBrokerId, d.CustomsClearanceStatus })
-            .FirstOrDefaultAsync(cancellationToken);
-        if (dec == null)
-            return null;
+            .ToListAsync(cancellationToken);
+        var brokerIds = decs
+            .Select(d => d.CustomsBrokerId?.Trim())
+            .Where(x => !string.IsNullOrEmpty(x))
+            .Cast<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var brokerNameById = brokerIds.Count == 0
+            ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            : (await _db.CustomsBrokers.AsNoTracking()
+                    .Where(b => brokerIds.Contains(b.Id))
+                    .Select(b => new { b.Id, b.Cname })
+                    .ToListAsync(cancellationToken))
+                .ToDictionary(
+                    b => b.Id.Trim(),
+                    b => (b.Cname ?? string.Empty).Trim(),
+                    StringComparer.OrdinalIgnoreCase);
 
-        string? brokerName = null;
-        var brokerId = dec.CustomsBrokerId?.Trim();
-        if (!string.IsNullOrEmpty(brokerId))
+        var result = new Dictionary<string, StockOutCustomsSummaryDto>(StringComparer.OrdinalIgnoreCase);
+        foreach (var dec in decs)
         {
-            brokerName = await _db.CustomsBrokers.AsNoTracking()
-                .Where(b => b.Id == brokerId)
-                .Select(b => b.Cname)
-                .FirstOrDefaultAsync(cancellationToken);
-            if (!string.IsNullOrWhiteSpace(brokerName))
-                brokerName = brokerName.Trim();
+            var brokerId = dec.CustomsBrokerId?.Trim();
+            string? brokerName = null;
+            if (!string.IsNullOrEmpty(brokerId))
+                brokerNameById.TryGetValue(brokerId, out brokerName);
+            result[dec.Id.Trim()] = new StockOutCustomsSummaryDto
+            {
+                DeclarationId = dec.Id.Trim(),
+                DeclarationCode = dec.DeclarationCode.Trim(),
+                CustomsBrokerId = string.IsNullOrEmpty(brokerId) ? null : brokerId,
+                CustomsBrokerName = string.IsNullOrWhiteSpace(brokerName) ? null : brokerName,
+                CustomsClearanceStatus = dec.CustomsClearanceStatus
+            };
         }
 
-        return new StockOutCustomsSummaryDto
-        {
-            DeclarationId = dec.Id.Trim(),
-            DeclarationCode = dec.DeclarationCode.Trim(),
-            CustomsBrokerId = brokerId,
-            CustomsBrokerName = brokerName,
-            CustomsClearanceStatus = dec.CustomsClearanceStatus
-        };
+        return result;
     }
 
     private async Task FillMissingVendorNamesAsync(

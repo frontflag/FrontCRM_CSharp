@@ -286,7 +286,19 @@
               <template #col-status="{ row }">
                 <span :class="['status-badge', `status-${row.status}`]">{{ notifyStatusLabel(row.status) }}</span>
               </template>
-              <template #col-customsStatus="{ row }">{{ notifyCustomsStatusLabel(row.customsStatus) }}</template>
+              <template #col-customs-header>
+                <CustomsExtendColumnHeader
+                  :active-field="customsExtendActiveField"
+                  @set-active-field="setCustomsExtendActiveField"
+                />
+              </template>
+              <template #col-customs="{ row }">
+                <CustomsExtendCell
+                  :row="row"
+                  :active-field="customsExtendActiveField"
+                  empty-text="—"
+                />
+              </template>
               <template #col-stockOutType="{ row }">
                 <StockBizTypeTag biz="out" :type="row.stockOutType" />
               </template>
@@ -547,6 +559,19 @@
                   {{ arrivalNotifyStatusLabel(row.status) }}
                 </el-tag>
               </template>
+              <template #col-customs-header>
+                <CustomsExtendColumnHeader
+                  :active-field="customsExtendActiveField"
+                  @set-active-field="setCustomsExtendActiveField"
+                />
+              </template>
+              <template #col-customs="{ row }">
+                <CustomsExtendCell
+                  :row="row"
+                  :active-field="customsExtendActiveField"
+                  empty-text="—"
+                />
+              </template>
               <template #col-stockInType="{ row }">
                 <StockBizTypeTag
                   biz="in"
@@ -659,6 +684,8 @@ import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { buildSalesOrderItemListColumns } from '@/composables/buildSalesOrderItemListColumns'
 import { buildStockOutNotifyListColumns } from '@/composables/buildStockOutNotifyListColumns'
@@ -667,6 +694,7 @@ import { buildStockOutListColumns } from '@/composables/buildStockOutListColumns
 import { buildArrivalNoticeListColumns } from '@/composables/buildArrivalNoticeListColumns'
 import { buildPurchaseOrderItemListColumns } from '@/composables/buildPurchaseOrderItemListColumns'
 import { useCustomerExtendColumn } from '@/composables/useCustomerExtendColumn'
+import { useCustomsExtendColumn } from '@/composables/useCustomsExtendColumn'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/salesOrderStatus'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -686,7 +714,6 @@ import {
 } from '@/api/customs'
 import { stockOutApi, type StockOutDto, type StockOutRequestDto } from '@/api/stockOut'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
-import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
 import { StockOutTypeCode } from '@/constants/stockOutType'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '@/api/logistics'
@@ -708,6 +735,12 @@ const {
   colMinWidth: customerExtendColMinWidth,
   setActiveField: setCustomerExtendActiveField
 } = useCustomerExtendColumn()
+const {
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField
+} = useCustomsExtendColumn()
 const authStore = useAuthStore()
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const loading = ref(false)
@@ -774,12 +807,15 @@ const purchaseOrderItemColumns = computed<CrmTableColumnDef[]>(() => {
 
 const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
+  void customsExtendColWidth.value
   return buildStockOutNotifyListColumns({
     t,
     opColWidth: 0,
     opColMinWidth: 0,
     withSelection: false,
-    withActions: false
+    withActions: false,
+    customsExtendColWidth: customsExtendColWidth.value,
+    customsExtendColMinWidth: customsExtendColMinWidth.value
   })
 })
 
@@ -811,11 +847,14 @@ const stockOutColumns = computed<CrmTableColumnDef[]>(() => {
 
 const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
+  void customsExtendColWidth.value
   return buildArrivalNoticeListColumns({
     t,
     opColWidth: 0,
     opColMinWidth: 0,
-    withActions: false
+    withActions: false,
+    customsExtendColWidth: customsExtendColWidth.value,
+    customsExtendColMinWidth: customsExtendColMinWidth.value
   })
 })
 
@@ -1013,15 +1052,6 @@ function notifyStatusLabel(s: unknown) {
   if (n === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
   if (n === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
   return t('stockOutNotifyList.status.unknown')
-}
-
-function notifyCustomsStatusLabel(code?: number | null): string {
-  const n = Number(code ?? 0)
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.NotRequired) return t('stockOutNotifyList.customsStatus.notRequired')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.PendingCustoms) return t('stockOutNotifyList.customsStatus.pendingCustoms')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.InCustoms) return t('stockOutNotifyList.customsStatus.inCustoms')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.Completed) return t('stockOutNotifyList.customsStatus.completed')
-  return '—'
 }
 
 function notifyRegionTypeLabel(row: StockOutRequestDto) {

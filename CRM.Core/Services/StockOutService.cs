@@ -2679,6 +2679,7 @@ namespace CRM.Core.Services
                 });
             }
 
+            await _customsTraceQuery.EnrichStockOutItemListItemsAsync(result);
             return result
                 .OrderByDescending(x => x.StockOutDate ?? DateTime.MinValue)
                 .ThenBy(x => x.StockOutCode, StringComparer.OrdinalIgnoreCase)
@@ -2931,6 +2932,7 @@ namespace CRM.Core.Services
                 });
             }
 
+            await _customsTraceQuery.EnrichStockOutItemListItemsAsync(result);
             return result;
         }
 

@@ -242,6 +242,8 @@ export interface StockInListItemDto {
   customsDeclarationCode?: string | null
   /** 报关入库时关联报关公司名称 */
   customsBrokerName?: string | null
+  /** 关联报关单海关状态（0未维护 10放行 100已结关） */
+  customsClearanceStatus?: number | null
   /** 明细单价汇总（多行逗号分隔） */
   unitPriceSummary?: string | null
   /** 单价币别（明细 currency 去重） */

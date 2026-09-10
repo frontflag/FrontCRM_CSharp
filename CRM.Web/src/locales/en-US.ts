@@ -45,6 +45,25 @@ const enUS = {
         code: 'Code'
       }
     },
+    customsExtendCol: {
+      columnTitle: 'Customs',
+      expand: 'Expand customs column',
+      collapse: 'Collapse customs column',
+      pickField: 'Choose field to display',
+      resizeSubCol: 'Drag to resize sub-column',
+      fields: {
+        icon: 'Customs icon',
+        declarationCode: 'Declaration no.',
+        broker: 'Customs broker',
+        status: 'Customs status'
+      },
+      fieldShort: {
+        icon: 'Icon',
+        declarationCode: 'Declaration no.',
+        broker: 'Customs broker',
+        status: 'Status'
+      }
+    },
     vendorExtendCol: {
       columnTitle: 'Vendor',
       expand: 'Expand vendor column',
@@ -8158,6 +8177,7 @@ const enUS = {
       salesOrderCode: 'Sales Order Code',
       stockInDate: 'Stock-In Date',
       totalQuantity: 'Stock-In Qty',
+      unitPrice: 'Unit Price',
       hasBatchEntered: 'Batch entered',
       totalAmount: 'Stock-In Amount',
       remark: 'Remark',

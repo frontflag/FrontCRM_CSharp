@@ -187,6 +187,8 @@ namespace CRM.Core.Services
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
                 qc.CustomsDeclarationId = notice?.CustomsDeclarationId;
                 qc.CustomsDeclarationCode = notice?.CustomsDeclarationCode;
+                qc.CustomsBrokerName = notice?.CustomsBrokerName;
+                qc.CustomsClearanceStatus = notice?.CustomsClearanceStatus;
                 qc.FreightForwarderOrderNo = notice == null
                     ? null
                     : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poById);
@@ -631,6 +633,8 @@ namespace CRM.Core.Services
                 qc.PurchaseOrderCode = notice?.PurchaseOrderCode;
                 qc.CustomsDeclarationId = notice?.CustomsDeclarationId;
                 qc.CustomsDeclarationCode = notice?.CustomsDeclarationCode;
+                qc.CustomsBrokerName = notice?.CustomsBrokerName;
+                qc.CustomsClearanceStatus = notice?.CustomsClearanceStatus;
                 qc.FreightForwarderOrderNo = notice == null
                     ? null
                     : FreightForwarderOrderNoLookup.FromPurchaseOrderId(notice.PurchaseOrderId, poByIdLegacy);

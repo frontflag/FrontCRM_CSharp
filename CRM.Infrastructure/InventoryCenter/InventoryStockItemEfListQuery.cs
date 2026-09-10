@@ -16,11 +16,16 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
 {
     private readonly ApplicationDbContext _db;
     private readonly IDataPermissionService _dataPermission;
+    private readonly ICustomsTraceQuery _customsTraceQuery;
 
-    public InventoryStockItemEfListQuery(ApplicationDbContext db, IDataPermissionService dataPermission)
+    public InventoryStockItemEfListQuery(
+        ApplicationDbContext db,
+        IDataPermissionService dataPermission,
+        ICustomsTraceQuery customsTraceQuery)
     {
         _db = db;
         _dataPermission = dataPermission;
+        _customsTraceQuery = customsTraceQuery;
     }
 
     /// <inheritdoc />
@@ -106,6 +111,7 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             .ToListAsync(cancellationToken);
 
         await EnrichStockItemListDisplayAsync(pageRows, cancellationToken);
+        await _customsTraceQuery.EnrichStockItemListItemsAsync(pageRows, cancellationToken);
 
         return new InventoryStockItemListPagedResult
         {
@@ -208,6 +214,7 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
             }).ToListAsync(cancellationToken);
 
         await EnrichStockItemListDisplayAsync(rows, cancellationToken);
+        await _customsTraceQuery.EnrichStockItemListItemsAsync(rows, cancellationToken);
 
         var rowById = rows.ToDictionary(r => r.StockItemId, StringComparer.OrdinalIgnoreCase);
         var ordered = new List<InventoryStockItemListRowDto>(orderedStockItemIds.Count);

@@ -1,4 +1,5 @@
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildCustomsExtendColumnDef } from '@/composables/buildCustomsExtendColumnDef'
 
 export type BuildPackingListColumnsParams = {
   t: (key: string, ...args: unknown[]) => string
@@ -6,6 +7,8 @@ export type BuildPackingListColumnsParams = {
   opColMinWidth: number
   withSelection?: boolean
   withActions?: boolean
+  customsExtendColWidth?: number
+  customsExtendColMinWidth?: number
 }
 
 /** 与 `PackingListPage.vue` 中 CrmDataTable 列配置一致，供列表页与嵌入场景复用。 */
@@ -29,6 +32,11 @@ export function buildPackingListColumns(p: BuildPackingListColumnsParams): CrmTa
   cols.push(
     { key: 'packingCode', label: p.t('packingList.columns.packingCode'), width: 160, minWidth: 160, showOverflowTooltip: true },
     { key: 'status', label: p.t('packingList.columns.status'), width: 110, minWidth: 110, align: 'center' },
+    buildCustomsExtendColumnDef(
+      p.t,
+      p.customsExtendColWidth ?? 160,
+      p.customsExtendColMinWidth ?? 160
+    ),
     { key: 'stockOutType', label: p.t('packingList.columns.stockOutType'), width: 140, minWidth: 140, align: 'center', className: 'stock-out-type-col', labelClassName: 'stock-out-type-col' },
     { key: 'materialType', label: p.t('packingList.columns.materialType'), width: 140, minWidth: 140, align: 'center' },
     { key: 'customerName', label: p.t('packingList.columns.customerName'), width: 140, minWidth: 140, showOverflowTooltip: true },

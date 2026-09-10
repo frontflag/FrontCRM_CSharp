@@ -1026,6 +1026,7 @@ namespace CRM.Core.Services
                 string? customsDeclarationId = null;
                 string? customsDeclarationCode = null;
                 string? traceDecBrokerName = null;
+                short? traceDecClearance = null;
                 if (s.StockInType == StockInTypeCode.Customs)
                 {
                     var notifyKey = !string.IsNullOrWhiteSpace(s.SourceId)
@@ -1039,6 +1040,7 @@ namespace CRM.Core.Services
                         traceDecBrokerName = string.IsNullOrWhiteSpace(traceDec.CustomsBrokerName)
                             ? null
                             : traceDec.CustomsBrokerName.Trim();
+                        traceDecClearance = traceDec.CustomsClearanceStatus;
                     }
                 }
 
@@ -1071,7 +1073,8 @@ namespace CRM.Core.Services
                     HasBatchEntered = stockInIdsWithBatch.Contains(s.Id.Trim()),
                     CustomsDeclarationId = customsDeclarationId,
                     CustomsDeclarationCode = customsDeclarationCode,
-                    CustomsBrokerName = string.IsNullOrWhiteSpace(traceDecBrokerName) ? null : traceDecBrokerName
+                    CustomsBrokerName = string.IsNullOrWhiteSpace(traceDecBrokerName) ? null : traceDecBrokerName,
+                    CustomsClearanceStatus = traceDecClearance
                 });
             }
 

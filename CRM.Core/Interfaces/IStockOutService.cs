@@ -235,6 +235,12 @@ namespace CRM.Core.Interfaces
 
         /// <summary>关联报关单号。</summary>
         public string? CustomsDeclarationCode { get; set; }
+
+        /// <summary>报关公司名称（展示用，溯源填充）。</summary>
+        public string? CustomsBrokerName { get; set; }
+
+        /// <summary>关联报关单海关状态（<see cref="CRM.Core.Constants.CustomsClearanceStatusCodes"/>）。</summary>
+        public short? CustomsClearanceStatus { get; set; }
     }
 
     public class StockOutDetailViewDto : StockOutListItemDto
@@ -537,5 +543,17 @@ namespace CRM.Core.Interfaces
 
         /// <summary>销售币别（与 <see cref="Constants.CurrencyCode"/> 一致）。</summary>
         public short? SalesCurrency { get; set; }
+
+        /// <summary>关联报关单主键（报关出库 Type=20）。</summary>
+        public string? CustomsDeclarationId { get; set; }
+
+        /// <summary>关联报关单号。</summary>
+        public string? CustomsDeclarationCode { get; set; }
+
+        /// <summary>报关公司名称（展示用）。</summary>
+        public string? CustomsBrokerName { get; set; }
+
+        /// <summary>关联报关单海关状态（<see cref="CRM.Core.Constants.CustomsClearanceStatusCodes"/>）。</summary>
+        public short? CustomsClearanceStatus { get; set; }
     }
 }

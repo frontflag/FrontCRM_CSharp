@@ -1,8 +1,11 @@
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildCustomsExtendColumnDef } from '@/composables/buildCustomsExtendColumnDef'
 import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
 
 export type BuildStockOutItemListColumnsParams = {
   t: (key: string, ...args: unknown[]) => string
+  customsExtendColWidth?: number
+  customsExtendColMinWidth?: number
 }
 
 /** 与 `StockOutItemList.vue` 主表列一致；表头宽按《列表字段宽度规范》§3.3 估算。 */
@@ -26,6 +29,11 @@ export function buildStockOutItemListColumns(p: BuildStockOutItemListColumnsPara
       minWidth: statusMin,
       align: 'center'
     },
+    buildCustomsExtendColumnDef(
+      p.t,
+      p.customsExtendColWidth ?? 160,
+      p.customsExtendColMinWidth ?? 160
+    ),
     {
       key: 'stockOutCode',
       label: p.t('stockOutItemList.columns.stockOutCode'),

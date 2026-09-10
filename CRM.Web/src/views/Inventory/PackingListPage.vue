@@ -194,12 +194,26 @@
       @selection-change="onSelectionChange"
       @row-click="onRowClick"
       @row-dblclick="onRowDblClick"
+      @header-dragend="onPackingTableHeaderDragEnd"
     >
       <template #col-packingCode="{ row }">
         <span class="packing-code-cell">{{ row.code?.trim() || '—' }}</span>
       </template>
       <template #col-status="{ row }">
         <span :class="['status-badge', `packing-status-${row.status}`]">{{ packingStatusLabel(row.status) }}</span>
+      </template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-stockOutType="{ row }">
         <StockBizTypeTag
@@ -582,6 +596,9 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import StockOutBatchImportDialog from '@/components/Inventory/StockOutBatchImportDialog.vue'
 
 const router = useRouter()
@@ -769,14 +786,35 @@ function defaultFilterForm(): FilterForm {
 
 const filterForm = reactive<FilterForm>(defaultFilterForm())
 
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
+
+function onPackingTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
+}
+
 const packingColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
   return buildPackingListColumns({
     t,
     opColWidth: opColWidth.value,
     opColMinWidth: opColMinWidth.value,
     withSelection: true,
-    withActions: true
+    withActions: true,
+    customsExtendColWidth: customsExtendColWidth.value,
+    customsExtendColMinWidth: customsExtendColMinWidth.value
   })
 })
 

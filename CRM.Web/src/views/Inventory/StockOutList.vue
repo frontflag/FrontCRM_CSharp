@@ -211,6 +211,19 @@
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
+      </template>
       <template #col-stockOutType="{ row }">
         <StockBizTypeTag
           biz="out"
@@ -615,6 +628,9 @@ import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
 import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
 import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES, resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
@@ -626,14 +642,25 @@ const {
   setActiveField: setCustomerExtendActiveField,
   applyOuterWidthFromTable: applyCustomerExtendOuterWidth
 } = useCustomerExtendColumn()
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
 
 function onStockOutTableHeaderDragEnd(
   newWidth: number,
   _oldWidth: number,
   column: { property?: string; label?: string }
 ) {
-  if (!isCustomerExtendTableColumn(column)) return
-  applyCustomerExtendOuterWidth(newWidth)
+  if (isCustomerExtendTableColumn(column)) {
+    applyCustomerExtendOuterWidth(newWidth)
+    return
+  }
+  if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
 }
 
 const route = useRoute()
@@ -863,6 +890,8 @@ function resetEditDialog() {
 const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => {
   void customerExtendExpanded.value
   void customerExtendColWidth.value
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
   return buildStockOutListColumns({
     t,
     opColWidth: opColWidth.value,
@@ -871,7 +900,9 @@ const stockOutTableColumns = computed<CrmTableColumnDef[]>(() => {
     withActions: true,
     withCustomerExtend: true,
     customerExtendColWidth: customerExtendColWidth.value,
-    customerExtendColMinWidth: customerExtendColMinWidth.value
+    customerExtendColMinWidth: customerExtendColMinWidth.value,
+    customsExtendColWidth: customsExtendColWidth.value,
+    customsExtendColMinWidth: customsExtendColMinWidth.value
   })
 })
 

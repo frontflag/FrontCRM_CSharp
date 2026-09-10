@@ -606,9 +606,10 @@
   line-height: 1;
 }
 
-/** 《列表扩展列规范 PRD》：客户/供应商扩展列列头与单元格 */
+/** 《列表扩展列规范 PRD》：客户/供应商/报关扩展列列头与单元格 */
 .customer-extend-col-header,
-.vendor-extend-col-header {
+.vendor-extend-col-header,
+.customs-extend-col-header {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -618,7 +619,8 @@
 }
 
 .customer-extend-col-toggle-btn,
-.vendor-extend-col-toggle-btn {
+.vendor-extend-col-toggle-btn,
+.customs-extend-col-toggle-btn {
   position: relative;
   z-index: 5;
   flex: 0 0 auto;
@@ -635,7 +637,8 @@
 }
 
 .customer-extend-col-header__title,
-.vendor-extend-col-header__title {
+.vendor-extend-col-header__title,
+.customs-extend-col-header__title {
   display: inline-flex;
   align-items: center;
   gap: 2px;
@@ -644,13 +647,15 @@
 }
 
 .customer-extend-col-header__label,
-.vendor-extend-col-header__label {
+.vendor-extend-col-header__label,
+.customs-extend-col-header__label {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .customer-extend-col-field-picker,
-.vendor-extend-col-field-picker {
+.vendor-extend-col-field-picker,
+.customs-extend-col-field-picker {
   flex: 0 0 auto;
   padding: 0 4px;
   border: none;
@@ -662,15 +667,18 @@
 }
 
 .customer-extend-col-header:not(.is-expanded) .customer-extend-col-header__title,
-.vendor-extend-col-header:not(.is-expanded) .vendor-extend-col-header__title {
+.vendor-extend-col-header:not(.is-expanded) .vendor-extend-col-header__title,
+.customs-extend-col-header:not(.is-expanded) .customs-extend-col-header__title {
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .customer-extend-col-header.is-expanded,
-.vendor-extend-col-header.is-expanded {
+.vendor-extend-col-header.is-expanded,
+.customs-extend-col-header.is-expanded {
   .customer-extend-col-header__cols,
-  .vendor-extend-col-header__cols {
+  .vendor-extend-col-header__cols,
+  .customs-extend-col-header__cols {
     flex: 1 1 auto;
     display: grid;
     gap: 8px;
@@ -679,7 +687,8 @@
   }
 
   .customer-extend-col-header__col-wrap,
-  .vendor-extend-col-header__col-wrap {
+  .vendor-extend-col-header__col-wrap,
+  .customs-extend-col-header__col-wrap {
     position: relative;
     min-width: 0;
     display: flex;
@@ -688,7 +697,8 @@
   }
 
   .customer-extend-col-header__col-label,
-  .vendor-extend-col-header__col-label {
+  .vendor-extend-col-header__col-label,
+  .customs-extend-col-header__col-label {
     flex: 1 1 auto;
     min-width: 0;
     overflow: hidden;
@@ -700,7 +710,8 @@
 }
 
 .customer-extend-sub-col-resizer,
-.vendor-extend-sub-col-resizer {
+.vendor-extend-sub-col-resizer,
+.customs-extend-sub-col-resizer {
   position: absolute;
   top: -6px;
   right: -6px;
@@ -730,7 +741,8 @@
 }
 
 .customer-extend-cell,
-.vendor-extend-cell {
+.vendor-extend-cell,
+.customs-extend-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -740,12 +752,14 @@
 }
 
 .customer-extend-cell.is-expanded,
-.vendor-extend-cell.is-expanded {
+.vendor-extend-cell.is-expanded,
+.customs-extend-cell.is-expanded {
   width: 100%;
 }
 
 .customer-extend-cell__cols,
-.vendor-extend-cell__cols {
+.vendor-extend-cell__cols,
+.customs-extend-cell__cols {
   display: grid;
   gap: 8px;
   width: 100%;
@@ -753,7 +767,8 @@
 }
 
 .customer-extend-cell__col,
-.vendor-extend-cell__col {
+.vendor-extend-cell__col,
+.customs-extend-cell__col {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -761,7 +776,8 @@
 }
 
 .customer-extend-cell__value,
-.vendor-extend-cell__value {
+.vendor-extend-cell__value,
+.customs-extend-cell__value {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -769,14 +785,43 @@
 }
 
 .customer-extend-cell__value--single,
-.vendor-extend-cell__value--single {
+.vendor-extend-cell__value--single,
+.customs-extend-cell__value--single {
   display: block;
   width: 100%;
 }
 
 .el-table th.customer-extend-col.el-table__cell .cell,
-.el-table th.vendor-extend-col.el-table__cell .cell {
+.el-table th.vendor-extend-col.el-table__cell .cell,
+.el-table th.customs-extend-col.el-table__cell .cell {
   overflow: visible;
+}
+
+.customs-extend-cell__col--icon {
+  overflow: visible;
+  display: inline-flex;
+  align-items: center;
+}
+
+.customs-extend-code-link {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: $cyan-primary;
+  cursor: pointer;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  text-decoration: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 .op-more-trigger {

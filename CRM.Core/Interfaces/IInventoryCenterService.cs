@@ -241,6 +241,18 @@ namespace CRM.Core.Interfaces
 
         /// <summary>入库 USD 价差快照（<c>SalesPriceUsd</c>、<c>PurchasePriceUsd</c> × <c>QtyInbound</c>）；出库利润见 <c>stockoutitemextend</c>。</summary>
         public decimal ProfitOutBizUsd { get; set; }
+
+        /// <summary>关联报关单主键（报关入库 Type=20）。</summary>
+        public string? CustomsDeclarationId { get; set; }
+
+        /// <summary>关联报关单号。</summary>
+        public string? CustomsDeclarationCode { get; set; }
+
+        /// <summary>报关公司名称（展示用）。</summary>
+        public string? CustomsBrokerName { get; set; }
+
+        /// <summary>关联报关单海关状态（<see cref="CRM.Core.Constants.CustomsClearanceStatusCodes"/>）。</summary>
+        public short? CustomsClearanceStatus { get; set; }
     }
 
     /// <summary>全库库存明细查询条件（字段为空则不作为筛选）。</summary>

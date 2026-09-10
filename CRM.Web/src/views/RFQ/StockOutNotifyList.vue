@@ -229,7 +229,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="stock-out-notify-list-main-v7"
+      column-layout-key="stock-out-notify-list-main-v8"
       :columns="stockOutNotifyColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -240,11 +240,24 @@
       @selection-change="onSelectionChange"
       @row-click="onRowClick"
       @row-dblclick="goDetail"
+      @header-dragend="onNotifyTableHeaderDragEnd"
     >
       <template #col-status="{ row }">
         <span :class="['status-badge', `status-${row.status}`]">{{ statusLabel(row.status) }}</span>
       </template>
-      <template #col-customsStatus="{ row }">{{ customsStatusLabel(row.customsStatus) }}</template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
+      </template>
       <template #col-stockOutType="{ row }">
         <StockBizTypeTag
           biz="out"
@@ -525,8 +538,10 @@ import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
-import { STOCK_OUT_NOTIFY_CUSTOMS_STATUS } from '@/constants/stockOutNotifyCustomsStatus'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import { StockOutTypeCode, STOCK_OUT_TYPE_FILTER_VALUES, resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
@@ -569,6 +584,22 @@ const { onOpsPanelRowClick: onFlowPanelRowClick } = useListRightOpsPanelInteract
 })
 const { ensureLoaded: ensureLogisticsDict, shipmentArrivalOptions, expressOptions } = useLogisticsFormDict()
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
+
+function onNotifyTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
+}
 const authStore = useAuthStore()
 const { canWriteLogisticsData } = useDepartmentDataReadOnly()
 const canForceDelete = computed(() => authStore.canForceDelete())
@@ -763,12 +794,16 @@ function buildListQueryParams() {
 
 const stockOutNotifyColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
   return buildStockOutNotifyListColumns({
     t,
     opColWidth: opColWidth.value,
     opColMinWidth: opColMinWidth.value,
     withSelection: true,
-    withActions: true
+    withActions: true,
+    customsExtendColWidth: customsExtendColWidth.value,
+    customsExtendColMinWidth: customsExtendColMinWidth.value
   })
 })
 
@@ -779,15 +814,6 @@ const statusLabel = (s: number) => {
   if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
   if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
   return t('stockOutNotifyList.status.unknown')
-}
-
-function customsStatusLabel(code?: number | null): string {
-  const n = Number(code ?? 0)
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.NotRequired) return '—'
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.PendingCustoms) return t('stockOutNotifyList.customsStatus.pendingCustoms')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.InCustoms) return t('stockOutNotifyList.customsStatus.inCustoms')
-  if (n === STOCK_OUT_NOTIFY_CUSTOMS_STATUS.Completed) return t('stockOutNotifyList.customsStatus.completed')
-  return '—'
 }
 
 function notifyStockOutTypeLabel(type?: number | null): string {

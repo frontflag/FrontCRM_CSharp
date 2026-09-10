@@ -101,7 +101,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="qc-list-main"
+      column-layout-key="qc-list-main-v2"
       :columns="qcTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -110,9 +110,23 @@
       :row-class-name="opsPanelRowClassName"
       @row-click="onRowClick"
       @row-dblclick="goView"
+      @header-dragend="onQcTableHeaderDragEnd"
     >
       <template #col-status="{ row }">
         <el-tag effect="dark" :type="qcType(row.status)">{{ qcText(row.status) }}</el-tag>
+      </template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-stockInType="{ row }">
         <StockBizTypeTag
@@ -259,6 +273,9 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import { STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
@@ -302,10 +319,38 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
+
+function onQcTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
+}
+
 const qcTableColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
   return [
     { key: 'status', label: t('qcList.columns.status'), prop: 'status', width: 120, align: 'center' },
+    {
+      key: 'customs',
+      label: t('common.customsExtendCol.columnTitle'),
+      prop: 'customs',
+      minWidth: customsExtendColMinWidth.value,
+      width: customsExtendColWidth.value,
+      className: 'customs-extend-col',
+      labelClassName: 'customs-extend-col'
+    },
     {
       key: 'stockInType',
       label: t('arrivalNoticeList.columns.arrivalType'),

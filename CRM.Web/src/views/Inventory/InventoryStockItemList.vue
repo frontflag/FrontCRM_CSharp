@@ -334,7 +334,7 @@
       v-show="viewMode === 'list'"
       ref="dataTableRef"
       class="inventory-stock-item-list-crm-table"
-      column-layout-key="inventory-stock-item-list-main-v3"
+      column-layout-key="inventory-stock-item-list-main-v4"
       :columns="stockItemTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -350,6 +350,19 @@
         <span class="outbound-status-chip" :class="`outbound-status-chip--${outboundStatusKind(row.outboundStatus)}`">
           <span>{{ outboundLabel(row.outboundStatus) }}</span>
         </span>
+      </template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-stockItemCode="{ row }">
         <span class="stock-item-code-with-badge">
@@ -381,7 +394,12 @@
         </template>
       </template>
       <template #col-stockInType="{ row }">
-        <StockBizTypeTag biz="in" :type="row.stockInType" />
+        <StockBizTypeTag
+          biz="in"
+          :type="row.stockInType"
+          :customs-declaration-id="row.customsDeclarationId"
+          :customs-declaration-code="row.customsDeclarationCode"
+        />
       </template>
       <template #col-warehouse="{ row }">{{ warehouseCell(row) }}</template>
       <template #col-regionType="{ row }">
@@ -554,6 +572,9 @@ import { useStockItemFlowPanelStore } from '@/stores/stockItemFlowPanel'
 import VendorExtendColumnHeader from '@/components/list/VendorExtendColumnHeader.vue'
 import VendorExtendCell from '@/components/list/VendorExtendCell.vue'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import {
   STOCK_IN_TYPE_FILTER_VALUES,
@@ -571,14 +592,25 @@ const {
   setActiveField: setVendorExtendActiveField,
   applyOuterWidthFromTable: applyVendorExtendOuterWidth
 } = useVendorExtendColumn()
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
 
 function onStockItemTableHeaderDragEnd(
   newWidth: number,
   _oldWidth: number,
   column: { property?: string; label?: string }
 ) {
-  if (!isVendorExtendTableColumn(column)) return
-  applyVendorExtendOuterWidth(newWidth)
+  if (isVendorExtendTableColumn(column)) {
+    applyVendorExtendOuterWidth(newWidth)
+    return
+  }
+  if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
 }
 const router = useRouter()
 const route = useRoute()
@@ -628,8 +660,19 @@ function toggleOpCol() {
 const stockItemTableColumns = computed<CrmTableColumnDef[]>(() => {
   void vendorExtendExpanded.value
   void vendorExtendColWidth.value
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
   return [
   { key: 'outboundStatus', label: t('inventoryStockItemList.columns.outboundStatus'), width: 110, align: 'center' },
+  {
+    key: 'customs',
+    label: t('common.customsExtendCol.columnTitle'),
+    prop: 'customs',
+    minWidth: customsExtendColMinWidth.value,
+    width: customsExtendColWidth.value,
+    className: 'customs-extend-col',
+    labelClassName: 'customs-extend-col'
+  },
   { key: 'stockItemCode', label: t('inventoryStockItemList.columns.stockItemCode'), prop: 'stockItemCode', width: 168, showOverflowTooltip: true },
   { key: 'stockInCode', label: t('inventoryStockItemList.columns.stockInCode'), prop: 'stockInCode', width: 150, showOverflowTooltip: true },
   { key: 'stockInDate', label: t('inventoryStockItemList.columns.stockInDate'), prop: 'stockInDate', width: 118 },

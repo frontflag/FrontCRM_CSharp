@@ -1,4 +1,5 @@
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildCustomsExtendColumnDef } from '@/composables/buildCustomsExtendColumnDef'
 
 export type BuildStockOutNotifyListColumnsParams = {
   t: (key: string, ...args: unknown[]) => string
@@ -6,6 +7,8 @@ export type BuildStockOutNotifyListColumnsParams = {
   opColMinWidth: number
   withSelection?: boolean
   withActions?: boolean
+  customsExtendColWidth?: number
+  customsExtendColMinWidth?: number
 }
 
 /** 与 `StockOutNotifyList.vue` 中 CrmDataTable 列配置一致，供列表页与嵌入场景复用。 */
@@ -28,13 +31,11 @@ export function buildStockOutNotifyListColumns(p: BuildStockOutNotifyListColumns
 
   cols.push(
     { key: 'status', label: p.t('stockOutNotifyList.columns.status'), prop: 'status', width: 110, align: 'center' },
-    {
-      key: 'customsStatus',
-      label: p.t('stockOutNotifyList.columns.customsStatus'),
-      width: 120,
-      minWidth: 110,
-      align: 'center'
-    },
+    buildCustomsExtendColumnDef(
+      p.t,
+      p.customsExtendColWidth ?? 160,
+      p.customsExtendColMinWidth ?? 160
+    ),
     {
       key: 'stockOutType',
       label: p.t('stockOutNotifyList.columns.stockOutType'),

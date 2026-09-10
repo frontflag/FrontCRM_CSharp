@@ -205,7 +205,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="arrival-notice-list-main"
+      column-layout-key="arrival-notice-list-main-v2"
       :columns="arrivalNoticeColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -213,9 +213,23 @@
       :row-class-name="opsPanelRowClassName"
       v-loading="loading"
       @row-click="onRowClick"
+      @header-dragend="onArrivalTableHeaderDragEnd"
     >
       <template #col-status="{ row }">
         <el-tag effect="dark" :type="statusType(row.status)">{{ statusText(row.status) }}</el-tag>
+      </template>
+      <template #col-customs-header>
+        <CustomsExtendColumnHeader
+          :active-field="customsExtendActiveField"
+          @set-active-field="setCustomsExtendActiveField"
+        />
+      </template>
+      <template #col-customs="{ row }">
+        <CustomsExtendCell
+          :row="row"
+          :active-field="customsExtendActiveField"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-stockInType="{ row }">
         <StockBizTypeTag
@@ -450,6 +464,9 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
+import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
+import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
 import { useAuthStore } from '@/stores/auth'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { STOCK_IN_TYPE_FILTER_VALUES, resolveStockInTypeLabelKey } from '@/constants/stockInType'
@@ -487,6 +504,22 @@ import {
 } from '@/utils/arrivalNoticeListPreset'
 
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
+const {
+  expanded: customsExtendExpanded,
+  activeField: customsExtendActiveField,
+  colWidth: customsExtendColWidth,
+  colMinWidth: customsExtendColMinWidth,
+  setActiveField: setCustomsExtendActiveField,
+  applyOuterWidthFromTable: applyCustomsExtendOuterWidth
+} = useCustomsExtendColumn()
+
+function onArrivalTableHeaderDragEnd(
+  newWidth: number,
+  _oldWidth: number,
+  column: { property?: string; label?: string }
+) {
+  if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
+}
 const authStore = useAuthStore()
 const arrivalNoticeOpsStore = useArrivalNoticeOpsPanelStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
@@ -526,11 +559,15 @@ function toggleOpCol() {
 
 const arrivalNoticeColumns = computed<CrmTableColumnDef[]>(() => {
   void locale.value
+  void customsExtendExpanded.value
+  void customsExtendColWidth.value
   return buildArrivalNoticeListColumns({
     t,
     opColWidth: opColWidth.value,
     opColMinWidth: opColMinWidth.value,
-    withActions: true
+    withActions: true,
+    customsExtendColWidth: customsExtendColWidth.value,
+    customsExtendColMinWidth: customsExtendColMinWidth.value
   })
 })
 

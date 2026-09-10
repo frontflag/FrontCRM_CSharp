@@ -186,6 +186,14 @@ export interface StockItemListRow extends StockItemRow {
   outboundStatus: number
   /** 出库业务 USD 利润（层快照价 × 累计出库数量） */
   profitOutBizUsd?: number
+  /** 关联报关单主键（报关入库 Type=20） */
+  customsDeclarationId?: string | null
+  /** 关联报关单号 */
+  customsDeclarationCode?: string | null
+  /** 报关公司名称（展示用） */
+  customsBrokerName?: string | null
+  /** 关联报关单海关状态（0未维护 10放行 100已结关） */
+  customsClearanceStatus?: number | null
 }
 
 /** GET /api/v1/inventory-center/stock-items/{id}/flow-aggregates */

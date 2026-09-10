@@ -1,10 +1,13 @@
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import { buildCustomsExtendColumnDef } from '@/composables/buildCustomsExtendColumnDef'
 
 export type BuildArrivalNoticeListColumnsParams = {
   t: (key: string, ...args: unknown[]) => string
   opColWidth: number
   opColMinWidth: number
   withActions?: boolean
+  customsExtendColWidth?: number
+  customsExtendColMinWidth?: number
 }
 
 /** 与 `ArrivalNoticeList.vue` 中 CrmDataTable 列配置一致，供列表页与嵌入场景复用。 */
@@ -12,6 +15,11 @@ export function buildArrivalNoticeListColumns(p: BuildArrivalNoticeListColumnsPa
   const withActions = p.withActions !== false
   const cols: CrmTableColumnDef[] = [
     { key: 'status', label: p.t('arrivalNoticeList.columns.status'), prop: 'status', width: 110, align: 'center' },
+    buildCustomsExtendColumnDef(
+      p.t,
+      p.customsExtendColWidth ?? 160,
+      p.customsExtendColMinWidth ?? 160
+    ),
     {
       key: 'stockInType',
       label: p.t('arrivalNoticeList.columns.arrivalType'),

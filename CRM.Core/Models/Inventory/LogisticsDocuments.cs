@@ -129,6 +129,10 @@ namespace CRM.Core.Models.Inventory
         [NotMapped]
         public string? CustomsBrokerName { get; set; }
 
+        /// <summary>关联报关单海关状态（列表展示，由溯源填充，不落库）。</summary>
+        [NotMapped]
+        public short? CustomsClearanceStatus { get; set; }
+
         /// <summary>软删除标记；为 true 时全局查询过滤器排除。</summary>
         [Column("is_deleted")]
         public bool IsDeleted { get; set; }
@@ -227,6 +231,14 @@ namespace CRM.Core.Models.Inventory
         /// <summary>关联报关单号（列表展示，由服务层 join 填充）。</summary>
         [NotMapped]
         public string? CustomsDeclarationCode { get; set; }
+
+        /// <summary>报关公司名称（列表展示，由服务层 join 填充）。</summary>
+        [NotMapped]
+        public string? CustomsBrokerName { get; set; }
+
+        /// <summary>关联报关单海关状态（列表展示，由服务层 join 填充）。</summary>
+        [NotMapped]
+        public short? CustomsClearanceStatus { get; set; }
 
         [StringLength(36)]
         [Column("create_by_user_id")]
