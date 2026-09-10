@@ -52,7 +52,8 @@ public class CustomsDeclarationItemsController : ControllerBase
 
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
-            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            var uid = CustomsLockedCostUsdHttp.UserId(User);
+            var canCorrect = await CustomsLockedCostUsdHttp.CanCorrectAsync(_rbacService, User);
             await _customsV2FlowService.UpdateDeclarationItemAsync(id, new CustomsDeclarationItemPatch
             {
                 HsCode = body?.HsCode,
@@ -64,7 +65,7 @@ public class CustomsDeclarationItemsController : ControllerBase
                 InspectionFee = body?.InspectionFee,
                 CostUsd = body?.CostUsd,
                 CostUsdManual = body?.CostUsdManual
-            }, uid);
+            }, uid, canCorrect);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关明细"));
         }
         catch (InvalidOperationException ex)

@@ -20,6 +20,7 @@ const props = defineProps<{
   detail: CustomsDeclarationDetailDto
   canWrite: boolean
   maskPurchase: boolean
+  canCorrectLockedCostUsd?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -120,6 +121,10 @@ const panelMode = computed<PanelMode>(() => {
 })
 
 const isLockedPartial = computed(() => panelMode.value === 'readonly_locked')
+const isCompletedReadonly = computed(() => panelMode.value === 'readonly_completed')
+const persistCostUsdOnly = computed(
+  () => isCompletedReadonly.value || (isLockedPartial.value && canCorrectLocked.value)
+)
 
 const canMaintainFees = computed(
   () => panelMode.value === 'editable' || panelMode.value === 'blocked_no_p0'
@@ -127,7 +132,13 @@ const canMaintainFees = computed(
 
 const canEditHeaderRate = computed(() => props.canWrite && canMaintainFees.value)
 
-const canEditCostUsdMode = computed(() => canEditHeaderRate.value && !props.maskPurchase)
+const canCorrectLocked = computed(
+  () => Boolean(props.canCorrectLockedCostUsd) && props.canWrite && !props.maskPurchase
+)
+
+const canEditCostUsdMode = computed(
+  () => !props.maskPurchase && props.canWrite && (canMaintainFees.value || canCorrectLocked.value)
+)
 
 const canEditLineCoreInputs = computed(() => props.canWrite && panelMode.value === 'editable')
 
@@ -135,7 +146,9 @@ const canEditLineFooterInputs = computed(
   () => props.canWrite && (panelMode.value === 'editable' || panelMode.value === 'readonly_locked')
 )
 
-const showRecalculateActions = computed(() => props.canWrite && canMaintainFees.value)
+const showRecalculateActions = computed(
+  () => props.canWrite && (canMaintainFees.value || canCorrectLocked.value)
+)
 
 const showLockedSave = computed(() => props.canWrite && panelMode.value === 'readonly_locked')
 
@@ -204,11 +217,22 @@ function resetRowCostUsdDraftsToSystem() {
   }
 }
 
+function snapshotRowCostUsdDraftsToManual() {
+  for (const row of props.detail.items ?? []) {
+    const draft = rowDraft(row)
+    if (draft.costUsdManual) continue
+    draft.costUsd = computeSystemCostUsd(row) ?? Number(row.costUsd ?? 0)
+    draft.costUsdManual = true
+  }
+}
+
 const costUsdMode = computed({
   get: () => (costUsdManual.value ? 'manual' : 'system'),
   set: (mode: string) => {
-    costUsdManual.value = mode === 'manual'
-    if (!costUsdManual.value) resetRowCostUsdDraftsToSystem()
+    const toManual = mode === 'manual'
+    if (toManual && !costUsdManual.value) snapshotRowCostUsdDraftsToManual()
+    costUsdManual.value = toManual
+    if (!toManual) resetRowCostUsdDraftsToSystem()
   }
 })
 
@@ -324,7 +348,7 @@ function validateDrafts(): string | null {
     if (d.dutyRate < 0) return t('customsPages.fees.validateDutyNegative')
     if (d.dutyRate === 0 && !d.hsCode.trim()) return t('customsPages.fees.validateZeroDutyHs', { line: row.lineNo })
     if (d.vatRate <= 0) return t('customsPages.fees.validateVatPositive', { line: row.lineNo })
-    if (costUsdManual.value && rowMissingP0(row) && d.costUsdManual && !isValidCustomsCostUsd(d.costUsd)) {
+    if (costUsdManual.value && d.costUsdManual && !isValidCustomsCostUsd(d.costUsd)) {
       return t('customsPages.fees.validateCostUsd')
     }
   }
@@ -351,7 +375,7 @@ async function persistDirtyFields(): Promise<void> {
   const d = props.detail
   const headerPatch: Parameters<typeof patchCustomsDeclarationHeader>[1] = {}
   const serverRate = Number(d.exchangeRate) || 0
-  if (Math.abs(headerExchangeRate.value - serverRate) > 0.000001) {
+  if (canEditHeaderRate.value && Math.abs(headerExchangeRate.value - serverRate) > 0.000001) {
     headerPatch.exchangeRate = headerExchangeRate.value
   }
 
@@ -367,13 +391,15 @@ async function persistDirtyFields(): Promise<void> {
   for (const row of d.items ?? []) {
     const draft = rowDraft(row)
     const patch: Parameters<typeof patchCustomsDeclarationItem>[1] = {}
-    const hs = draft.hsCode.trim()
-    if (hs !== (row.hsCode ?? '').trim()) patch.hsCode = hs || null
-    if (Math.abs(draft.dutyRate - Number(row.dutyRate ?? 0)) > 0.000001) patch.dutyRate = draft.dutyRate
-    if (Math.abs(draft.vatRate - Number(row.vatRate ?? 0.13)) > 0.000001) patch.vatRate = draft.vatRate
-    if (Math.abs(draft.otherFee - Number(row.otherFee ?? 0)) > 0.000001) patch.otherFee = draft.otherFee
-    if (Math.abs(draft.inspectionFee - Number(row.inspectionFee ?? 0)) > 0.000001) {
-      patch.inspectionFee = draft.inspectionFee
+    if (!persistCostUsdOnly.value) {
+      const hs = draft.hsCode.trim()
+      if (hs !== (row.hsCode ?? '').trim()) patch.hsCode = hs || null
+      if (Math.abs(draft.dutyRate - Number(row.dutyRate ?? 0)) > 0.000001) patch.dutyRate = draft.dutyRate
+      if (Math.abs(draft.vatRate - Number(row.vatRate ?? 0.13)) > 0.000001) patch.vatRate = draft.vatRate
+      if (Math.abs(draft.otherFee - Number(row.otherFee ?? 0)) > 0.000001) patch.otherFee = draft.otherFee
+      if (Math.abs(draft.inspectionFee - Number(row.inspectionFee ?? 0)) > 0.000001) {
+        patch.inspectionFee = draft.inspectionFee
+      }
     }
     if (costUsdManual.value && draft.costUsdManual) {
       const serverManual = Boolean(row.costUsdManual)
@@ -398,8 +424,20 @@ async function handleRecalculate() {
   recalculating.value = true
   try {
     await persistDirtyFields()
-    await recalculateCustomsDeclarationFees(props.detail.id)
-    ElMessage.success(t('customsPages.fees.recalculateOk'))
+    const result = await recalculateCustomsDeclarationFees(props.detail.id)
+    const downstream =
+      Number(result.arrivalNoticesUpdated ?? 0) +
+      Number(result.stockInItemsUpdated ?? 0) +
+      Number(result.stockItemLayersUpdated ?? 0)
+    ElMessage.success(
+      downstream > 0
+        ? t('customsPages.fees.recalculateOkWithDownstream', {
+            notices: Number(result.arrivalNoticesUpdated ?? 0),
+            stockIns: Number(result.stockInItemsUpdated ?? 0),
+            layers: Number(result.stockItemLayersUpdated ?? 0)
+          })
+        : t('customsPages.fees.recalculateOk')
+    )
     emit('refresh')
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
@@ -432,7 +470,7 @@ async function handleSaveLockedFooter() {
 }
 
 async function handleSave() {
-  if (isLockedPartial.value) {
+  if (isLockedPartial.value && !canCorrectLocked.value) {
     await handleSaveLockedFooter()
     return
   }
@@ -495,12 +533,24 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
         :title="t('customsPages.fees.alertNoPurchaseRatio')"
       />
       <el-alert
+        v-if="isCompletedReadonly && canCorrectLocked"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="fees-alert"
+        :title="t('customsPages.fees.alertCompletedAdminCostUsd')"
+      />
+      <el-alert
         v-if="isLockedPartial"
         type="warning"
         :closable="false"
         show-icon
         class="fees-alert"
-        :title="t('customsPages.fees.alertLockedPartial')"
+        :title="
+          canCorrectLocked
+            ? t('customsPages.fees.alertLockedAdminCostUsd')
+            : t('customsPages.fees.alertLockedPartial')
+        "
       />
       <el-alert
         v-if="hasMissingP0 && canMaintainFees && rowsBlockingRecalc"

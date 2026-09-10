@@ -64,14 +64,25 @@ public interface ICustomsV2FlowService
         decimal? exchangeRate = null,
         string? customsBrokerId = null,
         bool? costUsdManual = null,
+        bool canCorrectLockedCostUsd = false,
         CancellationToken cancellationToken = default);
 
-    Task UpdateDeclarationItemAsync(string itemId, CustomsDeclarationItemPatch patch, string? actingUserId, CancellationToken cancellationToken = default);
+    Task UpdateDeclarationItemAsync(
+        string itemId,
+        CustomsDeclarationItemPatch patch,
+        string? actingUserId,
+        bool canCorrectLockedCostUsd = false,
+        CancellationToken cancellationToken = default);
 
-    /// <summary>全单报关费用试算（对齐 EBS §3.3）。</summary>
+    /// <summary>全单报关费用试算（对齐 EBS §3.3）。结关锁定后仅纠正采购美金价时可放行。</summary>
     Task<RecalculateCustomsDeclarationFeesResultDto> RecalculateDeclarationFeesAsync(
         string declarationId,
         string? actingUserId,
+        bool canCorrectLockedCostUsd = false,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<CustomsDeclarationFieldChangeLogDto>> GetFieldChangeLogsAsync(
+        string declarationId,
         CancellationToken cancellationToken = default);
 
     /// <summary>报关入库过账前校验费用完整性（与到货通知门禁一致）。</summary>
@@ -97,6 +108,21 @@ public sealed class RecalculateCustomsDeclarationFeesResultDto
     public DateTime FeesCalculatedAtUtc { get; set; }
     public decimal TotalTaxAmount { get; set; }
     public int LineCount { get; set; }
+    public int ArrivalNoticesUpdated { get; set; }
+    public int StockInItemsUpdated { get; set; }
+    public int StockItemLayersUpdated { get; set; }
+}
+
+public sealed class CustomsDeclarationFieldChangeLogDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string FieldName { get; set; } = string.Empty;
+    public string FieldLabel { get; set; } = string.Empty;
+    public string? OldValue { get; set; }
+    public string? NewValue { get; set; }
+    public string? ChangedByUserName { get; set; }
+    public DateTime ChangedAt { get; set; }
+    public string ObjectLabel { get; set; } = string.Empty;
 }
 
 public sealed class CustomsDeclarationItemPatch

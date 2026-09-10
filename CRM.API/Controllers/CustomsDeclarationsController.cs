@@ -484,8 +484,9 @@ public class CustomsDeclarationsController : ControllerBase
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Fail("当前账号物流数据为只读或禁止", 403));
 
-            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
-            var result = await _customsV2FlowService.RecalculateDeclarationFeesAsync(id, uid);
+            var uid = CustomsLockedCostUsdHttp.UserId(User);
+            var canCorrect = await CustomsLockedCostUsdHttp.CanCorrectAsync(_rbacService, User);
+            var result = await _customsV2FlowService.RecalculateDeclarationFeesAsync(id, uid, canCorrect);
             return Ok(ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Ok(result, "试算成功"));
         }
         catch (InvalidOperationException ex)
@@ -509,10 +510,11 @@ public class CustomsDeclarationsController : ControllerBase
 
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
-            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            var uid = CustomsLockedCostUsdHttp.UserId(User);
+            var canCorrect = await CustomsLockedCostUsdHttp.CanCorrectAsync(_rbacService, User);
             await _customsV2FlowService.UpdateDeclarationHeaderAsync(
                 id, body?.ToWarehouseId, body?.Remark, uid, body?.ExchangeRate, body?.CustomsBrokerId,
-                body?.CostUsdManual);
+                body?.CostUsdManual, canCorrect);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关单"));
         }
         catch (InvalidOperationException ex)
@@ -526,6 +528,26 @@ public class CustomsDeclarationsController : ControllerBase
         }
     }
 
+    [HttpGet("{id}/change-logs")]
+    public async Task<ActionResult<ApiResponse<IReadOnlyList<CustomsDeclarationFieldChangeLogDto>>>> GetChangeLogs(
+        string id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<IReadOnlyList<CustomsDeclarationFieldChangeLogDto>>.Fail("当前账号无权访问报关模块", 403));
+
+            var rows = await _customsV2FlowService.GetFieldChangeLogsAsync(id, cancellationToken);
+            return Ok(ApiResponse<IReadOnlyList<CustomsDeclarationFieldChangeLogDto>>.Ok(rows, "OK"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "获取报关单变更日志失败 {Id}", id);
+            return StatusCode(500, ApiResponse<IReadOnlyList<CustomsDeclarationFieldChangeLogDto>>.Fail(ex.Message, 500));
+        }
+    }
+
     [HttpPatch("{id}/customs-clearance-status")]
     public async Task<ActionResult<ApiResponse<object>>> SetClearanceStatus(string id, [FromBody] SetClearanceStatusRequest body)
     {
@@ -536,7 +558,7 @@ public class CustomsDeclarationsController : ControllerBase
 
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
-            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            var uid = CustomsLockedCostUsdHttp.UserId(User);
             await _service.SetCustomsClearanceStatusAsync(id, body.CustomsClearanceStatus, uid);
             return Ok(ApiResponse<object>.Ok(null, "已更新海关状态"));
         }
@@ -562,7 +584,7 @@ public class CustomsDeclarationsController : ControllerBase
             if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
                 return StatusCode(403, ApiResponse<CreateCustomsArrivalNotifiesResultDto>.Fail("当前账号物流数据为只读或禁止", 403));
 
-            var uid = User?.Claims?.FirstOrDefault(c => c.Type == "sub" || c.Type == "userId")?.Value;
+            var uid = CustomsLockedCostUsdHttp.UserId(User);
             var result = await _customsV2FlowService.CreateCustomsArrivalNotifiesAsync(id, uid);
             return Ok(ApiResponse<CreateCustomsArrivalNotifiesResultDto>.Ok(result, $"已生成 {result.CreatedCount} 条报关到货通知"));
         }

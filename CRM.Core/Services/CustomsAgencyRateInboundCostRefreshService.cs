@@ -188,12 +188,39 @@ public sealed class CustomsAgencyRateInboundCostRefreshService : ICustomsAgencyR
         return true;
     }
 
+    public async Task<CustomsInboundCostCascadeCounts> CascadeDeclarationItemAsync(
+        string declarationItemId,
+        decimal p1,
+        CancellationToken cancellationToken = default)
+    {
+        _ = cancellationToken;
+        FinanceExchangeRateDto? fx = null;
+        try
+        {
+            fx = await _financeFx.GetCurrentAsync(cancellationToken);
+        }
+        catch
+        {
+            fx = null;
+        }
+
+        var inbound = await CascadeInboundCostAsync(declarationItemId, p1, fx, DateTime.UtcNow, cancellationToken);
+        return new CustomsInboundCostCascadeCounts
+        {
+            ArrivalNotices = inbound.Notices,
+            StockInItems = inbound.StockInItems,
+            StockItemLayers = inbound.Layers
+        };
+    }
+
     private async Task<(int Notices, int StockInItems, int Layers)> CascadeInboundCostAsync(
         string declarationItemId,
         decimal p1,
         FinanceExchangeRateDto? fx,
-        DateTime now)
+        DateTime now,
+        CancellationToken cancellationToken = default)
     {
+        _ = cancellationToken;
         var notices = 0;
         var stockInItems = 0;
         var layers = 0;

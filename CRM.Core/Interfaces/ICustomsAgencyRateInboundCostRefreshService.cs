@@ -11,6 +11,19 @@ public interface ICustomsAgencyRateInboundCostRefreshService
         decimal agencyRate,
         string? actingUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>按报关明细新 P1 回写到货通知、报关入库明细与在库采购价。</summary>
+    Task<CustomsInboundCostCascadeCounts> CascadeDeclarationItemAsync(
+        string declarationItemId,
+        decimal p1,
+        CancellationToken cancellationToken = default);
+}
+
+public sealed class CustomsInboundCostCascadeCounts
+{
+    public int ArrivalNotices { get; set; }
+    public int StockInItems { get; set; }
+    public int StockItemLayers { get; set; }
 }
 
 public sealed class CustomsAgencyRateInboundCostRefreshResult

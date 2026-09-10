@@ -138,6 +138,7 @@
           :detail="detail"
           :can-write="canWriteLogistics"
           :mask-purchase="maskPurchase"
+          :can-correct-locked-cost-usd="canCorrectLockedCostUsd"
           @refresh="load"
         />
 
@@ -187,6 +188,41 @@
           </div>
         </div>
 
+        <div class="info-section">
+          <div class="section-header">
+            <div class="section-header__main">
+              <div class="section-dot section-dot--cyan"></div>
+              <span class="section-title">{{ t('customsPages.fees.changeLogs') }}</span>
+              <span v-if="changeLogs.length" class="section-count">{{ changeLogs.length }}</span>
+            </div>
+          </div>
+          <div class="detail-panel-section-body">
+            <div v-if="changeLogs.length" class="detail-items-table-wrap">
+              <el-table :data="changeLogs" size="small" border class="detail-panel-list-table">
+                <el-table-column :label="t('customsPages.fees.colChangedAt')" min-width="156">
+                  <template #default="{ row }">{{ formatDateTimeZh(row.changedAt, 'YYYY-MM-DD HH:mm') }}</template>
+                </el-table-column>
+                <el-table-column :label="t('customsPages.fees.colChangedBy')" min-width="100" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.changedByUserName || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('customsPages.fees.colObject')" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.objectLabel || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('customsPages.fees.colField')" min-width="120" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.fieldLabel || row.fieldName || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('customsPages.fees.colOld')" min-width="100" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.oldValue || '—' }}</template>
+                </el-table-column>
+                <el-table-column :label="t('customsPages.fees.colNew')" min-width="100" show-overflow-tooltip>
+                  <template #default="{ row }">{{ row.newValue || '—' }}</template>
+                </el-table-column>
+              </el-table>
+            </div>
+            <DetailListPanelEmpty v-else size="low" :description="t('customsPages.fees.changeLogEmpty')" />
+          </div>
+        </div>
+
         <div class="tabs-section">
           <div class="section-header section-header--tabs">
             <div class="section-header__main">
@@ -232,9 +268,12 @@ import CustomsDeclarationFeesPanel from '@/components/Customs/CustomsDeclaration
 import {
   createCustomsArrivalNotifies,
   fetchCustomsDeclarationById,
+  fetchCustomsDeclarationChangeLogs,
   patchCustomsClearanceStatus,
-  type CustomsDeclarationDetailDto
+  type CustomsDeclarationDetailDto,
+  type CustomsDeclarationFieldChangeLogRow
 } from '@/api/customs'
+import { useAuthStore } from '@/stores/auth'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
@@ -251,7 +290,10 @@ const router = useRouter()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const customsDeclarationFlowStore = useCustomsDeclarationFlowPanelStore()
+const authStore = useAuthStore()
 const { canWriteLogisticsData: canWriteLogistics } = useDepartmentDataReadOnly()
+const canCorrectLockedCostUsd = computed(() => authStore.canForceDelete())
+const changeLogs = ref<CustomsDeclarationFieldChangeLogRow[]>([])
 const { maskPurchaseSensitiveFields: maskPurchase } = usePurchaseSensitiveFieldMask()
 const { maskSaleSensitiveFields: maskSale } = useSaleSensitiveFieldMask()
 const loading = ref(false)
@@ -429,6 +471,11 @@ async function load() {
   loadError.value = ''
   try {
     detail.value = await fetchCustomsDeclarationById(id)
+    try {
+      changeLogs.value = await fetchCustomsDeclarationChangeLogs(id)
+    } catch {
+      changeLogs.value = []
+    }
     bindRightPanels(id)
     await loadActiveRightTab()
   } catch (e: unknown) {

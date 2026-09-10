@@ -466,8 +466,22 @@ const zhCN = {
       validateZeroDutyHs: '第 {line} 行零关税请填写 HS 编码',
       validateVatPositive: '第 {line} 行增值税率须大于 0',
       recalculateOk: '费用试算成功',
+      recalculateOkWithDownstream:
+        '费用已重算，并已回写到货通知 {notices}、入库明细 {stockIns}、库存 {layers}',
       saveOk: '费用已保存',
       alertLockedPartial: '费用已锁定（已结关），仅可修改杂费与商检费；修改杂费后将重算价税总额',
+      alertLockedAdminCostUsd:
+        '费用已锁定（已结关）。系统管理员或平台管理员可将采购美金价改为手工并保存，以更正历史数据并刷新下游成本。',
+      alertCompletedAdminCostUsd:
+        '报关单已完成。系统管理员或平台管理员仍可将采购美金价改为手工并保存，以更正历史数据并刷新下游成本。',
+      changeLogs: '变更日志',
+      changeLogEmpty: '暂无采购美金价变更记录',
+      colChangedAt: '时间',
+      colChangedBy: '操作人',
+      colObject: '对象',
+      colField: '字段',
+      colOld: '原值',
+      colNew: '新值',
       financeRateApplied: '已填入财务 USD/CNY 汇率（未保存，请试算或保存）',
       financeRateInvalid: '财务汇率无效',
       formulaTitle: '计算公式说明',

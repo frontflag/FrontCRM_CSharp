@@ -468,8 +468,22 @@ const enUS = {
       validateZeroDutyHs: 'Line {line}: HS code required for zero duty',
       validateVatPositive: 'Line {line}: VAT rate must be positive',
       recalculateOk: 'Fees recalculated',
+      recalculateOkWithDownstream:
+        'Fees recalculated; updated arrival notices {notices}, inbound lines {stockIns}, stock layers {layers}',
       saveOk: 'Fees saved',
       alertLockedPartial: 'Fees locked after clearance; only other/inspection fees editable. Other fee changes recalculate line totals.',
+      alertLockedAdminCostUsd:
+        'Fees are locked after clearance. System or platform admins can switch Cost (USD) to Manual and save to correct historical data and refresh downstream cost.',
+      alertCompletedAdminCostUsd:
+        'This declaration is completed. System or platform admins can still switch Cost (USD) to Manual and save to correct historical data and refresh downstream cost.',
+      changeLogs: 'Change log',
+      changeLogEmpty: 'No Cost (USD) changes yet',
+      colChangedAt: 'Time',
+      colChangedBy: 'User',
+      colObject: 'Object',
+      colField: 'Field',
+      colOld: 'Old',
+      colNew: 'New',
       financeRateApplied: 'Finance USD/CNY rate filled (not saved until you recalculate)',
       financeRateInvalid: 'Invalid finance exchange rate',
       formulaTitle: 'Calculation formulas',

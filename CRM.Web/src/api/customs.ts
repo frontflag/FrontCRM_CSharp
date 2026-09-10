@@ -686,6 +686,29 @@ export interface RecalculateCustomsDeclarationFeesResultDto {
   feesCalculatedAtUtc: string
   totalTaxAmount: number
   lineCount: number
+  arrivalNoticesUpdated?: number
+  stockInItemsUpdated?: number
+  stockItemLayersUpdated?: number
+}
+
+export interface CustomsDeclarationFieldChangeLogRow {
+  id: string
+  fieldName: string
+  fieldLabel: string
+  oldValue?: string | null
+  newValue?: string | null
+  changedByUserName?: string | null
+  changedAt: string
+  objectLabel: string
+}
+
+export async function fetchCustomsDeclarationChangeLogs(
+  id: string
+): Promise<CustomsDeclarationFieldChangeLogRow[]> {
+  const rows = await apiClient.get<CustomsDeclarationFieldChangeLogRow[]>(
+    `/api/v1/customs-declarations/${encodeURIComponent(id)}/change-logs`
+  )
+  return Array.isArray(rows) ? rows : []
 }
 
 export async function recalculateCustomsDeclarationFees(
