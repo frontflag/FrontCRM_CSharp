@@ -90,11 +90,18 @@ namespace CRM.API.Services.Implementations
             }
 
             var loginKeyLower = loginKey.ToLowerInvariant();
-            // 与员工管理一致：按登录账号匹配；兼容大小写及「把邮箱填进账号框」的常见习惯
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u =>
+            // 与员工管理一致：按登录账号匹配；兼容大小写及「把邮箱填进账号框」的常见习惯。
+            // 软删后可再建同名账号，库内会有多行；必须优先取已启用行，否则 FirstOrDefault 会命中旧的 IsActive=false。
+            var matches = await _context.Users
+                .Where(u =>
                     u.UserName.ToLower() == loginKeyLower
-                    || (u.Email != null && u.Email.ToLower() == loginKeyLower));
+                    || (u.Email != null && u.Email.ToLower() == loginKeyLower))
+                .ToListAsync();
+            var user = matches
+                .OrderByDescending(u => u.IsActive)
+                .ThenByDescending(u => u.Status == UserAccountStatus.Active)
+                .ThenByDescending(u => u.ModifyTime ?? u.CreateTime)
+                .FirstOrDefault();
 
             if (user == null)
             {
