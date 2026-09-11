@@ -629,7 +629,7 @@ namespace CRM.API.Controllers
                     "在库单价", "在库单价币别", "在库金额", "在库金额币别",
                     "供应商中文名称", "供应商英文名称", "采购员",
                     "采购明细编号", "采购单号", "货代单号",
-                    "客户", "业务员", "销售明细编号", "批次", "库位", "入库毛利快照(USD)"));
+                    "客户", "业务员", "销售明细编号", "批次", "库位", "入库毛利快照(USD)", "报关单号", "报关公司"));
 
                 foreach (var r in items)
                 {
@@ -665,7 +665,9 @@ namespace CRM.API.Controllers
                         InventoryExportHttp.CsvCell(
                             mask511 || mask521
                                 ? string.Empty
-                                : InventoryExportHttp.FormatDecimal(r.ProfitOutBizUsd))));
+                                : InventoryExportHttp.FormatDecimal(r.ProfitOutBizUsd)),
+                        InventoryExportHttp.CsvCell(r.CustomsDeclarationCode),
+                        InventoryExportHttp.CsvCell(r.CustomsBrokerName)));
                 }
 
                 var filters = ExportOperationAudit.NormalizeFilters(new Dictionary<string, object?>
