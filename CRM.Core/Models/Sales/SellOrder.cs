@@ -70,6 +70,10 @@ namespace CRM.Core.Models.Sales
         [Column("status")]
         public SellOrderMainStatus Status { get; set; } = SellOrderMainStatus.New;
 
+        /// <summary>首次审核通过的 UTC 时间（工作日程绿点）。</summary>
+        [Column("approved_at")]
+        public DateTime? ApprovedAt { get; set; }
+
         /// <summary>异常状态</summary>
         [Column("err_status")]
         public short ErrStatus { get; set; } = 0;

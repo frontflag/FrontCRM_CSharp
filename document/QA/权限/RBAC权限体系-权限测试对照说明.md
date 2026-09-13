@@ -386,6 +386,7 @@
 | 公司参数 | `system.params.company.read` | `system.params.company.write` | CompanyProfileController.Get/Update（read/write 任一即可查看） |
 | 数据字典 | `system.params.dict.read` | `system.params.dict.write` | DictionariesAdminController |
 | 报表参数 | `system.params.report.global.read` | `system.params.report.global.write` | ReportParamsController |
+| 预警参数 | `system.params.risk-alert.read` | `system.params.risk-alert.write` | RiskAlertParamsController |
 
 ### 14.2 业务权限码通用验收用例
 

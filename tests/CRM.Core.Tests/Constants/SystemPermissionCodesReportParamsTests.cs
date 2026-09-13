@@ -26,4 +26,15 @@ public sealed class SystemPermissionCodesReportParamsTests
         SystemPermissionCodes.AllSystemPermissions.Should().Contain(SystemPermissionCodes.ParamsCommissionRead);
         SystemPermissionCodes.DefaultAdminPermissions.Should().Contain(SystemPermissionCodes.ParamsCommissionPurchaseWrite);
     }
+
+    [Fact]
+    public void RiskAlert_IsMenuPermission_And_AdminOnly()
+    {
+        SystemPermissionCodes.IsParamsModuleMenuPermission(SystemPermissionCodes.ParamsRiskAlertRead)
+            .Should().BeFalse();
+        SystemPermissionCodes.AllSystemPermissions.Should().Contain(SystemPermissionCodes.ParamsRiskAlertRead);
+        SystemPermissionCodes.AllSystemPermissions.Should().Contain(SystemPermissionCodes.ParamsRiskAlertWrite);
+        SystemPermissionCodes.DefaultAdminPermissions.Should().Contain(SystemPermissionCodes.ParamsRiskAlertWrite);
+        SystemPermissionCodes.DefaultManagerPermissions.Should().NotContain(SystemPermissionCodes.ParamsRiskAlertRead);
+    }
 }

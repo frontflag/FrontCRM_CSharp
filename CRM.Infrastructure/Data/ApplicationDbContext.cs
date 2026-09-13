@@ -22,6 +22,7 @@ using CRM.Core.Models.Vendor;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Ai;
 using CRM.Core.Models.AiAssistant;
+using CRM.Core.Models.Work;
 using Microsoft.EntityFrameworkCore;
 
 namespace CRM.Infrastructure.Data
@@ -58,6 +59,9 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysAnnouncement> SysAnnouncements { get; set; } = null!;
         public DbSet<SysAnnouncementRead> SysAnnouncementReads { get; set; } = null!;
         public DbSet<SysUserNotice> SysUserNotices { get; set; } = null!;
+        public DbSet<WorkTask> WorkTasks { get; set; } = null!;
+        public DbSet<IncentiveTarget> IncentiveTargets { get; set; } = null!;
+        public DbSet<RiskAlertSetting> RiskAlertSettings { get; set; } = null!;
         public DbSet<TelemetryEvent> TelemetryEvents { get; set; } = null!;
         public DbSet<TelemetryDailyPage> TelemetryDailyPages { get; set; } = null!;
         public DbSet<TelemetryDailyAction> TelemetryDailyActions { get; set; } = null!;
@@ -2856,6 +2860,45 @@ namespace CRM.Infrastructure.Data
                     .HasDatabaseName("ix_sys_user_notice_recipient_create");
                 entity.HasIndex(e => e.CreateTime).HasDatabaseName("ix_sys_user_notice_create_time");
             });
+
+            modelBuilder.Entity<WorkTask>(entity =>
+            {
+                entity.ToTable("work_task");
+                entity.HasKey(e => e.Id);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.Title).HasMaxLength(200);
+                entity.Property(e => e.Content).HasMaxLength(2000);
+                entity.Property(e => e.ObjectType).HasMaxLength(32);
+                entity.HasIndex(e => new { e.AssigneeUserId, e.StartDate })
+                    .HasDatabaseName("ix_work_task_assignee_start");
+                entity.HasIndex(e => new { e.ObjectType, e.ObjectId })
+                    .HasDatabaseName("ix_work_task_object");
+            });
+
+            modelBuilder.Entity<IncentiveTarget>(entity =>
+            {
+                entity.ToTable("incentive_target");
+                entity.HasKey(e => e.Id);
+                entity.HasQueryFilter(e => !e.IsDeleted);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.PeriodKey).HasMaxLength(8);
+                entity.HasIndex(e => new { e.UserId, e.RoleType, e.PeriodKind, e.PeriodKey })
+                    .HasDatabaseName("ux_incentive_target_user_period")
+                    .IsUnique()
+                    .HasFilter("is_deleted = false");
+                entity.HasIndex(e => e.UserId).HasDatabaseName("ix_incentive_target_user");
+            });
+
+            modelBuilder.Entity<RiskAlertSetting>(entity =>
+            {
+                entity.ToTable("risk_alert_setting");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+            });
+
+            modelBuilder.Entity<RFQ>().Property(e => e.AssignedAt).HasColumnName("assigned_at");
+            modelBuilder.Entity<SellOrder>().Property(e => e.ApprovedAt).HasColumnName("approved_at");
         }
     }
 }

@@ -202,6 +202,7 @@ namespace CRM.Core.Services
             {
                 rfq.AssignMethod = assignMethod;
                 rfq.Status = 1;
+                rfq.AssignedAt ??= DateTime.UtcNow;
             }
 
             if (rfq.Status != statusBeforeSave)
@@ -606,7 +607,10 @@ namespace CRM.Core.Services
                 {
                     rfq.AssignMethod = ResolveAssignMethod(rfq.AssignMethod);
                     if (rfq.Status == 0)
+                    {
                         rfq.Status = 1;
+                        rfq.AssignedAt ??= DateTime.UtcNow;
+                    }
                 }
 
                 var activeCount = (await _itemRepo.FindAsync(i => i.RfqId == id)).Count(i => !i.IsDeleted);
@@ -812,6 +816,10 @@ namespace CRM.Core.Services
                 status = (short)RfqMainStatus.Closed;
             var prev = rfq.Status;
             rfq.Status = status;
+            if (rfq.AssignedAt == null
+                && WorkCalendarDotRules.CountsAsRfqAssignedDot(rfq.Status)
+                && !WorkCalendarDotRules.CountsAsRfqAssignedDot(prev))
+                rfq.AssignedAt = DateTime.UtcNow;
             rfq.ModifyTime = DateTime.UtcNow;
             rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _rfqRepo.UpdateAsync(rfq);
@@ -913,6 +921,7 @@ namespace CRM.Core.Services
                 return;
 
             rfq.Status = (short)RfqMainStatus.Assigned;
+            rfq.AssignedAt ??= DateTime.UtcNow;
             rfq.ModifyTime = DateTime.UtcNow;
             rfq.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _rfqRepo.UpdateAsync(rfq);

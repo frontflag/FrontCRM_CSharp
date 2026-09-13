@@ -514,7 +514,9 @@ const SIDEBAR_MENU_GROUPS: SidebarMenuGroupDef[] = [
       { code: 'commission-estimated-sales.read', titleKey: 'layout.menu.commissionEstimatedSales' },
       { code: 'commission-estimated-purchase.read', titleKey: 'layout.menu.commissionEstimatedPurchase' },
       { code: 'commission-official-sales.read', titleKey: 'layout.menu.commissionOfficialSales' },
-      { code: 'commission-official-purchase.read', titleKey: 'layout.menu.commissionOfficialPurchase' }
+      { code: 'commission-official-purchase.read', titleKey: 'layout.menu.commissionOfficialPurchase' },
+      { code: 'incentive-target.read', titleKey: 'dashboard.incentive.permRead' },
+      { code: 'incentive-target.write', titleKey: 'dashboard.incentive.permWrite' }
     ]
   },
   {
@@ -552,7 +554,8 @@ const SIDEBAR_MENU_GROUPS: SidebarMenuGroupDef[] = [
       { code: 'system.params.sales.read', titleKey: 'layout.menu.salesParams' },
       { code: 'system.params.purchase.read', titleKey: 'layout.menu.purchaseParams' },
       { code: 'system.params.finance.read', titleKey: 'layout.menu.financeParams' },
-      { code: 'system.params.report.read', titleKey: 'layout.menu.reportParams' }
+      { code: 'system.params.report.read', titleKey: 'layout.menu.reportParams' },
+      { code: 'system.params.risk-alert.read', titleKey: 'layout.menu.riskAlertParams' }
     ]
   },
   {

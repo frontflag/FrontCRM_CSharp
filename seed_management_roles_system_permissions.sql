@@ -56,7 +56,9 @@ INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", 
 ('31000000-0000-4000-8000-0000000000a3', 'system.params.commission.sales.read', '系统-提成参数-业务员系数-查看', 'api', 'system.params.commission.sales', 'read', 1, NOW()),
 ('31000000-0000-4000-8000-0000000000a4', 'system.params.commission.sales.write', '系统-提成参数-业务员系数-维护', 'api', 'system.params.commission.sales', 'write', 1, NOW()),
 ('31000000-0000-4000-8000-0000000000a5', 'system.params.commission.purchase.read', '系统-提成参数-采购员系数-查看', 'api', 'system.params.commission.purchase', 'read', 1, NOW()),
-('31000000-0000-4000-8000-0000000000a6', 'system.params.commission.purchase.write', '系统-提成参数-采购员系数-维护', 'api', 'system.params.commission.purchase', 'write', 1, NOW())
+('31000000-0000-4000-8000-0000000000a6', 'system.params.commission.purchase.write', '系统-提成参数-采购员系数-维护', 'api', 'system.params.commission.purchase', 'write', 1, NOW()),
+('31000000-0000-4000-8000-0000000000b1', 'system.params.risk-alert.read', '系统-预警参数-查看', 'api', 'system.params.risk-alert', 'read', 1, NOW()),
+('31000000-0000-4000-8000-0000000000b2', 'system.params.risk-alert.write', '系统-预警参数-维护', 'api', 'system.params.risk-alert', 'write', 1, NOW())
 ON CONFLICT ("PermissionCode") DO NOTHING;
 
 INSERT INTO sys_role_permission ("RolePermissionId", "RoleId", "PermissionId", "CreateTime")
@@ -98,6 +100,7 @@ WHERE r."RoleCode" = 'SYS_MANAGER'
     'system.params.commission.read','system.params.commission.write',
     'system.params.commission.sales.read','system.params.commission.sales.write',
     'system.params.commission.purchase.read','system.params.commission.purchase.write',
+    'system.params.risk-alert.read','system.params.risk-alert.write',
     'system.logs.login.read','system.logs.operation.read','system.logs.export.read'
   )
   AND NOT EXISTS (

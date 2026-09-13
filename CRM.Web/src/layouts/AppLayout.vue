@@ -1186,7 +1186,7 @@
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessParamsModule('report') || canAccessParamsModule('commission') || canAccessSystemPermission('biz.ai.admin')"
+          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessParamsModule('report') || canAccessParamsModule('commission') || canAccessSystemPermission('system.params.risk-alert.read') || canAccessSystemPermission('biz.ai.admin')"
           :collapsed="isCollapsed"
           :expanded="openGroups.paramManagement"
           @toggle="toggleGroup('paramManagement')"
@@ -1279,6 +1279,13 @@
               active-class="active"
               exact
             >{{ t('layout.menu.commissionParams') }}</router-link>
+            <router-link
+              v-if="canAccessSystemPermission('system.params.risk-alert.read')"
+              to="/system/risk-alert-params"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.riskAlertParams') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
 
@@ -3724,6 +3731,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/purchase-params/demand-protection': 'purchaseParams.demandProtectionNav',
   '/system/purchase-params/refresh-vendor': 'purchaseParams.refreshVendorNav',
   '/system/report-params/global': 'layout.menu.reportParams',
+  '/system/risk-alert-params': 'layout.menu.riskAlertParams',
   '/system/commission-params/settings': 'layout.menu.commissionParams',
   '/system/commission-params/sales': 'layout.menu.commissionParams',
   '/system/commission-params/purchase': 'commissionParams.purchaseNav',
@@ -4203,7 +4211,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params') || p.startsWith('/system/report-params') || p.startsWith('/system/commission-params')) {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p === '/system/risk-alert-params' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params') || p.startsWith('/system/report-params') || p.startsWith('/system/commission-params')) {
       openGroups.value.paramManagement = true
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs' || p === '/system/export-logs') {

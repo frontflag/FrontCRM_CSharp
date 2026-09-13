@@ -1124,6 +1124,17 @@ const routes: RouteRecordRaw[] = [
         ]
       },
       {
+        path: 'system/risk-alert-params',
+        name: 'RiskAlertParams',
+        component: () => import('@/views/System/RiskAlertParamsSettings.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '预警参数',
+          permission: 'system.params.risk-alert.read',
+          adminOrManagerOnly: true
+        }
+      },
+      {
         path: 'system/report-params',
         component: () => import('@/views/System/ReportParamsLayout.vue'),
         meta: { requiresAuth: true, title: '报表参数', paramsModule: 'report' },

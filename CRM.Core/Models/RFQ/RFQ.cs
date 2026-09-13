@@ -121,6 +121,10 @@ namespace CRM.Core.Models.RFQ
         [Column("status")]
         public short Status { get; set; } = 0;
 
+        /// <summary>首次变为已分配的 UTC 时间（工作日程蓝点）。</summary>
+        [Column("assigned_at")]
+        public DateTime? AssignedAt { get; set; }
+
         /// <summary>明细数量 (冗余字段, 方便列表查询)</summary>
         [Column("item_count")]
         public int ItemCount { get; set; } = 0;

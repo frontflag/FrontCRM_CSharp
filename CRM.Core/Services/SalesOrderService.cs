@@ -820,7 +820,10 @@ namespace CRM.Core.Services
             if (status == SellOrderMainStatus.AuditFailed && !string.IsNullOrWhiteSpace(auditRemark))
                 order.AuditRemark = auditRemark.Trim();
             else if (status == SellOrderMainStatus.Approved)
+            {
                 order.AuditRemark = null;
+                order.ApprovedAt ??= DateTime.UtcNow;
+            }
 
             order.ModifyTime = DateTime.UtcNow;
             order.ModifyByUserId = NormalizeActingUserId(actingUserId);

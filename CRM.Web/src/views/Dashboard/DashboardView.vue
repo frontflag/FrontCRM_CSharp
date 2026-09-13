@@ -1,40 +1,28 @@
 <template>
   <!-- 控制台内容区域（外层布局由 AppLayout.vue 提供，此处不含侧边菜单和顶部栏） -->
   <div class="dashboard-content">
+    <div class="dashboard-main">
     <!-- 欢迎卡片（置顶） -->
     <div class="welcome-card">
-      <div class="welcome-left">
-        <h2 class="welcome-title">
-          {{ t('dashboard.welcomeBack', { name: authStore.user?.userName || t('dashboard.fallbackName') }) }}
-        </h2>
-        <p class="welcome-sub">
-          {{ isPurchasePrimary ? t('dashboard.welcomeSubPurchase') : t('dashboard.welcomeSub') }}
-        </p>
-      </div>
-      <div class="welcome-right">
-        <div class="quick-links">
-          <router-link v-if="canUseCustomerUi" to="/custome" class="quick-link">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
-            </svg>
-            {{ t('dashboard.quickCustomerManagement') }}
-          </router-link>
-          <router-link v-if="canCreateCustomer" to="/customers/create" class="quick-link">
+      <h2 class="welcome-title">
+        {{ t('dashboard.welcomeBack', { name: authStore.user?.userName || t('dashboard.fallbackName') }) }}
+      </h2>
+      <div class="quick-links">
+          <router-link v-if="isSalesSide && canCreateCustomer" to="/customers/create" class="quick-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
             {{ t('dashboard.quickNewCustomer') }}
           </router-link>
-          <router-link v-if="canUseVendorUi" to="/vendorlist" class="quick-link">
+          <router-link v-if="isSalesSide && canCreateRfq" to="/rfqs/create" class="quick-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              <path d="M9 22V12h6v10" />
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            {{ t('dashboard.quickVendorManagement') }}
+            {{ t('dashboard.quickNewRfq') }}
           </router-link>
-          <router-link v-if="canCreateVendor" to="/vendors/create" class="quick-link">
+          <router-link v-if="isPurchaseSide && canCreateVendor" to="/vendors/create" class="quick-link">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
@@ -51,187 +39,68 @@
             {{ t('dashboard.quickSystemSettings') }}
           </router-link>
         </div>
-      </div>
     </div>
 
-    <!-- 采购主部门：供应商统计 -->
-    <div v-if="showPurchaseStats" class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon cyan">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-            <path d="M9 22V12h6v10" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.totalVendors') }}</span>
-          <span class="stat-value">{{ stats.totalVendors }}</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon amber">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4l3 3" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.pendingTasks') }}</span>
-          <span class="stat-value">{{ stats.pendingTasks }}</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon mint">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.monthlyNew') }}</span>
-          <span class="stat-value">{{ stats.monthlyNew }}</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon blue">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <line x1="18" y1="20" x2="18" y2="10" />
-            <line x1="12" y1="20" x2="12" y2="4" />
-            <line x1="6" y1="20" x2="6" y2="14" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.vendorPayableAmount') }}</span>
-          <span class="stat-value">$ {{ stats.vendorPayable }}</span>
-        </div>
-      </div>
+    <IncentiveTargetPanel />
+    <DashboardOverviewPanel />
+    <RiskAlertPanel />
     </div>
-
-    <!-- 非采购主部门且具备客户数据权限：客户 + 销售口径统计 -->
-    <div v-else-if="showCustomerStats" class="stats-grid">
-      <div class="stat-card">
-        <div class="stat-icon cyan">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.totalCustomers') }}</span>
-          <span class="stat-value">{{ stats.totalCustomers }}</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon amber">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4l3 3" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.pendingTasks') }}</span>
-          <span class="stat-value">{{ stats.pendingTasks }}</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon mint">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.monthlyNew') }}</span>
-          <span class="stat-value">{{ stats.monthlyNew }}</span>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon blue">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <line x1="18" y1="20" x2="18" y2="10" />
-            <line x1="12" y1="20" x2="12" y2="4" />
-            <line x1="6" y1="20" x2="6" y2="14" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.monthlySales') }}</span>
-          <span class="stat-value">$ {{ stats.monthlySales }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- 无客户/供应商统计权限：仅待办 -->
-    <div v-else class="stats-grid stats-grid--single">
-      <div class="stat-card">
-        <div class="stat-icon amber">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 8v4l3 3" />
-          </svg>
-        </div>
-        <div class="stat-info">
-          <span class="stat-label">{{ t('dashboard.stats.pendingTasks') }}</span>
-          <span class="stat-value">{{ stats.pendingTasks }}</span>
-        </div>
-      </div>
-    </div>
-
-    <section v-if="showTodoPanel" class="todo-panel" aria-labelledby="dashboard-todo-title">
-      <h3 id="dashboard-todo-title" class="todo-panel__title">{{ t('dashboard.todo.title') }}</h3>
-      <div class="todo-panel__list">
-        <article v-if="showSetupMailboxTask" class="todo-card">
-          <div class="todo-card__body">
-            <h4 class="todo-card__title">{{ t('dashboard.todo.setupMailboxTitle') }}</h4>
-            <p class="todo-card__desc">{{ t('dashboard.todo.setupMailboxDesc') }}</p>
-          </div>
-          <router-link class="todo-card__action" :to="mailboxSetupTo">
-            {{ t('dashboard.todo.setupMailboxAction') }}
-          </router-link>
-        </article>
-        <article v-if="showFeedbackTask" class="todo-card">
-          <div class="todo-card__body">
-            <h4 class="todo-card__title">
-              {{ t('dashboard.todo.feedbackTitle') }}
-              <span class="todo-card__count">{{ pendingFeedbackCount }}</span>
-            </h4>
-            <p class="todo-card__desc">
-              {{ t('dashboard.todo.feedbackDesc', { count: pendingFeedbackCount }) }}
-            </p>
-          </div>
-          <router-link class="todo-card__action" :to="feedbackTodoTo">
-            {{ t('dashboard.todo.feedbackAction') }}
-          </router-link>
-        </article>
-      </div>
-    </section>
+    <aside class="dashboard-aside">
+      <WorkCalendarPanel />
+      <section v-if="showTodoPanel" class="todo-panel" aria-labelledby="dashboard-todo-title">
+        <h3 id="dashboard-todo-title" class="todo-panel__title">{{ t('dashboard.todo.title') }}</h3>
+        <ul class="todo-panel__list">
+          <li v-if="showSetupMailboxTask" class="todo-row">
+            <div class="todo-row__body">
+              <h4 class="todo-row__title">{{ t('dashboard.todo.setupMailboxTitle') }}</h4>
+              <p class="todo-row__desc">{{ t('dashboard.todo.setupMailboxDesc') }}</p>
+            </div>
+            <router-link class="todo-row__action" :to="mailboxSetupTo">
+              {{ t('dashboard.todo.setupMailboxAction') }}
+            </router-link>
+          </li>
+          <li v-if="showFeedbackTask" class="todo-row">
+            <div class="todo-row__body">
+              <h4 class="todo-row__title">
+                {{ t('dashboard.todo.feedbackTitle') }}
+                <span class="todo-row__count">{{ pendingFeedbackCount }}</span>
+              </h4>
+              <p class="todo-row__desc">
+                {{ t('dashboard.todo.feedbackDesc', { count: pendingFeedbackCount }) }}
+              </p>
+            </div>
+            <router-link class="todo-row__action" :to="feedbackTodoTo">
+              {{ t('dashboard.todo.feedbackAction') }}
+            </router-link>
+          </li>
+        </ul>
+      </section>
+      <DashboardNoticePanel />
+    </aside>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, onMounted, onActivated } from 'vue'
+import { computed, ref, onMounted, onActivated } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
-import { customerApi } from '@/api/customer'
-import { vendorApi } from '@/api/vendor'
-import { approvalsApi } from '@/api/approvals'
 import { fetchMyMailSummary } from '@/api/myMails'
 import { feedbackApi } from '@/api/feedback'
 import { profileMailboxLocation } from '@/utils/profileMailboxLink'
+import WorkCalendarPanel from '@/components/Dashboard/WorkCalendarPanel.vue'
+import DashboardOverviewPanel from '@/components/Dashboard/DashboardOverviewPanel.vue'
+import IncentiveTargetPanel from '@/components/Dashboard/IncentiveTargetPanel.vue'
+import DashboardNoticePanel from '@/components/Dashboard/DashboardNoticePanel.vue'
+import RiskAlertPanel from '@/components/Dashboard/RiskAlertPanel.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
 
-/** 主部门为采购 / 采购助理（与 auth 中 identityType 约定一致） */
-const isPurchasePrimary = computed(() => {
-  const t0 = authStore.user?.identityType ?? 0
-  return t0 === 2 || t0 === 3
-})
-
-const canUseCustomerUi = computed(
-  () =>
-    authStore.hasPermission('customer.read') &&
-    !authStore.isIdentityBlockedForPermission('customer.read')
-)
+const identityType = computed(() => authStore.user?.identityType ?? 0)
+/** 销售 / 商务 */
+const isSalesSide = computed(() => identityType.value === 1 || identityType.value === 4)
+/** 采购员 / 采购助理 */
+const isPurchaseSide = computed(() => identityType.value === 2 || identityType.value === 3)
 
 const canCreateCustomer = computed(
   () =>
@@ -239,10 +108,10 @@ const canCreateCustomer = computed(
     !authStore.isIdentityBlockedForPermission('customer.write')
 )
 
-const canUseVendorUi = computed(
+const canCreateRfq = computed(
   () =>
-    authStore.hasPermission('vendor.read') &&
-    !authStore.isIdentityBlockedForPermission('vendor.read')
+    authStore.hasPermission('rfq.create') &&
+    !authStore.isIdentityBlockedForPermission('rfq.create')
 )
 
 const canCreateVendor = computed(
@@ -250,21 +119,6 @@ const canCreateVendor = computed(
     authStore.hasPermission('vendor.write') &&
     !authStore.isIdentityBlockedForPermission('vendor.write')
 )
-
-/** 采购工作台统计块：主部门为采购侧且具备供应商读权限 */
-const showPurchaseStats = computed(() => isPurchasePrimary.value && canUseVendorUi.value)
-
-/** 客户工作台统计块：非采购主部门且具备客户读权限 */
-const showCustomerStats = computed(() => !isPurchasePrimary.value && canUseCustomerUi.value)
-
-const stats = reactive({
-  totalCustomers: 0,
-  totalVendors: 0,
-  pendingTasks: 0,
-  monthlyNew: 0,
-  monthlySales: '0.00',
-  vendorPayable: '0.00'
-})
 
 /** null=未返回；失败当未验证，仍显示引导 */
 const hasVerifiedMailbox = ref<boolean | null>(null)
@@ -301,49 +155,7 @@ async function loadFeedbackTodo() {
   }
 }
 
-function formatMoneyAmount(n: number) {
-  if (!Number.isFinite(n)) return '0.00'
-  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-async function loadDashboardStats() {
-  try {
-    const summary = await approvalsApi.getApprovalSummary({ pendingOnly: true })
-    stats.pendingTasks = summary?.pendingCount ?? 0
-  } catch {
-    stats.pendingTasks = 0
-  }
-
-  if (showPurchaseStats.value) {
-    try {
-      const v = await vendorApi.getVendorStatistics()
-      stats.totalVendors = v.totalVendors ?? 0
-      stats.monthlyNew = v.newThisMonth ?? 0
-      stats.vendorPayable = formatMoneyAmount(Number(v.payableAmount ?? 0))
-    } catch {
-      stats.totalVendors = 0
-      stats.monthlyNew = 0
-      stats.vendorPayable = '0.00'
-    }
-    return
-  }
-
-  if (showCustomerStats.value) {
-    try {
-      const c = await customerApi.getCustomerStatistics()
-      stats.totalCustomers = c.totalCustomers ?? 0
-      stats.monthlyNew = c.newThisMonth ?? 0
-      stats.monthlySales = formatMoneyAmount(Number(c.receivableGoodsAmount ?? 0))
-    } catch {
-      stats.totalCustomers = 0
-      stats.monthlyNew = 0
-      stats.monthlySales = '0.00'
-    }
-  }
-}
-
 onMounted(() => {
-  void loadDashboardStats()
   void loadMailboxTodo()
   void loadFeedbackTodo()
 })
@@ -359,130 +171,49 @@ onActivated(() => {
 
 .dashboard-content {
   padding: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+  align-items: start;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.dashboard-main {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-width: 0;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-
-  @media (max-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  @media (max-width: 640px) {
-    grid-template-columns: 1fr;
-  }
-
-  &--single {
-    grid-template-columns: 1fr;
-    max-width: 360px;
-  }
-}
-
-.stat-card {
-  background: vars.$layer-3;
-  border: 1px solid vars.$border-card;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  transition:
-    border-color 0.2s,
-    transform 0.2s;
-  &:hover {
-    border-color: var(--crm-accent-03);
-    transform: translateY(-2px);
-  }
-}
-
-.stat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  svg {
-    width: 22px;
-    height: 22px;
-  }
-  &.cyan {
-    background: var(--crm-accent-008);
-    svg {
-      stroke: vars.$cyan-primary;
-    }
-  }
-  &.amber {
-    background: var(--crm-accent-008);
-    svg {
-      stroke: vars.$warning-color;
-    }
-  }
-  &.mint {
-    background: var(--crm-accent-008);
-    svg {
-      stroke: vars.$success-color;
-    }
-  }
-  &.blue {
-    background: var(--crm-accent-008);
-    svg {
-      stroke: vars.$info-color;
-    }
-  }
-}
-
-.stat-info {
+.dashboard-aside {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-.stat-label {
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 12px;
-  color: vars.$text-muted;
-}
-.stat-value {
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 22px;
-  font-weight: 700;
-  color: vars.$text-primary;
+  gap: 16px;
+  position: sticky;
+  top: 16px;
 }
 
 .welcome-card {
   background: vars.$layer-2;
   border: 1px solid rgba(0, 212, 255, 0.12);
   border-radius: 12px;
-  padding: 28px 32px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 24px;
-  @media (max-width: 768px) {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .welcome-title {
+  margin: 0;
   font-family: 'Noto Sans SC', sans-serif;
   font-size: 20px;
   font-weight: 600;
   color: vars.$text-primary;
-  margin: 0 0 8px;
-}
-.welcome-sub {
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 13px;
-  color: vars.$text-muted;
-  margin: 0;
-  line-height: 1.6;
-  max-width: 480px;
 }
 
 .quick-links {
@@ -519,91 +250,85 @@ onActivated(() => {
 }
 
 .todo-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 12px;
+  padding: 16px;
 }
 
 .todo-panel__title {
-  margin: 0;
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: vars.$text-primary;
-}
-
-.todo-panel__list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.todo-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
-  background: vars.$layer-3;
-  border: 1px solid vars.$border-card;
-  border-radius: 12px;
-
-  @media (max-width: 640px) {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-}
-
-.todo-card__title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 6px;
-  font-family: 'Noto Sans SC', sans-serif;
+  margin: 0 0 8px;
   font-size: 15px;
   font-weight: 600;
   color: vars.$text-primary;
 }
 
-.todo-card__count {
+.todo-panel__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.todo-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+
+  &:last-child {
+    padding-bottom: 0;
+    border-bottom: none;
+  }
+}
+
+.todo-row__body {
+  min-width: 0;
+}
+
+.todo-row__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: vars.$text-primary;
+}
+
+.todo-row__count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 7px;
-  border-radius: 11px;
-  font-size: 12px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
   font-weight: 600;
   line-height: 1;
-  color: #0b3a4a;
-  background: rgba(0, 212, 255, 0.22);
+  color: vars.$text-primary;
+  background: var(--el-fill-color);
 }
 
-.todo-card__desc {
+.todo-row__desc {
   margin: 0;
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 12px;
+  line-height: 1.5;
   color: vars.$text-muted;
 }
 
-.todo-card__action {
+.todo-row__action {
   flex-shrink: 0;
-  padding: 8px 16px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  background: rgba(0, 212, 255, 0.06);
-  color: rgba(80, 187, 227, 0.95);
+  margin-top: 1px;
+  color: var(--el-color-primary);
   text-decoration: none;
-  font-family: 'Noto Sans SC', sans-serif;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
 
   &:hover {
-    background: rgba(0, 212, 255, 0.15);
-    border-color: rgba(0, 212, 255, 0.5);
-    color: #00d4ff;
+    text-decoration: underline;
   }
 }
 </style>

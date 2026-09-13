@@ -67,6 +67,10 @@ public static class SystemPermissionCodes
     public const string ParamsCommissionPurchaseRead = "system.params.commission.purchase.read";
     public const string ParamsCommissionPurchaseWrite = "system.params.commission.purchase.write";
 
+    /// <summary>侧栏「预警参数」。仅 SYS_ADMIN / SYS_MANAGER 维护。</summary>
+    public const string ParamsRiskAlertRead = "system.params.risk-alert.read";
+    public const string ParamsRiskAlertWrite = "system.params.risk-alert.write";
+
     public const string LogsLoginRead = "system.logs.login.read";
     public const string LogsOperationRead = "system.logs.operation.read";
     public const string LogsExportRead = "system.logs.export.read";
@@ -139,6 +143,7 @@ public static class SystemPermissionCodes
         ParamsCommissionRead, ParamsCommissionWrite,
         ParamsCommissionSalesRead, ParamsCommissionSalesWrite,
         ParamsCommissionPurchaseRead, ParamsCommissionPurchaseWrite,
+        ParamsRiskAlertRead, ParamsRiskAlertWrite,
         LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 
@@ -167,6 +172,7 @@ public static class SystemPermissionCodes
         ParamsCommissionRead, ParamsCommissionWrite,
         ParamsCommissionSalesRead, ParamsCommissionSalesWrite,
         ParamsCommissionPurchaseRead, ParamsCommissionPurchaseWrite,
+        ParamsRiskAlertRead, ParamsRiskAlertWrite,
         LogsLoginRead, LogsOperationRead, LogsExportRead
     };
 

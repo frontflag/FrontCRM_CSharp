@@ -61,4 +61,5 @@ public static class BusinessLogTypes
     public const string FinanceFreightForwarderPayable = "FinanceFreightForwarderPayable";
 
     public const string Document = "Document";
+    public const string WorkTask = "WorkTask";
 }
