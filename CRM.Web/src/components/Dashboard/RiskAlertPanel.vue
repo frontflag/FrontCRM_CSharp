@@ -1,16 +1,14 @@
 <template>
   <section class="risk" aria-labelledby="dashboard-risk-title">
     <header class="risk__head">
-      <div>
+      <div class="risk__title-row">
         <h3 id="dashboard-risk-title" class="risk__title">{{ t('dashboard.risk.title') }}</h3>
-        <p class="risk__meta">
-          <template v-if="!loading && data">
-            <span v-if="data.immediateCount > 0" class="risk__urgent">
-              {{ t('dashboard.risk.immediate', { n: data.immediateCount }) }}
-            </span>
-            <span v-else-if="data.anyEnabled">{{ t('dashboard.risk.none') }}</span>
-            <span v-else>{{ t('dashboard.risk.unconfigured') }}</span>
-          </template>
+        <p v-if="!loading && data" class="risk__meta">
+          <span v-if="data.immediateCount > 0" class="risk__urgent">
+            {{ t('dashboard.risk.immediate', { n: data.immediateCount }) }}
+          </span>
+          <span v-else-if="data.anyEnabled">{{ t('dashboard.risk.none') }}</span>
+          <span v-else>{{ t('dashboard.risk.unconfigured') }}</span>
         </p>
       </div>
       <router-link v-if="canOpenParams" class="risk__link" to="/system/risk-alert-params">
@@ -149,15 +147,21 @@ onMounted(async () => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
   padding: 16px 20px 14px;
-  margin-top: 16px;
 }
 
 .risk__head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.risk__title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
 }
 
 .risk__title {
@@ -167,7 +171,7 @@ onMounted(async () => {
 }
 
 .risk__meta {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 12px;
   color: var(--el-text-color-secondary);
 }
@@ -195,7 +199,7 @@ onMounted(async () => {
 
 .risk-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   width: 100%;
   padding: 8px 0;
@@ -214,23 +218,32 @@ onMounted(async () => {
 .risk-row__dot {
   width: 8px;
   height: 8px;
-  margin-top: 5px;
   border-radius: 50%;
   background: #f76707;
   flex-shrink: 0;
 }
 
+.risk-row__body {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
 .risk-row__title {
-  display: block;
+  flex-shrink: 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--el-text-color-primary);
 }
 
 .risk-row__detail {
-  display: block;
-  margin-top: 2px;
+  min-width: 0;
   font-size: 12px;
   color: var(--el-text-color-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
