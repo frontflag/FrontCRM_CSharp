@@ -62,6 +62,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<WorkTask> WorkTasks { get; set; } = null!;
         public DbSet<IncentiveTarget> IncentiveTargets { get; set; } = null!;
         public DbSet<RiskAlertSetting> RiskAlertSettings { get; set; } = null!;
+        public DbSet<IndustryNewsBriefing> IndustryNewsBriefings { get; set; } = null!;
         public DbSet<TelemetryEvent> TelemetryEvents { get; set; } = null!;
         public DbSet<TelemetryDailyPage> TelemetryDailyPages { get; set; } = null!;
         public DbSet<TelemetryDailyAction> TelemetryDailyActions { get; set; } = null!;
@@ -2609,6 +2610,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
                 entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.Code).HasColumnName("code").HasMaxLength(100);
+                entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(200);
                 entity.Property(e => e.Version).HasColumnName("version");
                 entity.Property(e => e.SystemPrompt).HasColumnName("system_prompt");
                 entity.Property(e => e.UserPromptTemplate).HasColumnName("user_prompt_template");
@@ -2895,6 +2897,16 @@ namespace CRM.Infrastructure.Data
                 entity.ToTable("risk_alert_setting");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+            });
+
+            modelBuilder.Entity<IndustryNewsBriefing>(entity =>
+            {
+                entity.ToTable("industry_news_briefing");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.HasIndex(e => e.BriefingDate)
+                    .HasDatabaseName("ux_industry_news_briefing_date")
+                    .IsUnique();
             });
 
             modelBuilder.Entity<RFQ>().Property(e => e.AssignedAt).HasColumnName("assigned_at");

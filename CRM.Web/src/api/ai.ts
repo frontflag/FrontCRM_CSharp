@@ -41,6 +41,7 @@ export type AiProviderAdmin = {
 export type AiPromptTemplateAdmin = {
   id: string
   code: string
+  name: string
   version: number
   systemPrompt: string
   userPromptTemplate: string
@@ -262,6 +263,7 @@ export const AI_PERMISSION_MATERIAL_INTEL_LOOKUP = 'biz.ai.material_intel.lookup
 export const AI_SCENARIO_CUSTOMER_INTEL_LOOKUP = 'customer.intel.lookup'
 export const AI_PERMISSION_CUSTOMER_INTEL_LOOKUP = 'biz.ai.customer_intel.lookup'
 export const AI_SCENARIO_VENDOR_INTEL_LOOKUP = 'vendor.intel.lookup'
+export const AI_SCENARIO_INDUSTRY_NEWS_BRIEFING = 'industry.news.briefing'
 export const AI_PERMISSION_VENDOR_INTEL_LOOKUP = 'biz.ai.vendor_intel.lookup'
 
 export const AI_SCENARIO_ENTITY_PARSE_CUSTOMER = 'entity.parse.customer'

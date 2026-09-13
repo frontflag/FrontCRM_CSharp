@@ -43,10 +43,23 @@ public sealed class AiOrchestrator : IAiOrchestrator
         _logger = logger;
     }
 
-    public async Task<AiInvokeResultDto> InvokeAsync(
+    public Task<AiInvokeResultDto> InvokeAsync(
         AiInvokeRequestDto request,
         string? userId,
         CancellationToken cancellationToken = default)
+        => InvokeCoreAsync(request, userId, bypassPermission: false, cancellationToken);
+
+    public Task<AiInvokeResultDto> InvokeSystemAsync(
+        AiInvokeRequestDto request,
+        string systemActorId,
+        CancellationToken cancellationToken = default)
+        => InvokeCoreAsync(request, systemActorId, bypassPermission: true, cancellationToken);
+
+    async Task<AiInvokeResultDto> InvokeCoreAsync(
+        AiInvokeRequestDto request,
+        string? userId,
+        bool bypassPermission,
+        CancellationToken cancellationToken)
     {
         var scenarioCode = (request.ScenarioCode ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(scenarioCode))
@@ -58,7 +71,8 @@ public sealed class AiOrchestrator : IAiOrchestrator
         if (!scenario.IsEnabled)
             throw new InvalidOperationException($"AI 场景 {scenarioCode} 已禁用。");
 
-        await EnsurePermissionAsync(userId, scenario.PermissionCode);
+        if (!bypassPermission)
+            await EnsurePermissionAsync(userId, scenario.PermissionCode);
 
         var template = await _templateRepo.GetByIdAsync(scenario.PromptTemplateId.Trim())
                        ?? throw new InvalidOperationException("AI 场景关联的提示词模板不存在。");

@@ -62,9 +62,19 @@
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column :label="t('aiConfig.colActions')" width="90" fixed="right">
+          <el-table-column :label="t('aiConfig.colActions')" width="168" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="openScenarioEdit(row)">{{ t('aiConfig.edit') }}</el-button>
+              <el-button
+                v-if="row.code === industryNewsScenarioCode && isSysAdmin"
+                link
+                type="primary"
+                size="small"
+                :loading="runningIndustryNews"
+                @click="runIndustryNews"
+              >
+                {{ t('aiConfig.runIndustryNews') }}
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -75,6 +85,12 @@
 
       <el-tab-pane :label="t('aiConfig.tabTemplates')" name="templates">
         <el-table :data="templates" stripe size="small" class="ai-templates-table">
+          <el-table-column
+            prop="name"
+            :label="t('aiConfig.colTemplateName')"
+            min-width="1"
+            show-overflow-tooltip
+          />
           <el-table-column prop="code" label="Code" min-width="1" show-overflow-tooltip />
           <el-table-column prop="version" label="Ver" min-width="1" align="center" class-name="col-nowrap" label-class-name="col-nowrap" />
           <el-table-column prop="outputFormat" label="Format" min-width="1" align="center" class-name="col-nowrap" label-class-name="col-nowrap" />
@@ -258,11 +274,39 @@
       </template>
     </el-dialog>
 
-    <el-dialog v-model="templateDialogVisible" :title="t('aiConfig.editTemplate')" width="720px">
+    <el-dialog
+      v-model="templateDialogVisible"
+      :title="t('aiConfig.editTemplate')"
+      :width="isIndustryNewsTemplate ? '920px' : '720px'"
+    >
       <el-form v-if="editingTemplate" label-width="120px">
-        <el-form-item label="System Prompt"><el-input v-model="editingTemplate.systemPrompt" type="textarea" :rows="4" /></el-form-item>
-        <el-form-item label="User Template"><el-input v-model="editingTemplate.userPromptTemplate" type="textarea" :rows="3" /></el-form-item>
-        <el-form-item label="JSON Schema"><el-input v-model="editingTemplate.jsonSchemaHint" type="textarea" :rows="2" /></el-form-item>
+        <p v-if="isIndustryNewsTemplate" class="field-hint template-hint">
+          {{ t('aiConfig.industryNewsTemplateHint') }}
+        </p>
+        <el-form-item :label="t('aiConfig.colTemplateName')">
+          <el-input v-model="editingTemplate.name" maxlength="200" show-word-limit />
+        </el-form-item>
+        <el-form-item label="System Prompt">
+          <el-input
+            v-model="editingTemplate.systemPrompt"
+            type="textarea"
+            :rows="isIndustryNewsTemplate ? 5 : 4"
+          />
+        </el-form-item>
+        <el-form-item label="User Template">
+          <el-input
+            v-model="editingTemplate.userPromptTemplate"
+            type="textarea"
+            :rows="isIndustryNewsTemplate ? 16 : 6"
+          />
+        </el-form-item>
+        <el-form-item label="JSON Schema">
+          <el-input
+            v-model="editingTemplate.jsonSchemaHint"
+            type="textarea"
+            :rows="isIndustryNewsTemplate ? 8 : 3"
+          />
+        </el-form-item>
         <el-form-item :label="t('aiConfig.colActive')"><el-switch v-model="editingTemplate.isActive" /></el-form-item>
       </el-form>
       <template #footer>
@@ -293,6 +337,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   aiApi,
+  AI_SCENARIO_INDUSTRY_NEWS_BRIEFING,
   type AiProviderAdmin,
   type AiPromptTemplateAdmin,
   type AiScenarioAdmin,
@@ -302,10 +347,14 @@ import {
   type AiEntityParseLogItem,
   type AiEntityParseLogDetail
 } from '@/api/ai'
+import { industryNewsApi } from '@/api/industryNews'
+import { useAuthStore } from '@/stores'
 import { buildModelOptions } from '@/constants/aiProviderModels'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
+const authStore = useAuthStore()
+const isSysAdmin = computed(() => authStore.hasSysAdminRole())
 
 const loading = ref(false)
 const saving = ref(false)
@@ -331,6 +380,12 @@ const templateDialogVisible = ref(false)
 const editingProvider = ref<AiProviderAdmin | null>(null)
 const editingScenario = ref<AiScenarioAdmin | null>(null)
 const editingTemplate = ref<AiPromptTemplateAdmin | null>(null)
+const industryNewsScenarioCode = AI_SCENARIO_INDUSTRY_NEWS_BRIEFING
+const runningIndustryNews = ref(false)
+
+const isIndustryNewsTemplate = computed(
+  () => editingTemplate.value?.code === AI_SCENARIO_INDUSTRY_NEWS_BRIEFING
+)
 
 const scenarioProviderOptions = computed(() => {
   const enabled = providers.value.filter((p) => p.isEnabled)
@@ -502,6 +557,44 @@ function openTemplateEdit(row: AiPromptTemplateAdmin) {
   templateDialogVisible.value = true
 }
 
+function industryNewsTemplateReady(tpl: AiPromptTemplateAdmin) {
+  const user = tpl.userPromptTemplate || ''
+  const hasStart = user.includes('{{start_date}}') || user.includes('{{START_DATE}}')
+  const hasEnd = user.includes('{{end_date}}') || user.includes('{{END_DATE}}')
+  if (!hasStart || !hasEnd) {
+    ElMessage.error(t('aiConfig.industryNewsPlaceholderRequired'))
+    return false
+  }
+  const hint = `${tpl.jsonSchemaHint || ''} ${user}`
+  if (!hint.includes('items') || !hint.toLowerCase().includes('markdown')) {
+    ElMessage.error(t('aiConfig.industryNewsJsonRequired'))
+    return false
+  }
+  return true
+}
+
+async function runIndustryNews() {
+  try {
+    await ElMessageBox.confirm(t('aiConfig.runIndustryNewsConfirm'), t('aiConfig.runIndustryNews'), {
+      type: 'info',
+      confirmButtonText: t('aiConfig.runIndustryNews'),
+      cancelButtonText: t('aiConfig.cancel')
+    })
+  } catch {
+    return
+  }
+  runningIndustryNews.value = true
+  try {
+    const result = await industryNewsApi.runToday(true)
+    if (result.success) ElMessage.success(t('aiConfig.runIndustryNewsDone'))
+    else ElMessage.warning(result.message || t('aiConfig.runIndustryNewsFailed'))
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('aiConfig.runIndustryNewsFailed')))
+  } finally {
+    runningIndustryNews.value = false
+  }
+}
+
 async function saveProvider() {
   if (!editingProvider.value) return
   saving.value = true
@@ -534,6 +627,10 @@ async function saveScenario() {
 
 async function saveTemplate() {
   if (!editingTemplate.value) return
+  if (editingTemplate.value.code === AI_SCENARIO_INDUSTRY_NEWS_BRIEFING
+    && !industryNewsTemplateReady(editingTemplate.value)) {
+    return
+  }
   saving.value = true
   try {
     await aiApi.updateTemplate(editingTemplate.value.id, editingTemplate.value)
@@ -630,6 +727,10 @@ onMounted(async () => {
   font-size: 12px;
   line-height: 1.45;
   color: #909399;
+}
+
+.template-hint {
+  margin: 0 0 12px;
 }
 
 .ai-providers-table :deep(.el-table__header),

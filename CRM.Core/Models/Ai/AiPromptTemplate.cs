@@ -17,6 +17,10 @@ public class AiPromptTemplate : BaseGuidEntity, ISoftDeletable
     [Column("code")]
     public string Code { get; set; } = string.Empty;
 
+    [StringLength(200)]
+    [Column("name")]
+    public string Name { get; set; } = string.Empty;
+
     [Column("version")]
     public int Version { get; set; } = 1;
 

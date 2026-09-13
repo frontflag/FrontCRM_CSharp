@@ -193,6 +193,12 @@ public interface IAiOrchestrator
 {
     Task<AiInvokeResultDto> InvokeAsync(AiInvokeRequestDto request, string? userId, CancellationToken cancellationToken = default);
 
+    /// <summary>后台作业调用：跳过场景权限（仍写调用日志、仍受全站日配额）。</summary>
+    Task<AiInvokeResultDto> InvokeSystemAsync(
+        AiInvokeRequestDto request,
+        string systemActorId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>判断指定场景与输入是否已有未过期的 AI 响应缓存（不写入日志、不递增命中计数）。</summary>
     Task<bool> IsInvokeCachedAsync(AiInvokeRequestDto request, CancellationToken cancellationToken = default);
 }
@@ -221,6 +227,7 @@ public sealed class AiPromptTemplateAdminDto
 {
     public string Id { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public int Version { get; set; }
     public string SystemPrompt { get; set; } = string.Empty;
     public string UserPromptTemplate { get; set; } = string.Empty;

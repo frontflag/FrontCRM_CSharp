@@ -44,6 +44,7 @@
     <IncentiveTargetPanel />
     <DashboardOverviewPanel />
     <RiskAlertPanel />
+    <IndustryNewsPanel />
     </div>
     <aside class="dashboard-aside">
       <WorkCalendarPanel />
@@ -92,6 +93,7 @@ import DashboardOverviewPanel from '@/components/Dashboard/DashboardOverviewPane
 import IncentiveTargetPanel from '@/components/Dashboard/IncentiveTargetPanel.vue'
 import DashboardNoticePanel from '@/components/Dashboard/DashboardNoticePanel.vue'
 import RiskAlertPanel from '@/components/Dashboard/RiskAlertPanel.vue'
+import IndustryNewsPanel from '@/components/Dashboard/IndustryNewsPanel.vue'
 
 const { t } = useI18n()
 const authStore = useAuthStore()

@@ -2056,6 +2056,21 @@ const enUS = {
       masked: '—',
       unknownSubject: 'Unknown'
     },
+    industryNews: {
+      title: 'Industry news',
+      viewAll: 'View all',
+      refreshNow: 'Refresh now',
+      refreshing: 'Refreshing…',
+      refreshDone: 'Industry news updated',
+      refreshFailed: 'Refresh failed',
+      metaToday: 'Today’s briefing · {n}',
+      metaStale: 'Earlier briefing · {n}',
+      empty: 'No briefing yet. It updates at 08:00 every morning.',
+      emptyItems: 'No headlines in this briefing',
+      staleHint: 'Showing the last successful briefing. Today’s update is not ready yet.',
+      dialogTitle: 'Industry briefing',
+      dialogTitleDated: 'Industry briefing ({date})'
+    },
     overview: {
       title: 'Business overview',
       last30Days: 'Last 30 days',
@@ -2313,6 +2328,7 @@ const enUS = {
     usageTokens: 'Today tokens',
     usageCacheHits: 'Cache hits',
     colName: 'Name',
+    colTemplateName: 'Template name',
     colEnabled: 'Enabled',
     colActive: 'Active',
     colActions: 'Actions',
@@ -2354,7 +2370,15 @@ const enUS = {
     entityParseDetailTitle: 'Parse log detail',
     rawText: 'Raw paste',
     parseResult: 'Parsed (normalized)',
-    confirmedFields: 'Confirmed fields'
+    confirmedFields: 'Confirmed fields',
+    runIndustryNews: 'Generate today’s briefing',
+    runIndustryNewsConfirm: 'Generate a briefing now with the current template and replace today’s result. This may take a minute or two.',
+    runIndustryNewsDone: 'Today’s briefing is ready',
+    runIndustryNewsFailed: 'Generation failed',
+    industryNewsTemplateHint:
+      'You can change focus areas and wording. Keep the double-brace start_date and end_date placeholders, and keep JSON with items plus markdown. Then use “Generate today’s briefing” on the scenario, or wait for the 08:00 job.',
+    industryNewsPlaceholderRequired: 'Industry-news template must keep the double-brace start_date and end_date placeholders',
+    industryNewsJsonRequired: 'Industry-news template must still require items and markdown'
   },
   aiAssistant: {
     title: 'AI Assistant',

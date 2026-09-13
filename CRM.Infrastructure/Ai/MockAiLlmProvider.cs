@@ -343,6 +343,16 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             });
         }
 
+        if (systemMsg.Contains("电子元器件行业研究分析师", StringComparison.Ordinal))
+        {
+            var json = BuildMockIndustryNewsJson(userMsg);
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = json,
+                Usage = new AiTokenUsageDto { PromptTokens = 200, CompletionTokens = 600, TotalTokens = 800 }
+            });
+        }
+
         if (systemMsg.Contains("客户情报", StringComparison.Ordinal)
             || systemMsg.Contains("供应商情报", StringComparison.Ordinal))
         {
@@ -733,6 +743,47 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
                      "disclaimer": "本信息来自公开渠道及 AI 整理，仅供参考；当前为 Mock 开发数据。"
                    }
                    """;
+    }
+
+    private static string BuildMockIndustryNewsJson(string userMsg)
+    {
+        var start = ExtractBetween(userMsg, "搜索并整理 ", " 至 ") ?? "2026-09-12";
+        var endRaw = ExtractBetween(userMsg, " 至 ", "电子元器件") ?? "2026-09-13";
+        var end = endRaw.Trim();
+        return $$"""
+                 {
+                   "items": [
+                     {
+                       "category": "行业动态",
+                       "title": "AI 算力需求继续拉动先进封装关注",
+                       "occurred_on": "{{end}}",
+                       "summary": "公开报道继续讨论先进封装产能与交期，采购宜跟进封装相关被动件与电源料号。",
+                       "importance": 3,
+                       "is_background": false,
+                       "unconfirmed": false
+                     },
+                     {
+                       "category": "行情价格",
+                       "title": "存储现货报价仍有分化",
+                       "occurred_on": "{{start}}",
+                       "summary": "DRAM/NAND 窗口期内现货与合约价走势不一，下单前需再核一次交期。",
+                       "importance": 2,
+                       "is_background": false,
+                       "unconfirmed": false
+                     },
+                     {
+                       "category": "关键厂商",
+                       "title": "多家原厂窗口期内有产品与扩产消息",
+                       "occurred_on": "{{end}}",
+                       "summary": "Mock 数据：请把场景厂商改为 moonshot 并打开联网后获取真实厂商新闻。",
+                       "importance": 2,
+                       "is_background": false,
+                       "unconfirmed": false
+                     }
+                   ],
+                   "markdown": "## 本周要闻 Top 5\n\n{{end}} AI 算力与先进封装仍是主线（★3）。\n\n{{start}} 存储价格继续分化（★2）。\n\n## 分类详述\n\n行业动态：窗口期内公开渠道继续讨论先进封装与算力需求。\n\n行情价格：DRAM/NAND 现货与合约价走势不一。\n\n## 行情速览\n\n| 品类 | 本周变化 | 驱动因素 | 后市判断 |\n| --- | --- | --- | --- |\n| 存储 | 分化 | 需求与库存 | 核价后再下单 |\n\n## 本周展望\n\n关注原厂交期说明与行业展会发布。\n\n## 内容总结\n\n本窗口主线仍是算力与存储价格。采购宜复核交期，销售宜跟进客户备货窗口。当前为 Mock 开发数据。"
+                 }
+                 """;
     }
 
     private static string BuildDefaultMockRfqJson()

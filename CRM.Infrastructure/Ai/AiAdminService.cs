@@ -64,7 +64,23 @@ public sealed class AiAdminService : IAiAdminService
             .OrderBy(t => t.Code, StringComparer.OrdinalIgnoreCase)
             .ThenByDescending(t => t.Version)
             .ToList();
-        return rows.Select(MapTemplate).ToList();
+        var scenarios = (await _scenarioRepo.FindAsync(s => !s.IsDeleted)).ToList();
+        var nameByTemplateId = scenarios
+            .Where(s => !string.IsNullOrWhiteSpace(s.Name) && !string.IsNullOrWhiteSpace(s.PromptTemplateId))
+            .GroupBy(s => s.PromptTemplateId.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Name.Trim(), StringComparer.OrdinalIgnoreCase);
+        var nameByCode = scenarios
+            .Where(s => !string.IsNullOrWhiteSpace(s.Name))
+            .GroupBy(s => s.Code.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().Name.Trim(), StringComparer.OrdinalIgnoreCase);
+
+        return rows.Select(t =>
+        {
+            nameByTemplateId.TryGetValue(t.Id, out var byId);
+            nameByCode.TryGetValue(t.Code, out var byCode);
+            FallbackTemplateNames.TryGetValue(t.Code, out var byMap);
+            return MapTemplate(t, FirstNonEmpty(byId, byCode, byMap));
+        }).ToList();
     }
 
     public async Task UpdateTemplateAsync(AiPromptTemplateAdminDto dto, CancellationToken cancellationToken = default)
@@ -72,6 +88,7 @@ public sealed class AiAdminService : IAiAdminService
         _ = cancellationToken;
         var row = await _templateRepo.GetByIdAsync(dto.Id.Trim())
                   ?? throw new InvalidOperationException("AI 模板不存在。");
+        row.Name = (dto.Name ?? string.Empty).Trim();
         row.SystemPrompt = dto.SystemPrompt ?? string.Empty;
         row.UserPromptTemplate = dto.UserPromptTemplate ?? string.Empty;
         row.OutputFormat = string.IsNullOrWhiteSpace(dto.OutputFormat) ? AiOutputFormatCode.Json : dto.OutputFormat.Trim();
@@ -239,10 +256,11 @@ public sealed class AiAdminService : IAiAdminService
         IsEnabled = p.IsEnabled
     };
 
-    private static AiPromptTemplateAdminDto MapTemplate(AiPromptTemplate t) => new()
+    private static AiPromptTemplateAdminDto MapTemplate(AiPromptTemplate t, string? fallbackName = null) => new()
     {
         Id = t.Id,
         Code = t.Code,
+        Name = FirstNonEmpty(t.Name, fallbackName, t.Code),
         Version = t.Version,
         SystemPrompt = t.SystemPrompt,
         UserPromptTemplate = t.UserPromptTemplate,
@@ -250,6 +268,38 @@ public sealed class AiAdminService : IAiAdminService
         JsonSchemaHint = t.JsonSchemaHint,
         IsActive = t.IsActive
     };
+
+    static readonly Dictionary<string, string> FallbackTemplateNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["material.spec.lookup"] = "查询物料规格",
+        ["material.intel.lookup"] = "物料情报查询",
+        ["customer.intel.lookup"] = "客户情报调查",
+        ["vendor.intel.lookup"] = "供应商情报调查",
+        ["industry.news.briefing"] = "行业新闻简报",
+        ["assistant.feedback.collect"] = "AI 反馈助手收集",
+        ["entity.parse.customer"] = "解析创建客户",
+        ["entity.parse.rfq"] = "解析创建需求",
+        ["entity.parse.vendor"] = "解析创建供应商",
+        ["entity.parse.customer_contact"] = "解析创建客户联系人",
+        ["entity.parse.vendor_contact"] = "解析创建供应商联系人",
+        ["entity.parse.customer_address"] = "解析创建客户地址",
+        ["entity.parse.vendor_address"] = "解析创建供应商地址",
+        ["entity.parse.customer_business_card"] = "名片创建客户",
+        ["entity.parse.vendor_business_card"] = "名片创建供应商",
+        ["entity.parse.rfq_excel_column_map"] = "需求 Excel 列映射",
+        ["entity.parse.rfq_excel_brand_map"] = "需求 Excel 品牌映射"
+    };
+
+    static string FirstNonEmpty(params string?[] values)
+    {
+        foreach (var v in values)
+        {
+            if (!string.IsNullOrWhiteSpace(v))
+                return v.Trim();
+        }
+
+        return string.Empty;
+    }
 
     private static AiScenarioAdminDto MapScenario(AiScenario s) => new()
     {

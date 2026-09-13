@@ -2050,6 +2050,21 @@ const zhCN = {
       masked: '—',
       unknownSubject: '未知'
     },
+    industryNews: {
+      title: '行业新闻',
+      viewAll: '查看全部',
+      refreshNow: '立即刷新',
+      refreshing: '正在刷新…',
+      refreshDone: '行业新闻已更新',
+      refreshFailed: '刷新失败',
+      metaToday: '今日简报 · {n}条',
+      metaStale: '非今日简报 · {n}条',
+      empty: '暂无简报，将于每日上午 8 点更新',
+      emptyItems: '今日暂无条目',
+      staleHint: '这是上一份成功简报。今日更新尚未完成。',
+      dialogTitle: '行业新闻简报',
+      dialogTitleDated: '行业新闻简报（{date}）'
+    },
     overview: {
       title: '业务总览',
       last30Days: '近 30 天',
@@ -2305,6 +2320,7 @@ const zhCN = {
     usageTokens: '今日 Token',
     usageCacheHits: '缓存命中',
     colName: '名称',
+    colTemplateName: '模板名称',
     colEnabled: '启用',
     colActive: '激活',
     colActions: '操作',
@@ -2346,7 +2362,15 @@ const zhCN = {
     entityParseDetailTitle: '解析日志详情',
     rawText: '原始粘贴',
     parseResult: '解析结果（normalize）',
-    confirmedFields: '用户确认字段'
+    confirmedFields: '用户确认字段',
+    runIndustryNews: '生成今日简报',
+    runIndustryNewsConfirm: '将按当前模板立即生成一份简报并覆盖今日结果。生成可能需要一两分钟。',
+    runIndustryNewsDone: '今日简报已生成',
+    runIndustryNewsFailed: '生成失败',
+    industryNewsTemplateHint:
+      '可改关注重点和正文说法。请保留双花括号包裹的 start_date、end_date，并保持 JSON 仍含 items 与 markdown。改完后可在场景里点「生成今日简报」，或等次日上午 8 点自动跑。',
+    industryNewsPlaceholderRequired: '行业新闻模板必须保留双花括号包裹的 start_date 和 end_date',
+    industryNewsJsonRequired: '行业新闻模板须继续要求输出 items 与 markdown'
   },
   aiAssistant: {
     title: 'AI 助手',

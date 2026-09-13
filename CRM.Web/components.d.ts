@@ -132,6 +132,7 @@ declare module 'vue' {
     HelpManualPanel: typeof import('./src/components/workspace/HelpManualPanel.vue')['default']
     IncentiveTargetPanel: typeof import('./src/components/Dashboard/IncentiveTargetPanel.vue')['default']
     IndustryNewsItemView: typeof import('./src/components/RFQ/enhancers/IndustryNewsItemView.vue')['default']
+    IndustryNewsPanel: typeof import('./src/components/Dashboard/IndustryNewsPanel.vue')['default']
     InvoiceReportSkinEcoinf: typeof import('./src/components/stockOut/invoiceReport/skins/InvoiceReportSkinEcoinf.vue')['default']
     InvoiceReportSkinIdesemi: typeof import('./src/components/stockOut/invoiceReport/skins/InvoiceReportSkinIdesemi.vue')['default']
     InvoiceReportSkinSemicore: typeof import('./src/components/stockOut/invoiceReport/skins/InvoiceReportSkinSemicore.vue')['default']
