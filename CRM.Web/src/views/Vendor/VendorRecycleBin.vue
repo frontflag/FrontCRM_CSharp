@@ -58,6 +58,15 @@
           <el-button type="primary" size="small" :loading="restoringId === item.id" @click="handleRestore(item)">
             {{ t('vendorRecycle.restore') }}
           </el-button>
+          <el-button
+            v-if="canPurge"
+            type="danger"
+            size="small"
+            :loading="purgingId === item.id"
+            @click="handlePurge(item)"
+          >
+            {{ t('vendorRecycle.remove') }}
+          </el-button>
         </div>
       </div>
     </div>
@@ -78,11 +87,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { ElNotification, ElMessageBox } from 'element-plus';
 import { useI18n } from 'vue-i18n'
 import { vendorApi } from '@/api/vendor';
 import type { Vendor } from '@/types/vendor';
+import { useAuthStore } from '@/stores'
+import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime } from '@/utils/displayDateTime';
 
 const loading = ref(false);
@@ -92,7 +103,10 @@ const totalCount = ref(0);
 const pageIndex = ref(1);
 const pageSize = ref(20);
 const keyword = ref('');
+const authStore = useAuthStore()
+const canPurge = computed(() => authStore.canForceDelete())
 const restoringId = ref<string | null>(null);
+const purgingId = ref<string | null>(null);
 
 function onPageSizeChange() {
   pageIndex.value = 1;
@@ -132,6 +146,29 @@ const handleRestore = async (item: Vendor) => {
     if (e !== 'cancel') ElNotification.error({ title: t('vendorRecycle.restoreFailedTitle'), message: t('vendorRecycle.restoreFailedMessage') });
   } finally {
     restoringId.value = null;
+  }
+};
+
+const handlePurge = async (item: Vendor) => {
+  try {
+    await ElMessageBox.confirm(
+      t('vendorRecycle.removeConfirm', { name: item.officialName || item.code }),
+      t('vendorRecycle.removeTitle'),
+      { type: 'warning', confirmButtonText: t('vendorRecycle.remove'), confirmButtonClass: 'el-button--danger' }
+    );
+    purgingId.value = item.id;
+    await vendorApi.purgeFromRecycleBin(item.id);
+    ElNotification.success({ title: t('vendorRecycle.removeSuccessTitle'), message: t('vendorRecycle.removeSuccessMessage') });
+    fetchData();
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElNotification.error({
+        title: t('vendorRecycle.removeFailedTitle'),
+        message: getApiErrorMessage(e, t('vendorRecycle.removeFailedMessage'))
+      });
+    }
+  } finally {
+    purgingId.value = null;
   }
 };
 
@@ -296,6 +333,7 @@ onMounted(fetchData);
 .record-actions {
   display: flex;
   align-items: center;
+  gap: 8px;
 }
 
 .pagination-wrapper {

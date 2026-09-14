@@ -155,7 +155,9 @@ public sealed partial class CustomerListQuery : ICustomerListQuery
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
-        var q = _db.Customers.AsNoTracking().IgnoreQueryFilters().Where(c => c.IsDeleted);
+        var q = _db.Customers.AsNoTracking().IgnoreQueryFilters().Where(c =>
+            c.IsDeleted
+            && (c.DeleteReason == null || !c.DeleteReason.StartsWith(RecycleBinPurgeMarks.Marker)));
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {

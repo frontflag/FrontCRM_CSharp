@@ -677,6 +677,36 @@ namespace CRM.API.Controllers
             }
         }
 
+        [HttpDelete("recycle-bin/{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> PurgeFromRecycleBin(string id)
+        {
+            try
+            {
+                var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(actorId))
+                    return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(actorId.Trim());
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员或平台管理员可从回收站删除", 403));
+
+                await _vendorService.PurgeFromRecycleAsync(id, actorId);
+                return Ok(ApiResponse<object>.Ok(null, "已从回收站删除"));
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "从供应商回收站删除失败");
+                return StatusCode(500, ApiResponse<object>.Fail($"从回收站删除失败: {ex.Message}", 500));
+            }
+        }
+
         [HttpPost("{id}/restore")]
         public async Task<ActionResult<ApiResponse<object>>> RestoreVendor(string id)
         {
@@ -689,6 +719,10 @@ namespace CRM.API.Controllers
             catch (KeyNotFoundException ex)
             {
                 return NotFound(ApiResponse<object>.Fail(ex.Message, 404));
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
             }
             catch (Exception ex)
             {

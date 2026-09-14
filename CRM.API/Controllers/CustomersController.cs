@@ -964,6 +964,7 @@ namespace CRM.API.Controllers
                 return Ok(ApiResponse<object>.Ok(null, "客户已恢复"));
             }
             catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
+            catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
         }
 
@@ -987,6 +988,31 @@ namespace CRM.API.Controllers
                 }));
             }
             catch (Exception ex) { return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500)); }
+        }
+
+        [HttpDelete("recycle-bin/{id}")]
+        public async Task<ActionResult<ApiResponse<object>>> PurgeFromRecycleBin(string id)
+        {
+            try
+            {
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrWhiteSpace(userId))
+                    return StatusCode(403, ApiResponse<object>.Fail("未登录或身份无效", 403));
+                var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+                if (!ManagementAccountPolicy.CanForceDelete(summary))
+                    return StatusCode(403, ApiResponse<object>.Fail("仅系统管理员或平台管理员可从回收站删除", 403));
+
+                var userName = User.Identity?.Name;
+                await _customerService.PurgeCustomerFromRecycleAsync(id, userId, userName);
+                return Ok(ApiResponse<object>.Ok(null, "已从回收站删除"));
+            }
+            catch (KeyNotFoundException ex) { return NotFound(ApiResponse<object>.Fail(ex.Message, 404)); }
+            catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message, 400)); }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "从客户回收站删除失败");
+                return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
+            }
         }
 
         // ===== 黑名单列表 =====

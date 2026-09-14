@@ -2909,8 +2909,8 @@ namespace CRM.Infrastructure.Data
                     .IsUnique();
             });
 
-            modelBuilder.Entity<RFQ>().Property(e => e.AssignedAt).HasColumnName("assigned_at");
-            modelBuilder.Entity<SellOrder>().Property(e => e.ApprovedAt).HasColumnName("approved_at");
+            modelBuilder.Entity<RFQ>().Ignore(e => e.AssignedAt);
+            modelBuilder.Entity<SellOrder>().Ignore(e => e.ApprovedAt);
         }
     }
 }

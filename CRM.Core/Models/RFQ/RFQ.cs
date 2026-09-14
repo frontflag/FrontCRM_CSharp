@@ -121,8 +121,8 @@ namespace CRM.Core.Models.RFQ
         [Column("status")]
         public short Status { get; set; } = 0;
 
-        /// <summary>首次变为已分配的 UTC 时间（工作日程蓝点）。</summary>
-        [Column("assigned_at")]
+        /// <summary>首次变为已分配的 UTC 时间（工作日程蓝点）。不映射到实体查询，由 <c>IWorkCalendarStampWriter</c> 单独落库。</summary>
+        [NotMapped]
         public DateTime? AssignedAt { get; set; }
 
         /// <summary>明细数量 (冗余字段, 方便列表查询)</summary>

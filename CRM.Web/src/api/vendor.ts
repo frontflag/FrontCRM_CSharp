@@ -276,6 +276,10 @@ export const vendorApi = {
     await apiClient.post(`/api/v1/vendors/${id}/restore`, {});
   },
 
+  async purgeFromRecycleBin(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/vendors/recycle-bin/${id}`);
+  },
+
   async setMainContact(contactId: string): Promise<void> {
     await apiClient.post(`/api/v1/vendor-contacts/${contactId}/set-main`, {});
   },

@@ -494,6 +494,10 @@ export const customerApi = {
     await apiClient.post(`/api/v1/customers/${id}/restore`);
   },
 
+  async purgeFromRecycleBin(id: string): Promise<void> {
+    await apiClient.delete(`/api/v1/customers/recycle-bin/${id}`);
+  },
+
   // 获取黑名单列表
   async getBlacklist(params: { page?: number; pageSize?: number; keyword?: string } = {}): Promise<any> {
     const q = new URLSearchParams();

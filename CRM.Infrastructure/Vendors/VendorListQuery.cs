@@ -152,7 +152,9 @@ public sealed partial class VendorListQuery : IVendorListQuery
         var p = page < 1 ? 1 : page;
         var ps = pageSize < 1 ? 20 : Math.Min(pageSize, MaxPageSize);
 
-        var q = _db.Vendors.AsNoTracking().IgnoreQueryFilters().Where(e => e.IsDeleted);
+        var q = _db.Vendors.AsNoTracking().IgnoreQueryFilters().Where(e =>
+            e.IsDeleted
+            && (e.DeleteReason == null || !e.DeleteReason.StartsWith(RecycleBinPurgeMarks.Marker)));
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {

@@ -162,6 +162,9 @@ namespace CRM.Core.Interfaces
         /// <summary>恢复已删除的客户</summary>
         Task RestoreCustomerAsync(string id, string? operatorUserId, string? operatorUserName);
 
+        /// <summary>从回收站移除（仍软删，列表不再显示，不可再恢复）。</summary>
+        Task PurgeCustomerFromRecycleAsync(string id, string? operatorUserId, string? operatorUserName);
+
         /// <summary>获取已删除的客户列表（回收站）</summary>
         Task<PagedResult<CustomerInfo>> GetDeletedCustomersAsync(int pageIndex, int pageSize, string? keyword, string? currentUserId = null);
 

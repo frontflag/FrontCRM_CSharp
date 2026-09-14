@@ -1,4 +1,6 @@
 -- 工作日程：需求已分配日、订单审核通过日、任务表与权限（幂等）
+-- API 启动也会补列/建表（不做本脚本的 UPDATE 回填与权限种子）。
+-- 历史蓝/绿点仍须执行下面的 UPDATE。
 ALTER TABLE public.rfq ADD COLUMN IF NOT EXISTS assigned_at timestamp with time zone NULL;
 ALTER TABLE public.sellorder ADD COLUMN IF NOT EXISTS approved_at timestamp with time zone NULL;
 

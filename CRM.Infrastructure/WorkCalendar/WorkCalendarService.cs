@@ -5,6 +5,7 @@ using CRM.Core.Models.Work;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace CRM.Infrastructure.WorkCalendar;
 
@@ -15,19 +16,22 @@ public sealed class WorkCalendarService : IWorkCalendarService
     private readonly ICustomerService _customers;
     private readonly IDataPermissionService _dataPermission;
     private readonly IRbacService _rbac;
+    private readonly ILogger<WorkCalendarService> _logger;
 
     public WorkCalendarService(
         ApplicationDbContext db,
         IUnitOfWork unitOfWork,
         ICustomerService customers,
         IDataPermissionService dataPermission,
-        IRbacService rbac)
+        IRbacService rbac,
+        ILogger<WorkCalendarService> logger)
     {
         _db = db;
         _unitOfWork = unitOfWork;
         _customers = customers;
         _dataPermission = dataPermission;
         _rbac = rbac;
+        _logger = logger;
     }
 
     public async Task<WorkCalendarMonthDto> GetMonthAsync(
@@ -48,47 +52,29 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         if (HasApiPermission(perms, "rfq.read"))
         {
-            var assignedAts = await _db.RFQs.AsNoTracking()
-                .Where(r => r.SalesUserId == uid
-                    && r.AssignedAt != null
-                    && r.AssignedAt >= startUtc
-                    && r.AssignedAt < endUtc)
-                .Select(r => new { r.AssignedAt, r.Status })
-                .ToListAsync(cancellationToken);
+            var assignedAts = await TryQueryRfqStampsAsync(uid, startUtc, endUtc, cancellationToken);
             foreach (var row in assignedAts)
             {
-                if (row.AssignedAt == null || !WorkCalendarDotRules.CountsAsRfqAssignedDot(row.Status))
+                if (row.StampAt == null || !WorkCalendarDotRules.CountsAsRfqAssignedDot(row.Status))
                     continue;
-                AddCount(counts, CompanyCalendarDate.ToCompanyDate(row.AssignedAt.Value), rfq: 1);
+                AddCount(counts, CompanyCalendarDate.ToCompanyDate(row.StampAt.Value), rfq: 1);
             }
         }
 
         if (HasApiPermission(perms, "sales-order.read"))
         {
-            var approvedAts = await _db.SellOrders.AsNoTracking()
-                .Where(s => s.SalesUserId == uid
-                    && s.ApprovedAt != null
-                    && s.ApprovedAt >= startUtc
-                    && s.ApprovedAt < endUtc)
-                .Select(s => new { s.ApprovedAt, s.Status })
-                .ToListAsync(cancellationToken);
+            var approvedAts = await TryQuerySellOrderStampsAsync(uid, startUtc, endUtc, cancellationToken);
             foreach (var row in approvedAts)
             {
-                if (row.ApprovedAt == null || !WorkCalendarDotRules.CountsAsSalesOrderApprovedDot(row.Status))
+                if (row.StampAt == null || !WorkCalendarDotRules.CountsAsSalesOrderApprovedDot(row.Status))
                     continue;
-                AddCount(counts, CompanyCalendarDate.ToCompanyDate(row.ApprovedAt.Value), so: 1);
+                AddCount(counts, CompanyCalendarDate.ToCompanyDate(row.StampAt.Value), so: 1);
             }
         }
 
         if (HasApiPermission(perms, WorkTaskPermissionCodes.Read))
         {
-            var starts = await _db.WorkTasks.AsNoTracking()
-                .Where(t => t.AssigneeUserId == uid
-                    && t.StartDate >= monthStart
-                    && t.StartDate < monthEnd
-                    && t.Status != WorkTaskStatuses.Cancelled)
-                .Select(t => t.StartDate)
-                .ToListAsync(cancellationToken);
+            var starts = await TryQueryTaskStartDatesAsync(uid, monthStart, monthEnd, cancellationToken);
             foreach (var d in starts)
                 AddCount(counts, d, task: 1);
         }
@@ -114,13 +100,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         if (HasApiPermission(perms, "rfq.read"))
         {
-            var rows = await _db.RFQs.AsNoTracking()
-                .Where(r => r.SalesUserId == uid
-                    && r.AssignedAt != null
-                    && r.AssignedAt >= startUtc
-                    && r.AssignedAt < endUtc)
-                .Select(r => new { r.Id, r.RfqCode, r.CustomerId, r.Status, r.AssignedAt })
-                .ToListAsync(cancellationToken);
+            var rows = await TryQueryRfqDayDocsAsync(uid, startUtc, endUtc, cancellationToken);
             var customerNames = await LoadCustomerNamesAsync(
                 rows.Select(r => r.CustomerId).ToList(),
                 cancellationToken);
@@ -131,7 +111,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 dto.Rfqs.Add(new WorkCalendarDocItemDto
                 {
                     Id = row.Id,
-                    Code = row.RfqCode,
+                    Code = row.Code,
                     CustomerName = LookupName(customerNames, row.CustomerId)
                 });
             }
@@ -139,13 +119,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         if (HasApiPermission(perms, "sales-order.read"))
         {
-            var rows = await _db.SellOrders.AsNoTracking()
-                .Where(s => s.SalesUserId == uid
-                    && s.ApprovedAt != null
-                    && s.ApprovedAt >= startUtc
-                    && s.ApprovedAt < endUtc)
-                .Select(s => new { s.Id, s.SellOrderCode, s.CustomerName, s.CustomerId, s.Status })
-                .ToListAsync(cancellationToken);
+            var rows = await TryQuerySellOrderDayDocsAsync(uid, startUtc, endUtc, cancellationToken);
             foreach (var row in rows)
             {
                 if (!WorkCalendarDotRules.CountsAsSalesOrderApprovedDot(row.Status))
@@ -153,7 +127,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 dto.SalesOrders.Add(new WorkCalendarDocItemDto
                 {
                     Id = row.Id,
-                    Code = row.SellOrderCode,
+                    Code = row.Code,
                     CustomerName = string.IsNullOrWhiteSpace(row.CustomerName) ? null : row.CustomerName.Trim()
                 });
             }
@@ -161,13 +135,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         if (HasApiPermission(perms, WorkTaskPermissionCodes.Read))
         {
-            var tasks = await _db.WorkTasks.AsNoTracking()
-                .Where(t => t.AssigneeUserId == uid
-                    && t.StartDate == date
-                    && t.Status != WorkTaskStatuses.Cancelled)
-                .OrderBy(t => t.Priority)
-                .ThenBy(t => t.CreateTime)
-                .ToListAsync(cancellationToken);
+            var tasks = await TryQueryDayTasksAsync(uid, date, cancellationToken);
             var names = await LoadCustomerNamesAsync(
                 tasks.Where(t => t.ObjectType == WorkTaskObjectTypes.Customer).Select(t => t.ObjectId).ToList(),
                 cancellationToken);
@@ -604,4 +572,183 @@ public sealed class WorkCalendarService : IWorkCalendarService
             return true;
         return summary.PermissionCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
     }
+
+    private async Task<List<WorkCalendarStampSqlRow>> TryQueryRfqStampsAsync(
+        string uid,
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _db.Database.SqlQueryRaw<WorkCalendarStampSqlRow>(
+                    """
+                    SELECT assigned_at AS "StampAt", status AS "Status"
+                    FROM public.rfq
+                    WHERE sales_user_id = {0}
+                      AND assigned_at IS NOT NULL
+                      AND assigned_at >= {1}
+                      AND assigned_at < {2}
+                      AND COALESCE(is_deleted, false) = false
+                    """,
+                    uid, startUtc, endUtc)
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception ex) when (WorkCalendarPostgres.IsMissingRelationOrColumn(ex))
+        {
+            _logger.LogWarning(ex, "月历蓝点查询跳过（rfq.assigned_at 尚未就绪）");
+            return new List<WorkCalendarStampSqlRow>();
+        }
+    }
+
+    private async Task<List<WorkCalendarStampSqlRow>> TryQuerySellOrderStampsAsync(
+        string uid,
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _db.Database.SqlQueryRaw<WorkCalendarStampSqlRow>(
+                    """
+                    SELECT approved_at AS "StampAt", status AS "Status"
+                    FROM public.sellorder
+                    WHERE sales_user_id = {0}
+                      AND approved_at IS NOT NULL
+                      AND approved_at >= {1}
+                      AND approved_at < {2}
+                      AND COALESCE(is_deleted, false) = false
+                    """,
+                    uid, startUtc, endUtc)
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception ex) when (WorkCalendarPostgres.IsMissingRelationOrColumn(ex))
+        {
+            _logger.LogWarning(ex, "月历绿点查询跳过（sellorder.approved_at 尚未就绪）");
+            return new List<WorkCalendarStampSqlRow>();
+        }
+    }
+
+    private async Task<List<DateOnly>> TryQueryTaskStartDatesAsync(
+        string uid,
+        DateOnly monthStart,
+        DateOnly monthEnd,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _db.WorkTasks.AsNoTracking()
+                .Where(t => t.AssigneeUserId == uid
+                    && t.StartDate >= monthStart
+                    && t.StartDate < monthEnd
+                    && t.Status != WorkTaskStatuses.Cancelled)
+                .Select(t => t.StartDate)
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception ex) when (WorkCalendarPostgres.IsMissingRelationOrColumn(ex))
+        {
+            _logger.LogWarning(ex, "月历橙点查询跳过（work_task 尚未就绪）");
+            return new List<DateOnly>();
+        }
+    }
+
+    private async Task<List<WorkCalendarRfqSqlRow>> TryQueryRfqDayDocsAsync(
+        string uid,
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _db.Database.SqlQueryRaw<WorkCalendarRfqSqlRow>(
+                    """
+                    SELECT rfq_id AS "Id", rfq_code AS "Code", customer_id AS "CustomerId", status AS "Status"
+                    FROM public.rfq
+                    WHERE sales_user_id = {0}
+                      AND assigned_at IS NOT NULL
+                      AND assigned_at >= {1}
+                      AND assigned_at < {2}
+                      AND COALESCE(is_deleted, false) = false
+                    """,
+                    uid, startUtc, endUtc)
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception ex) when (WorkCalendarPostgres.IsMissingRelationOrColumn(ex))
+        {
+            _logger.LogWarning(ex, "日明细需求查询跳过（rfq.assigned_at 尚未就绪）");
+            return new List<WorkCalendarRfqSqlRow>();
+        }
+    }
+
+    private async Task<List<WorkCalendarSoSqlRow>> TryQuerySellOrderDayDocsAsync(
+        string uid,
+        DateTime startUtc,
+        DateTime endUtc,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _db.Database.SqlQueryRaw<WorkCalendarSoSqlRow>(
+                    """
+                    SELECT "SellOrderId" AS "Id", sell_order_code AS "Code", customer_name AS "CustomerName", status AS "Status"
+                    FROM public.sellorder
+                    WHERE sales_user_id = {0}
+                      AND approved_at IS NOT NULL
+                      AND approved_at >= {1}
+                      AND approved_at < {2}
+                      AND COALESCE(is_deleted, false) = false
+                    """,
+                    uid, startUtc, endUtc)
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception ex) when (WorkCalendarPostgres.IsMissingRelationOrColumn(ex))
+        {
+            _logger.LogWarning(ex, "日明细订单查询跳过（sellorder.approved_at 尚未就绪）");
+            return new List<WorkCalendarSoSqlRow>();
+        }
+    }
+
+    private async Task<List<WorkTask>> TryQueryDayTasksAsync(
+        string uid,
+        DateOnly date,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await _db.WorkTasks.AsNoTracking()
+                .Where(t => t.AssigneeUserId == uid
+                    && t.StartDate == date
+                    && t.Status != WorkTaskStatuses.Cancelled)
+                .OrderBy(t => t.Priority)
+                .ThenBy(t => t.CreateTime)
+                .ToListAsync(cancellationToken);
+        }
+        catch (Exception ex) when (WorkCalendarPostgres.IsMissingRelationOrColumn(ex))
+        {
+            _logger.LogWarning(ex, "日明细任务查询跳过（work_task 尚未就绪）");
+            return new List<WorkTask>();
+        }
+    }
+}
+
+internal sealed class WorkCalendarStampSqlRow
+{
+    public DateTime? StampAt { get; set; }
+    public short Status { get; set; }
+}
+
+internal sealed class WorkCalendarRfqSqlRow
+{
+    public string Id { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string? CustomerId { get; set; }
+    public short Status { get; set; }
+}
+
+internal sealed class WorkCalendarSoSqlRow
+{
+    public string Id { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+    public string? CustomerName { get; set; }
+    public short Status { get; set; }
 }

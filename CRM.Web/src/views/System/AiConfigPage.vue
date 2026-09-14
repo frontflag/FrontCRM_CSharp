@@ -347,7 +347,7 @@ import {
   type AiEntityParseLogItem,
   type AiEntityParseLogDetail
 } from '@/api/ai'
-import { industryNewsApi } from '@/api/industryNews'
+import { industryNewsApi, waitForIndustryNewsRefresh } from '@/api/industryNews'
 import { useAuthStore } from '@/stores'
 import { buildModelOptions } from '@/constants/aiProviderModels'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -585,9 +585,16 @@ async function runIndustryNews() {
   }
   runningIndustryNews.value = true
   try {
+    const previous = await industryNewsApi.getLatest().catch(() => null)
     const result = await industryNewsApi.runToday(true)
-    if (result.success) ElMessage.success(t('aiConfig.runIndustryNewsDone'))
-    else ElMessage.warning(result.message || t('aiConfig.runIndustryNewsFailed'))
+    if (result.pending) {
+      await waitForIndustryNewsRefresh(previous)
+      ElMessage.success(t('aiConfig.runIndustryNewsDone'))
+    } else if (result.success) {
+      ElMessage.success(t('aiConfig.runIndustryNewsDone'))
+    } else {
+      ElMessage.warning(result.message || t('aiConfig.runIndustryNewsFailed'))
+    }
   } catch (e: unknown) {
     ElMessage.error(getApiErrorMessage(e, t('aiConfig.runIndustryNewsFailed')))
   } finally {

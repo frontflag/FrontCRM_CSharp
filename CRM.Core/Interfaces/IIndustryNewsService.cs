@@ -36,6 +36,8 @@ public sealed class IndustryNewsRunResultDto
 {
     public bool Ran { get; set; }
     public bool Success { get; set; }
+    /// <summary>已受理、模型仍在后台生成；调用方应轮询 latest。</summary>
+    public bool Pending { get; set; }
     public string Message { get; set; } = string.Empty;
     public IndustryNewsLatestDto? Latest { get; set; }
 }

@@ -89,7 +89,11 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
-import { industryNewsApi, type IndustryNewsLatest } from '@/api/industryNews'
+import {
+  industryNewsApi,
+  waitForIndustryNewsRefresh,
+  type IndustryNewsLatest
+} from '@/api/industryNews'
 import { useAuthStore } from '@/stores'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { renderAnnouncementMarkdown } from '@/utils/sanitizeAnnouncementHtml'
@@ -246,13 +250,23 @@ async function refreshNow() {
   if (!isSysAdmin.value || refreshing.value) return
   refreshing.value = true
   try {
+    const previous = data.value
     const result = await industryNewsApi.runToday(true)
     if (result.latest) data.value = result.latest
-    else data.value = await industryNewsApi.getLatest()
-    if (result.success) ElMessage.success(t('dashboard.industryNews.refreshDone'))
-    else ElMessage.warning(result.message || t('dashboard.industryNews.refreshFailed'))
+    if (result.pending) {
+      data.value = await waitForIndustryNewsRefresh(previous)
+      ElMessage.success(t('dashboard.industryNews.refreshDone'))
+    } else if (result.success) {
+      if (!result.latest) data.value = await industryNewsApi.getLatest()
+      ElMessage.success(t('dashboard.industryNews.refreshDone'))
+    } else {
+      ElMessage.warning(result.message || t('dashboard.industryNews.refreshFailed'))
+    }
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, t('dashboard.industryNews.refreshFailed')))
+    const msg = getApiErrorMessage(e, t('dashboard.industryNews.refreshFailed'))
+    if (/仍在生成|still running/i.test(msg))
+      ElMessage.warning(t('dashboard.industryNews.refreshStillRunning'))
+    else ElMessage.error(msg)
   } finally {
     refreshing.value = false
   }

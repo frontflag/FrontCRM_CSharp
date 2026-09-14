@@ -177,6 +177,9 @@ namespace CRM.Core.Interfaces
         /// </summary>
         Task RestoreAsync(string id, string? actingUserId = null);
 
+        /// <summary>从回收站移除（仍软删，列表不再显示，不可再恢复）。</summary>
+        Task PurgeFromRecycleAsync(string id, string? actingUserId = null);
+
         /// <summary>
         /// 获取供应商联系历史
         /// </summary>

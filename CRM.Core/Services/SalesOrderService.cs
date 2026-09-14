@@ -42,6 +42,7 @@ namespace CRM.Core.Services
         private readonly ISalesOrderSalesPriceDownstreamSyncService? _salesPriceDownstreamSync;
         private readonly ISalesOrderRefreshCompletedGateService? _refreshCompletedGate;
         private readonly ISalesOrderIdentityDownstreamSyncService? _identityDownstreamSync;
+        private readonly IWorkCalendarStampWriter? _calendarStamp;
 
         public SalesOrderService(
             IRepository<SellOrder> soRepo,
@@ -70,7 +71,8 @@ namespace CRM.Core.Services
             ISalesOrderCustomerDownstreamSyncService? customerDownstreamSyncService = null,
             ISalesOrderSalesPriceDownstreamSyncService? salesPriceDownstreamSync = null,
             ISalesOrderRefreshCompletedGateService? refreshCompletedGate = null,
-            ISalesOrderIdentityDownstreamSyncService? identityDownstreamSync = null)
+            ISalesOrderIdentityDownstreamSyncService? identityDownstreamSync = null,
+            IWorkCalendarStampWriter? calendarStamp = null)
         {
             _soRepo = soRepo;
             _soItemRepo = soItemRepo;
@@ -99,6 +101,7 @@ namespace CRM.Core.Services
             _salesPriceDownstreamSync = salesPriceDownstreamSync;
             _refreshCompletedGate = refreshCompletedGate;
             _identityDownstreamSync = identityDownstreamSync;
+            _calendarStamp = calendarStamp;
         }
 
         private static IEnumerable<string?> CollectQuoteIds(IEnumerable<SellOrderItem> items) =>
@@ -829,6 +832,8 @@ namespace CRM.Core.Services
             order.ModifyByUserId = NormalizeActingUserId(actingUserId);
             await _soRepo.UpdateAsync(order);
             await _unitOfWork.SaveChangesAsync();
+            if (status == SellOrderMainStatus.Approved && order.ApprovedAt != null && _calendarStamp != null)
+                await _calendarStamp.TrySetSellOrderApprovedAtAsync(order.Id, order.ApprovedAt.Value);
 
             if (statusBefore != (short)status)
             {

@@ -38,6 +38,7 @@ namespace CRM.Core.Services
         private readonly IRfqTagService _rfqTagService;
         private readonly IQuoteStatusSyncService _quoteStatusSync;
         private readonly IPurchaseQuoterPoolService? _purchaseQuoterPoolService;
+        private readonly IWorkCalendarStampWriter? _calendarStamp;
 
         public RFQService(
             IRepository<RFQ> rfqRepo,
@@ -60,7 +61,8 @@ namespace CRM.Core.Services
             IBizBrandService bizBrandService,
             IRfqTagService rfqTagService,
             IQuoteStatusSyncService quoteStatusSync,
-            IPurchaseQuoterPoolService? purchaseQuoterPoolService = null)
+            IPurchaseQuoterPoolService? purchaseQuoterPoolService = null,
+            IWorkCalendarStampWriter? calendarStamp = null)
         {
             _rfqRepo = rfqRepo;
             _itemRepo = itemRepo;
@@ -83,6 +85,14 @@ namespace CRM.Core.Services
             _rfqTagService = rfqTagService;
             _quoteStatusSync = quoteStatusSync;
             _purchaseQuoterPoolService = purchaseQuoterPoolService;
+            _calendarStamp = calendarStamp;
+        }
+
+        private async Task PersistAssignedAtIfNeededAsync(RFQ rfq)
+        {
+            if (_calendarStamp == null || rfq.AssignedAt == null || string.IsNullOrWhiteSpace(rfq.Id))
+                return;
+            await _calendarStamp.TrySetRfqAssignedAtAsync(rfq.Id, rfq.AssignedAt.Value);
         }
 
         // ─── Create ──────────────────────────────────────────────────────────────
@@ -209,6 +219,7 @@ namespace CRM.Core.Services
                 await AppendRfqStatusFieldChangeLogAsync(rfq, statusBeforeSave, rfq.Status, actingUserId);
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await PersistAssignedAtIfNeededAsync(rfq);
 
             _logger.LogInformation(
                 "【需求-采购员轮询】新建需求已保存：RfqId={RfqId} RfqCode={RfqCode} Status={Status}(0待分配/1已分配) AssignMethod={AssignMethod} 明细行数={ItemCount} AnyAssigned={AnyAssigned}",
@@ -622,6 +633,7 @@ namespace CRM.Core.Services
             if (statusBefore != rfq.Status)
                 await AppendRfqStatusFieldChangeLogAsync(rfq, statusBefore, rfq.Status, actingUserId);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await PersistAssignedAtIfNeededAsync(rfq);
 
             if (deletedLines is { Count: > 0 })
             {
@@ -825,6 +837,7 @@ namespace CRM.Core.Services
             await _rfqRepo.UpdateAsync(rfq);
             await AppendRfqStatusFieldChangeLogAsync(rfq, prev, rfq.Status, actingUserId);
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await PersistAssignedAtIfNeededAsync(rfq);
         }
 
         /// <inheritdoc />
@@ -898,6 +911,7 @@ namespace CRM.Core.Services
             await TryAdvanceRfqToAssignedWhenAllItemsHavePurchaserAsync(rfq, statusBefore, items, actingUserId);
 
             if (_unitOfWork != null) await _unitOfWork.SaveChangesAsync();
+            await PersistAssignedAtIfNeededAsync(rfq);
 
             return await GetByIdAsync(rfqId) ?? rfq;
         }

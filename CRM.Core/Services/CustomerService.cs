@@ -1241,6 +1241,10 @@ namespace CRM.Core.Services
                 customer = byCode.FirstOrDefault();
             }
             if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            if (!customer.IsDeleted)
+                throw new InvalidOperationException("该客户不在回收站");
+            if (RecycleBinPurgeMarks.IsPurged(customer.DeleteReason))
+                throw new InvalidOperationException("该客户已从回收站删除，无法恢复");
             customer.IsDeleted = false;
             customer.DeletedAt = null;
             customer.DeletedByUserId = null;
@@ -1252,6 +1256,30 @@ namespace CRM.Core.Services
             await _customerRepository.UpdateAsync(customer);
             await _unitOfWork.SaveChangesAsync();
             await AddOperationLogAsync(customer.Id, "恢复", "客户已从回收站恢复", operatorUserId, operatorUserName);
+        }
+
+        /// <inheritdoc />
+        public async Task PurgeCustomerFromRecycleAsync(string id, string? operatorUserId, string? operatorUserName)
+        {
+            var customers = await _customerRepository.FindIgnoreFiltersAsync(c => c.Id == id);
+            var customer = customers.FirstOrDefault();
+            if (customer == null)
+            {
+                var byCode = await _customerRepository.FindIgnoreFiltersAsync(c => c.CustomerCode == id.Trim());
+                customer = byCode.FirstOrDefault();
+            }
+            if (customer == null) throw new KeyNotFoundException($"客户 {id} 不存在");
+            if (!customer.IsDeleted)
+                throw new InvalidOperationException("仅回收站中的客户可删除");
+            if (RecycleBinPurgeMarks.IsPurged(customer.DeleteReason))
+                throw new InvalidOperationException("该客户已从回收站删除");
+
+            customer.DeleteReason = RecycleBinPurgeMarks.Mark(customer.DeleteReason, 500);
+            customer.ModifyTime = DateTime.UtcNow;
+            customer.ModifyByUserId = ActingUserIdNormalizer.Normalize(operatorUserId);
+            await _customerRepository.UpdateAsync(customer);
+            await _unitOfWork.SaveChangesAsync();
+            await AddOperationLogAsync(customer.Id, "从回收站删除", "客户已从回收站移除，不可再恢复到列表", operatorUserId, operatorUserName);
         }
 
         /// <summary>获取已删除的客户列表（回收站）</summary>

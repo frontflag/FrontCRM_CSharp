@@ -70,8 +70,8 @@ namespace CRM.Core.Models.Sales
         [Column("status")]
         public SellOrderMainStatus Status { get; set; } = SellOrderMainStatus.New;
 
-        /// <summary>首次审核通过的 UTC 时间（工作日程绿点）。</summary>
-        [Column("approved_at")]
+        /// <summary>首次审核通过的 UTC 时间（工作日程绿点）。不映射到实体查询，由 <c>IWorkCalendarStampWriter</c> 单独落库。</summary>
+        [NotMapped]
         public DateTime? ApprovedAt { get; set; }
 
         /// <summary>异常状态</summary>

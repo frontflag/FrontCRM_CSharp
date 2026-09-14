@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using CRM.Infrastructure.Data;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using Serilog;
 
@@ -154,15 +155,18 @@ try
                 throw new InvalidOperationException("无法连接到数据库，请检查数据库连接字符串和数据库服务状态。");
             }
             
-            // 安全策略：
-            // API 启动只检查数据库连通性，不允许自动更改数据库结构或数据。
-            // 结构变更必须通过手工 SQL 或独立开发工具执行。
+            // 不跑 EF Database.Migrate()。工作日程两列与 work_task 用幂等 DDL 自愈：
+            // 漏跑脚本时不能让实体 SELECT 因缺列 42703 拖垮审批/订单/桌面。
             var pendingMigrations = context.Database.GetPendingMigrations().ToList();
             if (pendingMigrations.Count > 0)
             {
                 Log.Warning("检测到待执行迁移数量: {Count}。API 启动不会自动迁移数据库。", pendingMigrations.Count);
             }
-            
+
+            var schemaLogger = services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("WorkCalendarSchemaEnsure");
+            await CRM.Infrastructure.WorkCalendar.WorkCalendarSchemaEnsure.EnsureAsync(context, schemaLogger);
+
             Log.Information("数据库连接成功");
         }
         catch (Exception ex) when (ex is not InvalidOperationException)

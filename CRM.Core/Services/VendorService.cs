@@ -426,6 +426,10 @@ namespace CRM.Core.Services
                 ?? (await _repository.FindIgnoreFiltersAsync(e => e.Code == trimmed)).FirstOrDefault();
             if (entity == null)
                 throw new KeyNotFoundException($"找不到ID为 '{id}' 的记录");
+            if (!entity.IsDeleted)
+                throw new InvalidOperationException("该供应商不在回收站");
+            if (RecycleBinPurgeMarks.IsPurged(entity.DeleteReason))
+                throw new InvalidOperationException("该供应商已从回收站删除，无法恢复");
 
             entity.IsDeleted = false;
             entity.DeleteTime = null;
@@ -437,6 +441,31 @@ namespace CRM.Core.Services
             await _unitOfWork.SaveChangesAsync();
             var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
             await AddOperationLogAsync(entity.Id, "恢复", "供应商已从回收站恢复", actorId, actorName);
+        }
+
+        public async Task PurgeFromRecycleAsync(string id, string? actingUserId = null)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("ID不能为空", nameof(id));
+
+            var trimmed = id.Trim();
+            var entity =
+                (await _repository.FindIgnoreFiltersAsync(e => e.Id == trimmed)).FirstOrDefault()
+                ?? (await _repository.FindIgnoreFiltersAsync(e => e.Code == trimmed)).FirstOrDefault();
+            if (entity == null)
+                throw new KeyNotFoundException($"找不到ID为 '{id}' 的记录");
+            if (!entity.IsDeleted)
+                throw new InvalidOperationException("仅回收站中的供应商可删除");
+            if (RecycleBinPurgeMarks.IsPurged(entity.DeleteReason))
+                throw new InvalidOperationException("该供应商已从回收站删除");
+
+            entity.DeleteReason = RecycleBinPurgeMarks.Mark(entity.DeleteReason, 200);
+            entity.ModifyTime = DateTime.UtcNow;
+            entity.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+            await _repository.UpdateAsync(entity);
+            await _unitOfWork.SaveChangesAsync();
+            var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
+            await AddOperationLogAsync(entity.Id, "从回收站删除", "供应商已从回收站移除，不可再恢复到列表", actorId, actorName);
         }
 
         public async Task AddToBlacklistAsync(string id, string? reason, string? actingUserId = null)

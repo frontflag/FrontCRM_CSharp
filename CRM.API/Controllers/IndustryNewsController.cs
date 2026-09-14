@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using CRM.API.Models.DTOs;
+using CRM.API.Services;
 using CRM.Core.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace CRM.API.Controllers;
 
@@ -13,15 +15,18 @@ public class IndustryNewsController : ControllerBase
 {
     readonly IIndustryNewsService _service;
     readonly IRbacService _rbac;
+    readonly IServiceScopeFactory _scopeFactory;
     readonly ILogger<IndustryNewsController> _logger;
 
     public IndustryNewsController(
         IIndustryNewsService service,
         IRbacService rbac,
+        IServiceScopeFactory scopeFactory,
         ILogger<IndustryNewsController> logger)
     {
         _service = service;
         _rbac = rbac;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -57,15 +62,45 @@ public class IndustryNewsController : ControllerBase
         if (!summary.IsSysAdmin)
             return StatusCode(403, ApiResponse<IndustryNewsRunResultDto>.Fail("仅系统管理员可立即刷新", 403));
 
-        try
+        var latest = await _service.GetLatestAsync(cancellationToken);
+        if (!IndustryNewsManualRunGate.TryBegin())
         {
-            var dto = await _service.RunForTodayAsync(force, cancellationToken);
-            return Ok(ApiResponse<IndustryNewsRunResultDto>.Ok(dto, dto.Success ? "ok" : dto.Message));
+            return Ok(ApiResponse<IndustryNewsRunResultDto>.Ok(new IndustryNewsRunResultDto
+            {
+                Ran = false,
+                Success = true,
+                Pending = true,
+                Message = "正在生成，请稍候",
+                Latest = latest
+            }, "正在生成，请稍候"));
         }
-        catch (Exception ex)
+
+        var runForce = force;
+        _ = Task.Run(async () =>
         {
-            _logger.LogError(ex, "手动生成行业新闻失败");
-            return StatusCode(500, ApiResponse<IndustryNewsRunResultDto>.Fail("生成失败", 500));
-        }
+            try
+            {
+                await using var scope = _scopeFactory.CreateAsyncScope();
+                var svc = scope.ServiceProvider.GetRequiredService<IIndustryNewsService>();
+                await svc.RunForTodayAsync(runForce, CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "后台生成行业新闻失败");
+            }
+            finally
+            {
+                IndustryNewsManualRunGate.End();
+            }
+        });
+
+        return Ok(ApiResponse<IndustryNewsRunResultDto>.Ok(new IndustryNewsRunResultDto
+        {
+            Ran = true,
+            Success = true,
+            Pending = true,
+            Message = "已开始生成",
+            Latest = latest
+        }, "已开始生成"));
     }
 }
