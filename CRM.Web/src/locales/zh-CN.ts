@@ -8544,6 +8544,8 @@ const zhCN = {
     declareUnitPrice: '申报单价',
     vendor: '原始供应商',
     timelineSection: '报关链路时间线',
+    timelineToggleExpand: '展开报关链路时间线',
+    timelineToggleCollapse: '收起报关链路时间线',
     timelineStatePending: '待发生',
     timelineStateDone: '已完成',
     timelineSteps: {

@@ -8564,6 +8564,8 @@ const enUS = {
     declareUnitPrice: 'Declare unit price',
     vendor: 'Original vendor',
     timelineSection: 'Customs flow timeline',
+    timelineToggleExpand: 'Expand customs flow timeline',
+    timelineToggleCollapse: 'Collapse customs flow timeline',
     timelineStatePending: 'Pending',
     timelineStateDone: 'Completed',
     timelineSteps: {

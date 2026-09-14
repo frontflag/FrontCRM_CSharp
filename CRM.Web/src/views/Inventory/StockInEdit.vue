@@ -468,44 +468,63 @@
           </el-table-column>
         </el-table>
         <div v-if="customsTimelineGroups.length" class="customs-timeline-wrap">
-          <h4 class="sub-title">{{ t('stockInDetail.timelineSection') }}</h4>
-          <div
-            v-for="group in customsTimelineGroups"
-            :key="group.key"
-            class="customs-timeline-group"
+          <button
+            type="button"
+            class="sub-title customs-timeline-toggle"
+            :aria-expanded="customsTimelineExpanded"
+            :aria-controls="customsTimelinePanelId"
+            :aria-label="
+              customsTimelineExpanded
+                ? t('stockInDetail.timelineToggleCollapse')
+                : t('stockInDetail.timelineToggleExpand')
+            "
+            @click="customsTimelineExpanded = !customsTimelineExpanded"
           >
-            <div class="customs-timeline-group-title">{{ group.title }}</div>
-            <el-timeline class="customs-timeline">
-              <el-timeline-item
-                v-for="step in group.steps"
-                :key="step.stepCode"
-                :type="step.state === 'done' ? 'success' : 'info'"
-                :hollow="step.state !== 'done'"
-                :timestamp="customsTimelineTimeText(step.occurredAt)"
-                placement="top"
-              >
-                <div class="customs-timeline-step">
-                  <span class="customs-timeline-step-label">{{ customsTimelineStepLabel(step.stepCode) }}</span>
-                  <router-link
-                    v-if="customsTimelineRoute(step)"
-                    :to="customsTimelineRoute(step)!"
-                    class="cell-link customs-timeline-doc"
-                  >
-                    {{ customsTimelineDocText(step) }}
-                  </router-link>
-                  <span v-else-if="customsTimelineDocText(step)" class="customs-timeline-doc">{{
-                    customsTimelineDocText(step)
-                  }}</span>
-                  <span v-if="customsTimelineStatusText(step)" class="customs-timeline-status">{{
-                    customsTimelineStatusText(step)
-                  }}</span>
-                  <span
-                    v-if="step.state === 'pending'"
-                    class="customs-timeline-state customs-timeline-state--pending"
-                  >{{ t('stockInDetail.timelineStatePending') }}</span>
-                </div>
-              </el-timeline-item>
-            </el-timeline>
+            <span
+              class="customs-timeline-toggle-icon"
+              :class="{ 'is-collapsed': !customsTimelineExpanded }"
+            >▾</span>
+            <span>{{ t('stockInDetail.timelineSection') }}</span>
+          </button>
+          <div v-show="customsTimelineExpanded" :id="customsTimelinePanelId">
+            <div
+              v-for="group in customsTimelineGroups"
+              :key="group.key"
+              class="customs-timeline-group"
+            >
+              <div class="customs-timeline-group-title">{{ group.title }}</div>
+              <el-timeline class="customs-timeline">
+                <el-timeline-item
+                  v-for="step in group.steps"
+                  :key="step.stepCode"
+                  :type="step.state === 'done' ? 'success' : 'info'"
+                  :hollow="step.state !== 'done'"
+                  :timestamp="customsTimelineTimeText(step.occurredAt)"
+                  placement="top"
+                >
+                  <div class="customs-timeline-step">
+                    <span class="customs-timeline-step-label">{{ customsTimelineStepLabel(step.stepCode) }}</span>
+                    <router-link
+                      v-if="customsTimelineRoute(step)"
+                      :to="customsTimelineRoute(step)!"
+                      class="cell-link customs-timeline-doc"
+                    >
+                      {{ customsTimelineDocText(step) }}
+                    </router-link>
+                    <span v-else-if="customsTimelineDocText(step)" class="customs-timeline-doc">{{
+                      customsTimelineDocText(step)
+                    }}</span>
+                    <span v-if="customsTimelineStatusText(step)" class="customs-timeline-status">{{
+                      customsTimelineStatusText(step)
+                    }}</span>
+                    <span
+                      v-if="step.state === 'pending'"
+                      class="customs-timeline-state customs-timeline-state--pending"
+                    >{{ t('stockInDetail.timelineStatePending') }}</span>
+                  </div>
+                </el-timeline-item>
+              </el-timeline>
+            </div>
           </div>
         </div>
         <div v-if="!customsContextItems.length" class="stockin-report-empty">{{ t('stockInDetail.noCustomsItems') }}</div>
@@ -997,6 +1016,8 @@ const detailCreateUserName = ref('')
 const detailActiveTab = ref<'items' | 'stockItems'>('items')
 const stockItemRows = ref<StockItemListRow[]>([])
 const customsContext = ref<StockInCustomsContextDto | null>(null)
+const customsTimelineExpanded = ref(false)
+const customsTimelinePanelId = 'stock-in-customs-timeline'
 
 const batchImportVisible = ref(false)
 const batchImportItemId = ref('')
@@ -2122,6 +2143,35 @@ function onRowBatchImportSuccess() {
 
 .customs-timeline-wrap {
   margin-top: 16px;
+}
+
+.customs-timeline-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+
+  &:hover {
+    color: $cyan-primary;
+  }
+}
+
+.customs-timeline-toggle-icon {
+  display: inline-block;
+  font-size: 12px;
+  line-height: 1;
+  color: $text-muted;
+  transition: transform 0.15s ease;
+
+  &.is-collapsed {
+    transform: rotate(-90deg);
+  }
 }
 
 .customs-timeline-group {
