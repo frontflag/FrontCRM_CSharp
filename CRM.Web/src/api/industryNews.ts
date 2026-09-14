@@ -49,9 +49,22 @@ export async function waitForIndustryNewsRefresh(
   throw new Error('行业新闻仍在生成，请稍后刷新页面查看。')
 }
 
+export interface IndustryNewsListItem {
+  briefingDate: string
+  periodStart: string
+  periodEnd: string
+  generatedAt: string
+}
+
 export const industryNewsApi = {
   getLatest() {
     return apiClient.get<IndustryNewsLatest>('/api/v1/industry-news/latest')
+  },
+  list() {
+    return apiClient.get<IndustryNewsListItem[]>('/api/v1/industry-news')
+  },
+  getByDate(date: string) {
+    return apiClient.get<IndustryNewsLatest>(`/api/v1/industry-news/${encodeURIComponent(date)}`)
   },
   runToday(force = true) {
     return apiClient.post<IndustryNewsRunResult>('/api/v1/industry-news/run', null, {

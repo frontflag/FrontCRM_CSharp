@@ -46,6 +46,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '我的桌面' }
       },
       {
+        path: 'industry-news',
+        name: 'IndustryNewsHistory',
+        component: () => import('@/views/Dashboard/IndustryNewsHistoryPage.vue'),
+        meta: { requiresAuth: true, title: '每日行业新闻' }
+      },
+      {
         path: 'my/mails',
         name: 'MyMails',
         component: () => import('@/views/My/MyMailsPage.vue'),

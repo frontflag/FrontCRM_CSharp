@@ -3683,6 +3683,7 @@ const userInitial = computed(() => (authStore.user?.userName || '管')[0].toUppe
 
 const pageTitleMap: Record<string, string> = {
   '/dashboard': 'layout.menu.dashboard',
+  '/industry-news': 'dashboard.industryNews.historyTitle',
   '/my/mails': 'layout.menu.myMails',
   '/pending-approvals': 'layout.menu.pendingApprovals',
   '/approval-desktop': 'approvalDesktop.title',
@@ -3813,6 +3814,7 @@ const pageTitleMap: Record<string, string> = {
 const routeMetaTitleKeyMap: Record<string, string> = {
   '控制台': 'layout.menu.dashboard',
   '我的桌面': 'layout.menu.dashboard',
+  '每日行业新闻': 'dashboard.industryNews.historyTitle',
   '我的邮件': 'layout.menu.myMails',
   '客户首页': 'customerHome.search',
   '客户': 'layout.menu.customers',

@@ -76,6 +76,9 @@
 - [文档上传组件规范](./文档上传组件规范.md)
   - 目标：统一详情页「文档」Tab 中上传区与关联文档列表的布局、拖放范围、备注占位、待选文件横向换行、`DocumentListPanel` 的 list/grid 展示差异及整 Tab 拖放集成约定；参考 `DocumentUploadPanel.vue`、`DocumentListPanel.vue` 与采购订单详情文档区。
 
+- [行业新闻简报样式规范](./行业新闻简报样式规范.md)
+  - 目标：控制台「行业新闻」卡片、今日弹层与历史页「每日行业新闻」版式；**本周要闻 Top 5** 每条行首只一颗 ★；**内容总结** 按句号/分号一行一句并加圆点，冒号后折行不加圆点。参考 `IndustryNewsPanel.vue`、`IndustryNewsHistoryPage.vue`。
+
 ## 使用建议
 
 1. 新建列表页前，先对照本目录规范。

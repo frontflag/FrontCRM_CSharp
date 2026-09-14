@@ -4,9 +4,24 @@ public interface IIndustryNewsService
 {
     Task<IndustryNewsLatestDto> GetLatestAsync(CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<IndustryNewsListItemDto>> ListSuccessAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IndustryNewsLatestDto?> GetByDateAsync(
+        DateOnly briefingDate,
+        CancellationToken cancellationToken = default);
+
     Task<IndustryNewsRunResultDto> RunForTodayAsync(
         bool force,
         CancellationToken cancellationToken = default);
+}
+
+public sealed class IndustryNewsListItemDto
+{
+    public DateOnly BriefingDate { get; set; }
+    public DateOnly PeriodStart { get; set; }
+    public DateOnly PeriodEnd { get; set; }
+    public DateTime GeneratedAt { get; set; }
 }
 
 public sealed class IndustryNewsLatestDto

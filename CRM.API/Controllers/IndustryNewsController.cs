@@ -30,6 +30,25 @@ public class IndustryNewsController : ControllerBase
         _logger = logger;
     }
 
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<IndustryNewsListItemDto>>>> List(
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(User.FindFirst(ClaimTypes.NameIdentifier)?.Value))
+            return Unauthorized(ApiResponse<List<IndustryNewsListItemDto>>.Fail("未登录", 401));
+
+        try
+        {
+            var rows = await _service.ListSuccessAsync(cancellationToken);
+            return Ok(ApiResponse<List<IndustryNewsListItemDto>>.Ok(rows.ToList(), "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取行业新闻列表失败");
+            return StatusCode(500, ApiResponse<List<IndustryNewsListItemDto>>.Fail("读取失败", 500));
+        }
+    }
+
     [HttpGet("latest")]
     public async Task<ActionResult<ApiResponse<IndustryNewsLatestDto>>> GetLatest(
         CancellationToken cancellationToken)
@@ -45,6 +64,30 @@ public class IndustryNewsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "读取行业新闻失败");
+            return StatusCode(500, ApiResponse<IndustryNewsLatestDto>.Fail("读取失败", 500));
+        }
+    }
+
+    [HttpGet("{date}")]
+    public async Task<ActionResult<ApiResponse<IndustryNewsLatestDto>>> GetByDate(
+        string date,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(User.FindFirst(ClaimTypes.NameIdentifier)?.Value))
+            return Unauthorized(ApiResponse<IndustryNewsLatestDto>.Fail("未登录", 401));
+        if (!DateOnly.TryParse(date, out var briefingDate))
+            return BadRequest(ApiResponse<IndustryNewsLatestDto>.Fail("日期无效", 400));
+
+        try
+        {
+            var dto = await _service.GetByDateAsync(briefingDate, cancellationToken);
+            if (dto == null)
+                return NotFound(ApiResponse<IndustryNewsLatestDto>.Fail("当日没有简报", 404));
+            return Ok(ApiResponse<IndustryNewsLatestDto>.Ok(dto, "ok"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "读取行业新闻失败 date={Date}", date);
             return StatusCode(500, ApiResponse<IndustryNewsLatestDto>.Fail("读取失败", 500));
         }
     }

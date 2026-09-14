@@ -45,6 +45,34 @@ public sealed class IndustryNewsService : IIndustryNewsService
         return ToLatest(row, today);
     }
 
+    public async Task<IReadOnlyList<IndustryNewsListItemDto>> ListSuccessAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.IndustryNewsBriefings.AsNoTracking()
+            .Where(x => x.Status == IndustryNewsCodes.StatusSuccess)
+            .OrderByDescending(x => x.BriefingDate)
+            .ThenByDescending(x => x.GeneratedAt)
+            .Select(x => new IndustryNewsListItemDto
+            {
+                BriefingDate = x.BriefingDate,
+                PeriodStart = x.PeriodStart,
+                PeriodEnd = x.PeriodEnd,
+                GeneratedAt = x.GeneratedAt
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IndustryNewsLatestDto?> GetByDateAsync(
+        DateOnly briefingDate,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await _db.IndustryNewsBriefings.AsNoTracking()
+            .Where(x => x.BriefingDate == briefingDate && x.Status == IndustryNewsCodes.StatusSuccess)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (row == null) return null;
+        return ToLatest(row, CommissionShanghai.Today());
+    }
+
     public async Task<IndustryNewsRunResultDto> RunForTodayAsync(
         bool force,
         CancellationToken cancellationToken = default)
