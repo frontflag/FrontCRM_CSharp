@@ -120,17 +120,17 @@
             <el-row :gutter="12">
               <el-col :md="6" :sm="12" :xs="24">
                 <el-form-item :label="t('qcDetail.fields.expressNo')">
-                  <el-input v-model="form.expressNo" class="q-input" />
+                  <el-input v-model="form.expressNo" class="q-input" readonly />
                 </el-form-item>
               </el-col>
               <el-col :md="6" :sm="12" :xs="24">
                 <el-form-item :label="t('qcDetail.fields.deliveryMethod')">
-                  <el-input v-model="form.deliveryMethod" class="q-input" />
+                  <el-input v-model="form.deliveryMethod" class="q-input" readonly />
                 </el-form-item>
               </el-col>
               <el-col :md="6" :sm="12" :xs="24">
                 <el-form-item :label="t('qcDetail.fields.expressMethod')">
-                  <el-input v-model="form.expressMethod" class="q-input" />
+                  <el-input v-model="form.expressMethod" class="q-input" readonly />
                 </el-form-item>
               </el-col>
               <el-col :md="6" :sm="12" :xs="24">
@@ -368,12 +368,15 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import { qcUploadFilesToBrowserItems } from '@/utils/imageBrowserItems'
 import { useImageBrowser } from '@/composables/useImageBrowser'
+import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { qcDeliveryFromArrivalNotice } from '@/utils/qcDeliveryFromArrivalNotice'
 
 type QcUploadFile = UploadFile & { documentId?: string; uploadFailReason?: string }
 
 const { t } = useI18n()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const { openImageBrowser } = useImageBrowser()
+const { ensureLoaded: ensureLogisticsDictLoaded, arrivalOptions, expressOptions } = useLogisticsFormDict()
 const route = useRoute()
 const router = useRouter()
 const pageLoading = ref(false)
@@ -727,6 +730,10 @@ const fillNotice = async (noticeId: string, opts?: { skipDefaultStockInPlanDate?
   form.purchaseUserId = ''
   await applyPurchaseUserFromPurchaseOrder(row.purchaseOrderId)
   form.noticeRemark = (row.remark ?? '').trim()
+  const delivery = qcDeliveryFromArrivalNotice(row, arrivalOptions.value, expressOptions.value)
+  form.deliveryMethod = delivery.deliveryMethod
+  form.expressMethod = delivery.expressMethod
+  form.expressNo = delivery.expressNo
   form.stockInQty = arrivedTotalQty
   form.sampleQty = arrivedTotalQty
   form.arrivedTotalQty = arrivedTotalQty
@@ -846,7 +853,8 @@ const goBack = () => router.back()
 onMounted(async () => {
   pageLoading.value = true
   try {
-    await Promise.all([loadLogisticsUsers(), loadPageData()])
+    await Promise.all([loadLogisticsUsers(), ensureLogisticsDictLoaded()])
+    await loadPageData()
   } finally {
     pageLoading.value = false
   }
