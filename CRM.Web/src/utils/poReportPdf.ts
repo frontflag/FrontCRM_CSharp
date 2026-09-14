@@ -1,9 +1,12 @@
 import html2canvas from 'html2canvas'
 import { jsPDF } from 'jspdf'
+import { layoutCanvasOnA4Pages } from '@/utils/poReportPdfLayout'
 
 /** 将印章透明区域压到白底上，避免 html2canvas / PDF 中出现透明棋盘格伪影 */
 function flattenSealImagesInClone(clonedDoc: Document) {
-  const imgs = clonedDoc.querySelectorAll<HTMLImageElement>('img.po-doc__seal')
+  const imgs = clonedDoc.querySelectorAll<HTMLImageElement>(
+    'img.po-doc__seal, img.po-v2__seal'
+  )
   imgs.forEach((img) => {
     try {
       const w = img.naturalWidth
@@ -24,7 +27,9 @@ function flattenSealImagesInClone(clonedDoc: Document) {
   })
 }
 
-/** 将 DOM 区域渲染为多页 A4 PDF（与打印预览一致） */
+export { layoutCanvasOnA4Pages } from '@/utils/poReportPdfLayout'
+
+/** 将 DOM 区域渲染为多页 A4 PDF（与打印预览同为铺满纸面） */
 export async function renderElementToPdfBlob(el: HTMLElement): Promise<Blob> {
   const w = el.scrollWidth
   const h = el.scrollHeight
@@ -49,25 +54,17 @@ export async function renderElementToPdfBlob(el: HTMLElement): Promise<Blob> {
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pdfW = pdf.internal.pageSize.getWidth()
   const pdfH = pdf.internal.pageSize.getHeight()
-  const margin = 10
-  const usableW = pdfW - 2 * margin
-  const usableH = pdfH - 2 * margin
+  const { imgW, imgH, pageOffsetsMm } = layoutCanvasOnA4Pages(
+    canvas.width,
+    canvas.height,
+    pdfW,
+    pdfH
+  )
 
-  const imgW = usableW
-  const imgH = (canvas.height * imgW) / canvas.width
-
-  let heightLeft = imgH
-  let position = margin
-
-  pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH)
-  heightLeft -= usableH
-
-  while (heightLeft > 0.5) {
-    position = margin - (imgH - heightLeft)
-    pdf.addPage()
-    pdf.addImage(imgData, 'PNG', margin, position, imgW, imgH)
-    heightLeft -= usableH
-  }
+  pageOffsetsMm.forEach((y, i) => {
+    if (i > 0) pdf.addPage()
+    pdf.addImage(imgData, 'PNG', 0, y, imgW, imgH)
+  })
 
   return pdf.output('blob')
 }
