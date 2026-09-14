@@ -26,11 +26,19 @@
       <div class="overview__trends">
         <div class="trend">
           <h4>{{ leftTrendTitle }}</h4>
-          <DashboardSparkline :points="leftTrend" />
+          <DashboardSparkline
+            :points="leftTrend"
+            :value-prefix="t('dashboard.overview.tipItemPrefix')"
+          />
         </div>
         <div class="trend">
           <h4>{{ rightTrendTitle }}</h4>
-          <DashboardSparkline :points="rightTrend" />
+          <DashboardSparkline
+            :points="rightTrend"
+            value-format="money"
+            :value-prefix="t('dashboard.overview.tipUsdPrefix')"
+            :masked="moneyMasked"
+          />
         </div>
       </div>
     </div>
@@ -83,6 +91,7 @@ const values = ref({
 })
 const leftTrend = ref<{ period: string; value: number }[]>([])
 const rightTrend = ref<{ period: string; value: number }[]>([])
+const moneyMasked = ref(false)
 
 const scopeText = computed(() => scopeLabel.value || t('dashboard.overview.scopeUnknown'))
 
@@ -190,6 +199,7 @@ async function loadSales() {
   ])
   scopeLabel.value = dashRes.scopeContext?.scopeLabel?.trim() || ''
   const mask = dashRes.scopeContext?.maskAmounts === true
+  moneyMasked.value = mask
   values.value.countA = formatCount(dashRes.snapshot?.rfqItemCount)
   values.value.countB = formatCount(dashRes.snapshot?.salesOrderItemCount)
   values.value.rate = formatRate(dashRes.snapshot?.rfqToSalesConversionRate)
@@ -210,6 +220,7 @@ async function loadPurchase() {
   ])
   scopeLabel.value = dashRes.scopeContext?.scopeLabel?.trim() || ''
   const mask = dashRes.scopeContext?.maskAmounts === true
+  moneyMasked.value = mask
   values.value.countA = formatCount(dashRes.snapshot?.quoteItemCount)
   values.value.countB = formatCount(dashRes.snapshot?.purchaseOrderItemCount)
   values.value.rate = formatRate(dashRes.snapshot?.quoteToPurchaseConversionRate)
@@ -226,6 +237,7 @@ async function load() {
   values.value = { countA: dash, countB: dash, rate: dash, stock: dash, money: dash }
   leftTrend.value = []
   rightTrend.value = []
+  moneyMasked.value = false
   scopeLabel.value = ''
   try {
     const stockP = loadStockUsd()
@@ -250,6 +262,11 @@ onMounted(() => {
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
   padding: 16px 20px 18px;
+  overflow: visible;
+}
+
+.overview__body {
+  overflow: visible;
 }
 
 .overview__head {
@@ -334,6 +351,11 @@ onMounted(() => {
   @media (max-width: 720px) {
     grid-template-columns: 1fr;
   }
+}
+
+.trend {
+  position: relative;
+  overflow: visible;
 }
 
 .trend h4 {

@@ -2088,7 +2088,9 @@ const enUS = {
       payable: 'Payable',
       rfqTrend: 'RFQ trend',
       quoteTrend: 'Quote trend',
-      dealTrend: 'Deal trend'
+      dealTrend: 'Deal trend',
+      tipItemPrefix: 'Line items: ',
+      tipUsdPrefix: 'Converted USD: '
     },
     notices: {
       title: 'Notifications',
@@ -2116,8 +2118,8 @@ const enUS = {
       fri: 'F',
       sat: 'S',
       sun: 'S',
-      legendRfq: 'RFQ assigned',
-      legendSo: 'SO approved',
+      legendRfq: 'Assigned RFQs',
+      legendSo: 'Approved orders',
       legendTask: 'Task',
       dayRfq: 'RFQs',
       daySo: 'Sales orders',

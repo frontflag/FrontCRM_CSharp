@@ -2082,7 +2082,9 @@ const zhCN = {
       payable: '应付',
       rfqTrend: '需求趋势',
       quoteTrend: '报价趋势',
-      dealTrend: '成单趋势'
+      dealTrend: '成单趋势',
+      tipItemPrefix: '明细条目：',
+      tipUsdPrefix: '折算美金：'
     },
     notices: {
       title: '消息通知',
@@ -2110,8 +2112,8 @@ const zhCN = {
       fri: '五',
       sat: '六',
       sun: '日',
-      legendRfq: '需求已分配',
-      legendSo: '订单审核通过',
+      legendRfq: '已分配需求',
+      legendSo: '已审核订单',
       legendTask: '安排任务',
       dayRfq: '需求',
       daySo: '销售订单',
