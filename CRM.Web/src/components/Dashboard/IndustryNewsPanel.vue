@@ -50,21 +50,43 @@
     <el-dialog
       v-model="dialogOpen"
       :title="dialogTitle"
-      width="760px"
+      width="920px"
       append-to-body
       destroy-on-close
       class="industry-news-dialog"
+      @opened="onDialogOpened"
     >
-      <p v-if="data?.isStale" class="news-dialog__stale">
-        {{ t('dashboard.industryNews.staleHint') }}
-      </p>
-      <div class="news-dialog__md" v-html="renderedMarkdown" />
+      <div class="news-dialog__layout">
+        <div ref="scrollRef" class="news-dialog__scroll" @scroll.passive="syncActiveFloor">
+          <p v-if="data?.isStale" class="news-dialog__stale">
+            {{ t('dashboard.industryNews.staleHint') }}
+          </p>
+          <div class="news-dialog__md" v-html="decoratedHtml" />
+        </div>
+        <nav
+          v-if="floors.length"
+          class="news-dialog__floors"
+          :aria-label="t('dashboard.industryNews.floorNav')"
+        >
+          <p class="news-dialog__floors-title">{{ t('dashboard.industryNews.floorNav') }}</p>
+          <button
+            v-for="floor in floors"
+            :key="floor.id"
+            type="button"
+            class="news-dialog__floor"
+            :class="{ 'is-active': floor.id === activeFloorId, 'is-sub': floor.level === 3 }"
+            @click="scrollToFloor(floor.id)"
+          >
+            {{ floor.title }}
+          </button>
+        </nav>
+      </div>
     </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { industryNewsApi, type IndustryNewsLatest } from '@/api/industryNews'
@@ -80,6 +102,10 @@ const loading = ref(false)
 const refreshing = ref(false)
 const data = ref<IndustryNewsLatest | null>(null)
 const dialogOpen = ref(false)
+const scrollRef = ref<HTMLElement | null>(null)
+const activeFloorId = ref('')
+
+type NewsFloor = { id: string; title: string; level: 2 | 3 }
 
 const displayItems = computed(() => (data.value?.items ?? []).slice(0, 5))
 const canOpenFull = computed(
@@ -107,9 +133,90 @@ const dialogTitle = computed(() => {
     : t('dashboard.industryNews.dialogTitle')
 })
 
+function normalizeBriefingStars(md: string) {
+  return md.replace(/[★☆⭐✦✪🌟]{2,}/g, '★')
+}
+
 const renderedMarkdown = computed(() =>
-  renderAnnouncementMarkdown(data.value?.markdown || '')
+  renderAnnouncementMarkdown(normalizeBriefingStars(data.value?.markdown || ''))
 )
+
+const decorated = computed(() => decorateIndustryNewsHtml(renderedMarkdown.value))
+const decoratedHtml = computed(() => decorated.value.html)
+const floors = computed(() => decorated.value.floors)
+
+const categoryFloorTitles = new Set([
+  '行业动态',
+  '关键厂商',
+  '行情价格',
+  '重组并购',
+  '公司治理',
+  '展会信息',
+  '行業動態',
+  '關鍵廠商',
+  '行情價格',
+  '重組併購',
+  '展會信息',
+  '展會資訊'
+])
+
+function headingTitle(el: Element) {
+  return (el.textContent || '').replace(/\s+/g, ' ').trim()
+}
+
+function decorateIndustryNewsHtml(html: string): { html: string; floors: NewsFloor[] } {
+  if (!html.trim() || typeof DOMParser === 'undefined') return { html, floors: [] }
+  const doc = new DOMParser().parseFromString(`<div class="in-root">${html}</div>`, 'text/html')
+  const root = doc.body.querySelector('.in-root')
+  if (!root) return { html, floors: [] }
+  const floors: NewsFloor[] = []
+  const nodes = Array.from(root.querySelectorAll('h2, h3, p'))
+  nodes.forEach((el) => {
+    const title = headingTitle(el)
+    if (!title) return
+    const isHeading = el.tagName === 'H2' || el.tagName === 'H3'
+    const isCategoryPara = el.tagName === 'P' && categoryFloorTitles.has(title)
+    if (!isHeading && !isCategoryPara) return
+    const id = `industry-news-floor-${floors.length}`
+    el.setAttribute('id', id)
+    floors.push({
+      id,
+      title,
+      level: el.tagName === 'H2' ? 2 : 3
+    })
+  })
+  return { html: root.innerHTML, floors }
+}
+
+function offsetInScroll(root: HTMLElement, el: HTMLElement) {
+  return el.getBoundingClientRect().top - root.getBoundingClientRect().top + root.scrollTop
+}
+
+function syncActiveFloor() {
+  const root = scrollRef.value
+  if (!root || floors.value.length === 0) return
+  const y = root.scrollTop + 24
+  let current = floors.value[0].id
+  for (const floor of floors.value) {
+    const el = root.querySelector(`#${floor.id}`) as HTMLElement | null
+    if (el && offsetInScroll(root, el) <= y) current = floor.id
+  }
+  activeFloorId.value = current
+}
+
+function scrollToFloor(id: string) {
+  const root = scrollRef.value
+  const el = root?.querySelector(`#${id}`) as HTMLElement | null
+  if (!root || !el) return
+  activeFloorId.value = id
+  root.scrollTo({ top: Math.max(0, offsetInScroll(root, el) - 8), behavior: 'smooth' })
+}
+
+async function onDialogOpened() {
+  await nextTick()
+  scrollRef.value?.scrollTo({ top: 0 })
+  activeFloorId.value = floors.value[0]?.id ?? ''
+}
 
 function chipClass(category: string) {
   const map: Record<string, string> = {
@@ -306,6 +413,62 @@ onMounted(async () => {
   color: var(--el-text-color-secondary);
 }
 
+.news-dialog__layout {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  min-height: 280px;
+  max-height: min(70vh, 640px);
+}
+
+.news-dialog__scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding-right: 8px;
+}
+
+.news-dialog__floors {
+  flex: 0 0 148px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: auto;
+  padding: 0 0 0 14px;
+  border-left: 1px solid var(--el-border-color-lighter);
+}
+
+.news-dialog__floors-title {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary);
+}
+
+.news-dialog__floor {
+  display: block;
+  width: 100%;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  &.is-sub {
+    padding-left: 10px;
+    color: var(--el-text-color-secondary);
+  }
+  &.is-active {
+    color: var(--el-color-primary);
+    font-weight: 600;
+  }
+  &:hover:not(.is-active) {
+    color: var(--el-color-primary);
+  }
+}
+
 .news-dialog__stale {
   margin: 0 0 12px;
   font-size: 12px;
@@ -316,9 +479,19 @@ onMounted(async () => {
   font-size: 13px;
   line-height: 1.7;
   color: var(--el-text-color-primary);
+  :deep(h2),
+  :deep(h3) {
+    scroll-margin-top: 8px;
+  }
   :deep(h2) {
     margin: 18px 0 8px;
     font-size: 16px;
+    color: #8d4e16;
+  }
+  :deep(h3) {
+    margin: 14px 0 6px;
+    font-size: 14px;
+    font-weight: 600;
   }
   :deep(h2:first-child) {
     margin-top: 0;
@@ -337,6 +510,20 @@ onMounted(async () => {
     border: 1px solid var(--el-border-color-lighter);
     padding: 6px 8px;
     text-align: left;
+  }
+}
+</style>
+
+<style lang="scss">
+.industry-news-dialog.el-dialog {
+  .el-dialog__body {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 640px) {
+  .industry-news-dialog .news-dialog__floors {
+    display: none;
   }
 }
 </style>

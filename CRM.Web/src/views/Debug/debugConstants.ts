@@ -1,2 +1,2 @@
 /** Debug 页展示用前端版本号（post-commit 自动更新，格式 1.1.MMdd-HHmm + 提交说明） */
-export const FRONTEND_DEBUG_VERSION = '1.1.0914-0758 feat(桌面): 首页行业新闻'
+export const FRONTEND_DEBUG_VERSION = '1.1.0914-0819 feat(桌面): 行业新闻简报添加导航'

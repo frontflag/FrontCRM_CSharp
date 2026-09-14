@@ -2063,7 +2063,8 @@ const zhCN = {
       emptyItems: '今日暂无条目',
       staleHint: '这是上一份成功简报。今日更新尚未完成。',
       dialogTitle: '行业新闻简报',
-      dialogTitleDated: '行业新闻简报（{date}）'
+      dialogTitleDated: '行业新闻简报（{date}）',
+      floorNav: '目录'
     },
     overview: {
       title: '业务总览',

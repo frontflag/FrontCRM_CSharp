@@ -2069,7 +2069,8 @@ const enUS = {
       emptyItems: 'No headlines in this briefing',
       staleHint: 'Showing the last successful briefing. Today’s update is not ready yet.',
       dialogTitle: 'Industry briefing',
-      dialogTitleDated: 'Industry briefing ({date})'
+      dialogTitleDated: 'Industry briefing ({date})',
+      floorNav: 'Contents'
     },
     overview: {
       title: 'Business overview',
