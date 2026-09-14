@@ -968,8 +968,10 @@ const canRefreshPoVendor = computed(
     canChangePurchaseOrderVendorOnOrder(
       {
         isSysAdmin: authStore.user?.isSysAdmin,
+        isSysManager: authStore.user?.isSysManager,
         identityType: authStore.user?.identityType,
         roleCodes: authStore.user?.roleCodes,
+        permissionCodes: authStore.user?.permissionCodes,
         hasPermission: (c) => authStore.hasPermission(c)
       },
       normalizePurchaseOrderMainStatus(order.value)

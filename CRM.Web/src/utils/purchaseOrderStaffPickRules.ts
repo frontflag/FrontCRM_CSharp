@@ -37,16 +37,32 @@ export function canPickPurchaseOrderStaffFreely(user: {
   return it === 2 || it === 3
 }
 
-/** 采购订单更换供应商：管理员、采购侧总监，或 purchase-order.change-vendor */
-export function canChangePurchaseOrderVendor(user: {
+export type PurchaseOrderVendorChangeUser = {
   isSysAdmin?: boolean
+  isSysManager?: boolean
   identityType?: number
   roleCodes?: string[]
+  permissionCodes?: string[]
   hasPermission?: (code: string) => boolean
-} | null | undefined): boolean {
+}
+
+function hasRole(user: PurchaseOrderVendorChangeUser, code: string): boolean {
+  return (user.roleCodes ?? []).some((r) => String(r).trim().toUpperCase() === code)
+}
+
+function hasExplicitPermission(user: PurchaseOrderVendorChangeUser, code: string): boolean {
+  const want = code.trim().toLowerCase()
+  return (user.permissionCodes ?? []).some((c) => String(c).trim().toLowerCase() === want)
+}
+
+/** 采购订单更换供应商 / 联系人：SYS_ADMIN、SYS_MANAGER、采购侧总监，或显式 purchase-order.change-vendor（不含 Manager bypass） */
+export function canChangePurchaseOrderVendor(
+  user: PurchaseOrderVendorChangeUser | null | undefined
+): boolean {
   if (!user) return false
-  if (user.isSysAdmin) return true
-  if (user.hasPermission?.('purchase-order.change-vendor')) return true
+  if (user.isSysAdmin || user.isSysManager) return true
+  if (hasRole(user, 'SYS_ADMIN') || hasRole(user, 'SYS_MANAGER')) return true
+  if (hasExplicitPermission(user, 'purchase-order.change-vendor')) return true
   return canPickPurchaseOrderStaffFreely(user)
 }
 
@@ -63,16 +79,18 @@ export function isPurchaseOrderPreAuditVendorChangeStatus(
  * 脱敏身份由调用方另行拦截。
  */
 export function canChangePurchaseOrderVendorOnOrder(
-  user: {
-    isSysAdmin?: boolean
-    identityType?: number
-    roleCodes?: string[]
-    hasPermission?: (code: string) => boolean
-  } | null | undefined,
+  user: PurchaseOrderVendorChangeUser | null | undefined,
   orderStatus: number | null | undefined
 ): boolean {
   if (!user) return false
   if (canChangePurchaseOrderVendor(user)) return true
   if (!isPurchaseOrderPreAuditVendorChangeStatus(orderStatus)) return false
-  return user.isSysAdmin === true || user.hasPermission?.('purchase-order.write') === true
+  return (
+    user.isSysAdmin === true ||
+    user.isSysManager === true ||
+    hasRole(user, 'SYS_ADMIN') ||
+    hasRole(user, 'SYS_MANAGER') ||
+    hasExplicitPermission(user, 'purchase-order.write') ||
+    user.hasPermission?.('purchase-order.write') === true
+  )
 }

@@ -67,6 +67,18 @@ public class PurchaseOrderVendorChangeServiceTests
     }
 
     [Fact]
+    public void CanChangeVendor_SysManager_SalesPrimaryDept_ReturnsTrue()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendor(new UserPermissionSummaryDto
+        {
+            IsSysManager = true,
+            IdentityType = 1,
+            RoleCodes = new List<string> { "SYS_MANAGER", "DEPT_DIRECTOR" }
+        });
+        Assert.True(ok);
+    }
+
+    [Fact]
     public void CanChangeVendor_PurchaseDirector_ReturnsTrue()
     {
         var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendor(new UserPermissionSummaryDto
@@ -75,6 +87,28 @@ public class PurchaseOrderVendorChangeServiceTests
             RoleCodes = new List<string> { "DEPT_DIRECTOR" }
         });
         Assert.True(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendor_PurchaseOpsDirector_ReturnsTrue()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendor(new UserPermissionSummaryDto
+        {
+            IdentityType = 3,
+            RoleCodes = new List<string> { "DEPT_DIRECTOR" }
+        });
+        Assert.True(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendor_SalesDirectorWithoutManagementRole_ReturnsFalse()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendor(new UserPermissionSummaryDto
+        {
+            IdentityType = 1,
+            RoleCodes = new List<string> { "DEPT_DIRECTOR" }
+        });
+        Assert.False(ok);
     }
 
     [Theory]
@@ -117,6 +151,49 @@ public class PurchaseOrderVendorChangeServiceTests
             },
             10);
         Assert.True(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendorOnOrder_PurchaseOpsDirector_Approved_ReturnsTrue()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(
+            new UserPermissionSummaryDto
+            {
+                IdentityType = 3,
+                RoleCodes = new List<string> { "DEPT_DIRECTOR" }
+            },
+            10);
+        Assert.True(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendorOnOrder_SysManager_Sales511_Approved_ReturnsTrue()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendorOnOrder(
+            new UserPermissionSummaryDto
+            {
+                IsSysManager = true,
+                IdentityType = 1,
+                PurchaseDataScope = 4,
+                BelongsToPurchaseDept = false,
+                RoleCodes = new List<string> { "SYS_MANAGER", "DEPT_DIRECTOR" },
+                PermissionCodes = new List<string> { "purchase-order.write", "sales-order.read" }
+            },
+            10);
+        Assert.True(ok);
+    }
+
+    [Fact]
+    public void CanChangeVendor_BizManagerOnly_ReturnsFalse()
+    {
+        var ok = PurchaseOrderVendorChangeAccessRules.CanChangeVendor(new UserPermissionSummaryDto
+        {
+            IsBizManager = true,
+            HasBizDataBypass = true,
+            IdentityType = 1,
+            RoleCodes = new List<string> { "SYS_BIZ_MANAGER" }
+        });
+        Assert.False(ok);
     }
 
     [Fact]
