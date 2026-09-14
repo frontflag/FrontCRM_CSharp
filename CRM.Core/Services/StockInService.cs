@@ -360,12 +360,12 @@ namespace CRM.Core.Services
                 .Where(x => !string.IsNullOrEmpty(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            var matById = new Dictionary<string, MaterialInfo>(StringComparer.OrdinalIgnoreCase);
             if (midList.Count > 0)
             {
                 try
                 {
                     var materials = (await _materialRepository.FindAsync(x => midList.Contains(x.Id))).ToList();
-                    var matById = new Dictionary<string, MaterialInfo>(StringComparer.OrdinalIgnoreCase);
                     foreach (var m in materials)
                     {
                         var mid = m.Id?.Trim();
@@ -373,40 +373,39 @@ namespace CRM.Core.Services
                         if (!matById.ContainsKey(mid))
                             matById[mid] = m;
                     }
-
-                    foreach (var line in lines)
-                    {
-                        var mid = line.MaterialId?.Trim();
-                        if (string.IsNullOrEmpty(mid))
-                            continue;
-
-                        // 仅当 MaterialId 实为物料主键时能命中；否则仍可由下方 Resolve + 采购行补全型号/品牌
-                        if (matById.TryGetValue(mid, out var mat))
-                        {
-                            line.DetailMaterialCode = string.IsNullOrWhiteSpace(mat.MaterialCode)
-                                ? null
-                                : mat.MaterialCode.Trim();
-                            line.DetailMaterialName = string.IsNullOrWhiteSpace(mat.MaterialName)
-                                ? null
-                                : mat.MaterialName.Trim();
-                            line.DetailUnit = string.IsNullOrWhiteSpace(mat.Unit) ? null : mat.Unit.Trim();
-                        }
-
-                        ResolveStockInLineModelBrand(mid, matById, poLinesForDetail, out var modelDisp, out var brandDisp);
-                        line.DetailMaterialModel = modelDisp;
-                        line.DetailMaterialBrand = brandDisp;
-                        if (string.IsNullOrWhiteSpace(line.DetailMaterialModel) &&
-                            !string.IsNullOrWhiteSpace(line.PurchasePn))
-                            line.DetailMaterialModel = line.PurchasePn.Trim();
-                        if (string.IsNullOrWhiteSpace(line.DetailMaterialBrand) &&
-                            !string.IsNullOrWhiteSpace(line.PurchaseBrand))
-                            line.DetailMaterialBrand = line.PurchaseBrand.Trim();
-                    }
                 }
                 catch
                 {
-                    // 物料表不可用时仍返回明细，仅不填充编码/名称
+                    // 物料表不可用时仍返回明细，仅不填充编码/名称；型号/品牌仍走采购快照
                 }
+            }
+
+            foreach (var line in lines)
+            {
+                var mid = line.MaterialId?.Trim();
+                if (!string.IsNullOrEmpty(mid) && matById.TryGetValue(mid, out var mat))
+                {
+                    line.DetailMaterialCode = string.IsNullOrWhiteSpace(mat.MaterialCode)
+                        ? null
+                        : mat.MaterialCode.Trim();
+                    line.DetailMaterialName = string.IsNullOrWhiteSpace(mat.MaterialName)
+                        ? null
+                        : mat.MaterialName.Trim();
+                    line.DetailUnit = string.IsNullOrWhiteSpace(mat.Unit) ? null : mat.Unit.Trim();
+                }
+
+                StockInLineDisplayRules.ResolveDisplayModelBrand(
+                    line.MaterialId,
+                    line.PurchasePn,
+                    line.PurchaseBrand,
+                    line.DetailMaterialModel,
+                    line.DetailMaterialBrand,
+                    matById,
+                    poLinesForDetail,
+                    out var modelDisp,
+                    out var brandDisp);
+                line.DetailMaterialModel = modelDisp;
+                line.DetailMaterialBrand = brandDisp;
             }
 
             var poItemById = new Dictionary<string, PurchaseOrderItem>(StringComparer.OrdinalIgnoreCase);
@@ -628,13 +627,10 @@ namespace CRM.Core.Services
             {
                 if (!string.IsNullOrWhiteSpace(modelKeyword))
                 {
-                    var idHit = stockInItemsMap.TryGetValue(x.Id, out var items)
-                        && items.Any(i => !string.IsNullOrWhiteSpace(i.MaterialId)
-                                          && i.MaterialId.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase));
-                    var textHit =
-                        (x.MaterialModelSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false)
-                        || (x.MaterialBrandSummary?.Contains(modelKeyword, StringComparison.OrdinalIgnoreCase) ?? false);
-                    if (!idHit && !textHit) return false;
+                    stockInItemsMap.TryGetValue(x.Id, out var items);
+                    if (!StockInLineDisplayRules.MatchesModelKeyword(
+                            modelKeyword, items, x.MaterialModelSummary, x.MaterialBrandSummary))
+                        return false;
                 }
                 if (!string.IsNullOrWhiteSpace(vendorKeyword)
                     && !(x.VendorName?.Contains(vendorKeyword, StringComparison.OrdinalIgnoreCase) ?? false))
@@ -943,9 +939,16 @@ namespace CRM.Core.Services
                     var brands = new List<string>();
                     foreach (var line in silForDisplay)
                     {
-                        var mid = line.MaterialId?.Trim();
-                        if (string.IsNullOrEmpty(mid)) continue;
-                        ResolveStockInLineModelBrand(mid, materialById, poLinesForS, out var m1, out var b1);
+                        StockInLineDisplayRules.ResolveDisplayModelBrand(
+                            line.MaterialId,
+                            line.PurchasePn,
+                            line.PurchaseBrand,
+                            line.DetailMaterialModel,
+                            line.DetailMaterialBrand,
+                            materialById,
+                            poLinesForS,
+                            out var m1,
+                            out var b1);
                         if (!string.IsNullOrWhiteSpace(m1)) models.Add(m1);
                         if (!string.IsNullOrWhiteSpace(b1)) brands.Add(b1);
                     }
@@ -1699,46 +1702,5 @@ namespace CRM.Core.Services
             line.Currency ??= (short)CurrencyCode.RMB;
         }
 
-        /// <summary>
-        /// 入库明细 MaterialId 对齐物料主数据；来源为采购单时再按采购行补 PN/品牌（与库存总览逻辑一致）。
-        /// </summary>
-        private static void ResolveStockInLineModelBrand(
-            string materialIdTrimmed,
-            Dictionary<string, MaterialInfo> materials,
-            IReadOnlyList<PurchaseOrderItem>? poLinesForSource,
-            out string? model,
-            out string? brand)
-        {
-            model = null;
-            brand = null;
-            if (materials.TryGetValue(materialIdTrimmed, out var mat))
-            {
-                if (!string.IsNullOrWhiteSpace(mat.MaterialModel))
-                    model = mat.MaterialModel.Trim();
-                if (!string.IsNullOrWhiteSpace(mat.MaterialName))
-                    brand = mat.MaterialName.Trim();
-            }
-
-            PurchaseOrderItem? hit = null;
-            if (poLinesForSource is { Count: > 0 })
-            {
-                hit = poLinesForSource.FirstOrDefault(p =>
-                    !string.IsNullOrWhiteSpace(p.ProductId) &&
-                    string.Equals(p.ProductId.Trim(), materialIdTrimmed, StringComparison.OrdinalIgnoreCase));
-                if (hit == null)
-                    hit = poLinesForSource.FirstOrDefault(p =>
-                        string.Equals(p.Id, materialIdTrimmed, StringComparison.OrdinalIgnoreCase));
-                if (hit == null && poLinesForSource.Count == 1)
-                    hit = poLinesForSource[0];
-            }
-
-            if (hit != null)
-            {
-                if (string.IsNullOrWhiteSpace(model) && !string.IsNullOrWhiteSpace(hit.PN))
-                    model = hit.PN!.Trim();
-                if (string.IsNullOrWhiteSpace(brand) && !string.IsNullOrWhiteSpace(hit.Brand))
-                    brand = hit.Brand!.Trim();
-            }
-        }
     }
 }
