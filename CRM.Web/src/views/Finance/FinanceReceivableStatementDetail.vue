@@ -23,13 +23,8 @@
             {{ listAmountCurrencyIso(detail.statement.currency) }}
           </span>
           <span class="stmt-header-badge__sep">·</span>
-          <span>{{ t('financeReceivableStatement.lineCount', { n: ledgerRows.length }) }}</span>
+          <span>{{ t('financeReceivableStatement.lineCount', { n: ledgerLineCount }) }}</span>
         </div>
-      </div>
-      <div class="header-right">
-        <button type="button" class="btn-primary" :disabled="!detail" @click="goPreview">
-          {{ t('financeReceivableStatement.previewReport') }}
-        </button>
       </div>
     </div>
 
@@ -43,6 +38,14 @@
             <span class="section-title">{{ t('financeReceivableStatement.customerSection') }}</span>
           </div>
           <div class="section-header__meta">
+            <button
+              type="button"
+              class="btn-primary btn-sm stmt-preview-in-header"
+              :disabled="!detail"
+              @click="goPreview"
+            >
+              {{ t('financeReceivableStatement.previewReport') }}
+            </button>
             <span class="section-header-meta-item">
               <span class="section-header-meta-item__label">{{ t('financeReceivableStatement.fields.generatedOn') }}</span>
               <span class="section-header-meta-item__value">{{ detail.statement.generatedOn }}</span>
@@ -84,172 +87,30 @@
           </div>
         </div>
       </div>
-
-      <div class="stat-cards">
-        <div class="stat-card">
-          <div class="stat-value">
-            <MoneyCell :amount="detail.statement.opening" :currency="detail.statement.currency" :masked="maskSaleSensitiveFields" />
-          </div>
-          <div class="stat-label">{{ t('financeReceivableStatement.kpi.opening') }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">
-            <MoneyCell :amount="detail.statement.periodIncrease" :currency="detail.statement.currency" :masked="maskSaleSensitiveFields" />
-          </div>
-          <div class="stat-label">{{ t('financeReceivableStatement.kpi.increase') }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value stat-value--recv">
-            <MoneyCell :amount="detail.statement.periodReceived" :currency="detail.statement.currency" :masked="maskSaleSensitiveFields" />
-          </div>
-          <div class="stat-label">{{ t('financeReceivableStatement.kpi.received') }}</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value stat-value--end">
-            <MoneyCell :amount="detail.statement.ending" :currency="detail.statement.currency" :masked="maskSaleSensitiveFields" />
-          </div>
-          <div class="stat-label">{{ t('financeReceivableStatement.kpi.ending') }}</div>
-        </div>
-      </div>
-
-      <div class="search-bar">
-        <div class="search-left">
-          <div class="date-range-group">
-            <el-date-picker
-              v-model="periodFrom"
-              type="date"
-              value-format="YYYY-MM-DD"
-              clearable
-              :teleported="false"
-              :placeholder="t('financeReceivableStatement.fields.periodFrom')"
-              class="filter-date"
-            />
-            <span class="date-range-sep">{{ t('financeReceivableStatement.filters.dateSep') }}</span>
-            <el-date-picker
-              v-model="periodTo"
-              type="date"
-              value-format="YYYY-MM-DD"
-              clearable
-              :teleported="false"
-              :placeholder="t('financeReceivableStatement.fields.periodTo')"
-              class="filter-date"
-            />
-          </div>
-          <el-date-picker
-            v-model="aging"
-            type="date"
-            value-format="YYYY-MM-DD"
-            clearable
-            :teleported="false"
-            :placeholder="t('financeReceivableStatement.fields.agingCutoff')"
-            class="filter-date"
-          />
-          <button type="button" class="btn-primary btn-sm" :disabled="loading" @click="handleSearch">
-            {{ t('financeReceivableStatement.filters.search') }}
-          </button>
-          <button type="button" class="btn-ghost btn-sm" :disabled="loading" @click="handleReset">
-            {{ t('financeReceivableStatement.filters.reset') }}
-          </button>
-        </div>
-      </div>
-
-      <div class="table-wrapper table-stack">
-        <div class="pagination-wrapper">
-          <div class="list-footer-left">
-            <el-tooltip :content="t('financeReceivableStatement.columnSettings')" placement="top" :hide-after="0">
-              <el-button
-                class="list-settings-btn"
-                link
-                type="primary"
-                :aria-label="t('financeReceivableStatement.columnSettings')"
-                @click="dataTableRef?.openColumnSettings?.()"
-              >
-                <el-icon><Setting /></el-icon>
-              </el-button>
-            </el-tooltip>
-            <span ref="rowDensityToggleAnchorEl" class="list-footer-density-anchor" aria-hidden="true" />
-            <div class="list-footer-spacer" aria-hidden="true" />
-          </div>
-        </div>
-
-        <CrmDataTable
-          ref="dataTableRef"
-          column-layout-key="finance-receivable-statement-detail-ledger-v1"
-          :columns="tableColumns"
-          :show-column-settings="false"
-          :density-toggle-anchor-el="rowDensityToggleAnchorEl"
-          :data="ledgerRows"
-          row-key="rowKey"
-          highlight-current-row
-          row-class-name="table-row-pointer"
-          @row-dblclick="onRowDblClick"
-        >
-          <template #col-date="{ row }">{{ formatLedgerDate(row.date) }}</template>
-          <template #col-docNo="{ row }">
-            <router-link
-              v-if="row.lineType === 'increase' && row.receivableId && row.docNo"
-              class="link-text"
-              :to="`/finance/receivables/${row.receivableId}`"
-              @click.stop
-              @dblclick.stop
-            >{{ row.docNo }}</router-link>
-            <router-link
-              v-else-if="row.lineType === 'receipt' && row.receiptId && row.docNo"
-              class="link-text"
-              :to="`/finance/receipts/${row.receiptId}`"
-              @click.stop
-              @dblclick.stop
-            >{{ row.docNo }}</router-link>
-            <span v-else>{{ displayDocNo(row) }}</span>
-          </template>
-          <template #col-summary="{ row }">{{ lineSummary(row) }}</template>
-          <template #col-increaseAmount="{ row }">
-            <MoneyCell
-              v-if="row.increaseAmount != null"
-              :amount="row.increaseAmount"
-              :currency="detail.statement.currency"
-              :masked="maskSaleSensitiveFields"
-            />
-            <span v-else>—</span>
-          </template>
-          <template #col-receivedAmount="{ row }">
-            <span v-if="row.receivedAmount != null" class="amt-recv">
-              <MoneyCell :amount="row.receivedAmount" :currency="detail.statement.currency" :masked="maskSaleSensitiveFields" />
-            </span>
-            <span v-else>—</span>
-          </template>
-          <template #col-balance="{ row }">
-            <span :class="{ 'amt-end': row.rowKey === lastLedgerRowKey }">
-              <MoneyCell :amount="row.balance" :currency="detail.statement.currency" :masked="maskSaleSensitiveFields" />
-            </span>
-          </template>
-        </CrmDataTable>
-      </div>
     </template>
+
+    <FinanceReceivableStatementLedgerPanel
+      v-if="routeCustomerId"
+      ref="ledgerRef"
+      :customer-id="routeCustomerId"
+      :currency="routeCurrency"
+      :embed-loading="false"
+      :show-error-alert="false"
+      @update:detail="onDetail"
+      @update:loading="loading = $event"
+      @update:error="errorMsg = $event"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
-import { Setting } from '@element-plus/icons-vue'
-import CrmDataTable from '@/components/CrmDataTable.vue'
-import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
+import FinanceReceivableStatementLedgerPanel from '@/components/Finance/FinanceReceivableStatementLedgerPanel.vue'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
-import {
-  financeReceivableStatementApi,
-  type FinanceReceivableStatementDetail,
-  type FinanceReceivableStatementLine
-} from '@/api/financeReceivableStatement'
-import { getApiErrorMessage } from '@/utils/apiError'
-import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
+import type { FinanceReceivableStatementDetail } from '@/api/financeReceivableStatement'
 import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
-import { lastCalendarMonthRange, todayYmd } from '@/utils/receivableStatementPeriod'
-import MoneyCell from './ReceivableStatementMoneyCell.vue'
-
-type LedgerRow = FinanceReceivableStatementLine & { rowKey: string }
 
 const { t } = useI18n()
 const route = useRoute()
@@ -259,11 +120,13 @@ const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 const loading = ref(false)
 const errorMsg = ref('')
 const detail = ref<FinanceReceivableStatementDetail | null>(null)
-const periodFrom = ref('')
-const periodTo = ref('')
-const aging = ref(todayYmd())
-const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
-const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
+const ledgerRef = ref<{ goPreview: () => void } | null>(null)
+
+const routeCustomerId = computed(() => String(route.params.customerId || ''))
+const routeCurrency = computed(() => {
+  const n = Number(route.params.currency)
+  return Number.isFinite(n) && n >= 1 ? n : 0
+})
 
 const customerDisplayName = computed(() => {
   const c = detail.value?.customer
@@ -284,166 +147,10 @@ const creditLimitText = computed(() => {
   return `${formatTotalAmountNumber(v)}（${t('financeReceivableStatement.creditFromMaster')}）`
 })
 
-const ledgerRows = computed<LedgerRow[]>(() =>
-  (detail.value?.lines ?? []).map((row, index) => ({
-    ...row,
-    rowKey: `${row.lineType}:${row.date}:${row.docNo ?? ''}:${row.receivableId ?? ''}:${row.receiptId ?? ''}:${index}`
-  }))
-)
+const ledgerLineCount = computed(() => detail.value?.lines.length ?? 0)
 
-const lastLedgerRowKey = computed(() => {
-  const rows = ledgerRows.value
-  return rows.length > 0 ? rows[rows.length - 1].rowKey : ''
-})
-
-const tableColumns = computed<CrmTableColumnDef[]>(() => {
-  const w = (label: string, extra?: { align?: 'left' | 'center' | 'right' }) =>
-    estimateListColumnHeaderMinWidth(label, extra)
-  return [
-    {
-      key: 'date',
-      prop: 'date',
-      label: t('financeReceivableStatement.ledger.date'),
-      width: Math.max(120, w(t('financeReceivableStatement.ledger.date')))
-    },
-    {
-      key: 'docNo',
-      prop: 'docNo',
-      label: t('financeReceivableStatement.ledger.docNo'),
-      width: Math.max(140, w(t('financeReceivableStatement.ledger.docNo'))),
-      minWidth: Math.max(140, w(t('financeReceivableStatement.ledger.docNo'))),
-      showOverflowTooltip: true
-    },
-    {
-      key: 'summary',
-      prop: 'summary',
-      label: t('financeReceivableStatement.ledger.summary'),
-      width: Math.max(220, w(t('financeReceivableStatement.ledger.summary'))),
-      minWidth: Math.max(220, w(t('financeReceivableStatement.ledger.summary'))),
-      showOverflowTooltip: true
-    },
-    {
-      key: 'increaseAmount',
-      prop: 'increaseAmount',
-      label: t('financeReceivableStatement.ledger.increase'),
-      width: Math.max(150, w(t('financeReceivableStatement.ledger.increase'), { align: 'right' })),
-      minWidth: Math.max(150, w(t('financeReceivableStatement.ledger.increase'), { align: 'right' })),
-      align: 'right'
-    },
-    {
-      key: 'receivedAmount',
-      prop: 'receivedAmount',
-      label: t('financeReceivableStatement.ledger.received'),
-      width: Math.max(150, w(t('financeReceivableStatement.ledger.received'), { align: 'right' })),
-      minWidth: Math.max(150, w(t('financeReceivableStatement.ledger.received'), { align: 'right' })),
-      align: 'right'
-    },
-    {
-      key: 'balance',
-      prop: 'balance',
-      label: t('financeReceivableStatement.ledger.balance'),
-      width: Math.max(160, w(t('financeReceivableStatement.ledger.balance'), { align: 'right' })),
-      minWidth: Math.max(160, w(t('financeReceivableStatement.ledger.balance'), { align: 'right' })),
-      align: 'right'
-    },
-    {
-      key: 'flexGutter',
-      label: '',
-      minWidth: 1,
-      hideable: false,
-      reorderable: false,
-      pinned: 'end',
-      resizable: false,
-      className: 'stmt-ledger-flex-col',
-      labelClassName: 'stmt-ledger-flex-col'
-    }
-  ]
-})
-
-function lineSummary(row: FinanceReceivableStatementLine) {
-  if (row.lineType === 'opening') return t('financeReceivableStatement.kpi.opening')
-  if (row.lineType === 'receipt') {
-    if (!row.docNo) return t('financeReceivableStatement.advanceWriteOff')
-    return `${t('financeReceivableStatement.receiptWriteOff')} ${row.docNo}`
-  }
-  return row.summary || '—'
-}
-
-function displayDocNo(row: FinanceReceivableStatementLine) {
-  if (row.lineType === 'opening') return ''
-  if (row.lineType === 'receipt' && !row.docNo) return t('financeReceivableStatement.advanceDoc')
-  return row.docNo || '—'
-}
-
-function formatLedgerDate(ymd: string) {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd.slice(2)
-  return ymd || '—'
-}
-
-function currentPeriod(): [string, string] {
-  const qFrom = typeof route.query.from === 'string' ? route.query.from : ''
-  const qTo = typeof route.query.to === 'string' ? route.query.to : ''
-  if (qFrom && qTo) return [qFrom, qTo]
-  return lastCalendarMonthRange()
-}
-
-function syncQuery(from: string, to: string, agingDate: string) {
-  void router.replace({
-    name: 'FinanceReceivableStatementDetail',
-    params: route.params,
-    query: { from, to, aging: agingDate }
-  })
-}
-
-async function loadDetail() {
-  const customerId = String(route.params.customerId || '')
-  const currency = Number(route.params.currency)
-  if (!customerId || !Number.isFinite(currency)) {
-    errorMsg.value = t('financeReceivableStatement.notFound')
-    return
-  }
-  const from = periodFrom.value || currentPeriod()[0]
-  const to = periodTo.value || currentPeriod()[1]
-  periodFrom.value = from
-  periodTo.value = to
-  aging.value = aging.value || (typeof route.query.aging === 'string' && route.query.aging ? route.query.aging : todayYmd())
-  loading.value = true
-  errorMsg.value = ''
-  try {
-    detail.value = await financeReceivableStatementApi.getDetail(customerId, currency, {
-      from,
-      to,
-      aging: aging.value
-    })
-  } catch (e) {
-    detail.value = null
-    errorMsg.value = getApiErrorMessage(e, t('financeReceivableStatement.notFound'))
-  } finally {
-    loading.value = false
-  }
-}
-
-function handleSearch() {
-  if (!periodFrom.value || !periodTo.value) {
-    ElMessage.error(t('financeReceivableStatement.invalidPeriod'))
-    return
-  }
-  if (periodFrom.value > periodTo.value) {
-    ElMessage.error(t('financeReceivableStatement.invalidPeriod'))
-    return
-  }
-  if (!aging.value) aging.value = todayYmd()
-  syncQuery(periodFrom.value, periodTo.value, aging.value)
-  void loadDetail()
-}
-
-function handleReset() {
-  const [from, to] = lastCalendarMonthRange()
-  periodFrom.value = from
-  periodTo.value = to
-  aging.value = todayYmd()
-  syncQuery(from, to, aging.value)
-  void loadDetail()
+function onDetail(value: FinanceReceivableStatementDetail | null) {
+  detail.value = value
 }
 
 function goBack() {
@@ -451,32 +158,8 @@ function goBack() {
 }
 
 function goPreview() {
-  const from = periodFrom.value || currentPeriod()[0]
-  const to = periodTo.value || currentPeriod()[1]
-  void router.push({
-    name: 'FinanceReceivableStatementPreview',
-    params: route.params,
-    query: { from, to, aging: aging.value || todayYmd() }
-  })
+  ledgerRef.value?.goPreview()
 }
-
-function onRowDblClick(row: LedgerRow) {
-  if (row.lineType === 'increase' && row.receivableId) {
-    void router.push(`/finance/receivables/${row.receivableId}`)
-    return
-  }
-  if (row.lineType === 'receipt' && row.receiptId) {
-    void router.push(`/finance/receipts/${row.receiptId}`)
-  }
-}
-
-onMounted(() => {
-  const [from, to] = currentPeriod()
-  periodFrom.value = from
-  periodTo.value = to
-  aging.value = typeof route.query.aging === 'string' && route.query.aging ? route.query.aging : todayYmd()
-  void loadDetail()
-})
 </script>
 
 <style lang="scss">
@@ -501,28 +184,8 @@ onMounted(() => {
   color: $text-muted;
 }
 
-.date-range-group {
-  display: inline-flex;
-  align-items: center;
-  flex-wrap: nowrap;
-}
-
-.date-range-sep {
-  padding: 0 8px;
-  color: $text-muted;
-  font-size: 13px;
+.stmt-preview-in-header {
   flex-shrink: 0;
-}
-
-.filter-date {
-  width: 140px;
-
-  :deep(.el-input__wrapper) {
-    background: $layer-2 !important;
-    box-shadow: none !important;
-    border: 1px solid $border-panel !important;
-    border-radius: $border-radius-md !important;
-  }
 }
 
 .info-section {
@@ -658,79 +321,5 @@ onMounted(() => {
 .info-value {
   font-size: 13px;
   color: $text-secondary;
-}
-
-.stat-cards {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.stat-card {
-  background: $layer-3;
-  border: 1px solid $border-card;
-  border-radius: $border-radius-lg;
-  padding: 20px;
-  text-align: center;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: $text-muted;
-}
-
-.stat-value {
-  margin-bottom: 5px;
-  font-variant-numeric: tabular-nums;
-  font-size: 22px;
-  font-weight: 700;
-  color: $text-primary;
-  font-family: 'Noto Sans SC', sans-serif;
-
-  :deep(.dock-tier-price-line) {
-    display: inline-flex;
-    justify-content: center;
-    width: auto;
-    font-size: inherit;
-  }
-
-  :deep(.dock-tier-amt-int),
-  :deep(.dock-tier-amt-frac) {
-    font-size: 22px;
-    font-weight: 700;
-  }
-}
-
-.stat-value--recv :deep(.dock-tier-amt),
-.amt-recv :deep(.dock-tier-amt) {
-  color: #2f9e44;
-}
-
-.stat-value--end :deep(.dock-tier-amt),
-.amt-end :deep(.dock-tier-amt) {
-  color: #c0392b;
-}
-
-.table-stack {
-  display: flex;
-  flex-direction: column-reverse;
-}
-
-.table-stack .pagination-wrapper {
-  margin-top: 12px;
-}
-
-:deep(.stmt-ledger-flex-col .cell) {
-  padding: 0;
-}
-
-.link-text {
-  color: var(--el-color-primary);
-  text-decoration: none;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 </style>

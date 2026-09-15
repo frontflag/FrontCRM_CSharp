@@ -276,6 +276,7 @@ public sealed class AiAdminService : IAiAdminService
         ["customer.intel.lookup"] = "客户情报调查",
         ["vendor.intel.lookup"] = "供应商情报调查",
         ["industry.news.briefing"] = "行业新闻简报",
+        ["customer.news.monitor"] = "客户新闻动态监测",
         ["assistant.feedback.collect"] = "AI 反馈助手收集",
         ["entity.parse.customer"] = "解析创建客户",
         ["entity.parse.rfq"] = "解析创建需求",

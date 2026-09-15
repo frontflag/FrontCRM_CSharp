@@ -169,6 +169,12 @@ internal static partial class RfqItemListFilter
                     && (qEnd == null || quote.CreateTime < qEnd)));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.CustomerId))
+        {
+            var cid = request.CustomerId.Trim();
+            q = q.Where(x => x.Rfq.CustomerId == cid);
+        }
+
         if (!string.IsNullOrWhiteSpace(request.CustomerKeyword))
         {
             var kw = request.CustomerKeyword.Trim().ToLowerInvariant();

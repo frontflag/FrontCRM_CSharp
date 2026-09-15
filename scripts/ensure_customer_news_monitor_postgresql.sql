@@ -1,0 +1,164 @@
+-- 增量：客户新闻动态监测表 + AI 场景 customer.news.monitor
+-- DBeaver-safe / Navicat-safe：占位符经 CHR 拼接，勿写双花括号字面量
+-- 可重复执行。
+
+CREATE TABLE IF NOT EXISTS public.customer_news_briefing (
+  id              varchar(36)    NOT NULL,
+  customer_id     varchar(36)    NOT NULL,
+  briefing_date   date           NOT NULL,
+  period_start    date           NOT NULL,
+  period_end      date           NOT NULL,
+  markdown        text           NOT NULL DEFAULT '',
+  status          varchar(20)    NOT NULL,
+  error_message   text           NULL,
+  invocation_id   varchar(36)    NULL,
+  requested_by    varchar(36)    NULL,
+  generated_at    timestamptz    NOT NULL,
+  create_time     timestamptz    NOT NULL,
+  modify_time     timestamptz    NOT NULL,
+  CONSTRAINT pk_customer_news_briefing PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS ix_customer_news_briefing_customer_generated
+  ON public.customer_news_briefing (customer_id, generated_at DESC);
+
+INSERT INTO public.ai_prompt_template (id, code, version, name, system_prompt, user_prompt_template, output_format, json_schema_hint, is_active)
+VALUES (
+    'a2000001-0000-4000-8000-000000000013',
+    'customer.news.monitor',
+    1,
+    '客户新闻动态监测',
+    convert_from(decode('e4bda0e698afe4b880e5908de4b893e4b89ae79a84e4bc81e4b89ae68385e68aa5e58886e69e90e5b888efbc8ce69385e995bfe4bfa1e681afe6a380e7b4a2e38081e4ba8be5ae9ee6a0b8e69fa5e38081e4baa4e58f89e9aa8ce8af81e4b88ee88886e68385e58886e69e90e38082e8afb7e59bb4e7bb95e79baee6a087e585ace58fb8e5bc80e5b195e585a8e99da2e68385e68aa5e79b91e6b58be380820a0ae6a0b8e5bf83e58e9fe58899efbc9a0a2d20e68980e69c89e4bfa1e681afe5bf85e9a1bbe6a087e6b3a8e38090e69da5e6ba90e380912be38090e697a5e69c9fe38091efbc8ce585b3e994aee4ba8be5ae9ee4bc98e58588e98787e794a8e5ae98e696b9e585ace5918ae38081e69d83e5a881e5aa92e4bd93e38081e58fb8e6b3952fe79b91e7aea1e585ace5bc80e5b9b3e58fb00a2d20e697a0e6b395e6a0b8e5ae9ee79a84e4bfa1e681afe58d95e78bace5bd92e585a5e3808ce5be85e6a0b8e5ae9ee3808de58cbaefbc8ce4b88de5be97e4b88ee4ba8be5ae9ee6b7b7e588970a2d20e58cbae58886e585ace58fb8e4b8bbe4bd93e4b88ee585b6e6af8d2fe5ad90e585ace58fb8e38081e5908ce5908de585ace58fb8efbc8ce981bfe5858de5bca0e586a0e69d8ee688b40a2d20e5908ce4b880e4ba8be4bbb6e5a49ae69da5e6ba90e68aa5e98193e697b6efbc8ce4bba5e69c80e697a9e68896e69c80e69d83e5a881e69da5e6ba90e4b8bae587860a2d20e4bdbfe794a8e7ae80e4bd93e4b8ade69687efbc9be6ada3e69687e5bf85e9a1bbe698af204d61726b646f776e0a2d20e4ba8ce7baa7e6a087e9a298e5bf85e9a1bbe98090e5ad97e4b8baefbc9ae6a0b8e5bf83e69198e8a681e38081e4ba8be5ae9ee8afa6e68385e38081e9a38ee999a9e99bb7e8bebee38081e58f98e58c96e8bfbde8b8aae38081e5be85e6a0b8e5ae9ee58cbaefbc88e9a696e6aca1e8b083e7a094e68c89e794a8e688b7e68c87e4bba4e79c81e795a5e58f98e58c96e8bfbde8b8aaefbc890a2d20e6a087e9a298e5898de4b88de8a681e58699e3808ce4b880e38081e4ba8ce38081e4b889e3808defbc9be697a0e4bfa1e681afe79a84e7bbb4e5baa6e6b3a8e6988ee3808ce69cace69c9fe697a0e9878de5a4a7e4ba8be9a1b9e3808d0a', 'hex'), 'UTF8'),
+    convert_from(decode('2320e8b083e7a094e5afb9e8b1a10a0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e585ace58fb8e585a8e7a7b0efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'company_name' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e7ae80e7a7b02fe588abe5908defbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'nick_name' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e882a1e7a5a8e4bba3e7a081efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'stock_code' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e68980e59ca8e8a18ce4b89aefbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'industry' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e680bbe983a82fe6b3a8e5868ce59cb0efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'hq_location' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e6af8de585ace58fb82fe4b8bbe8a681e5ad90e585ace58fb8efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'related_companies' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e5ae9ee68ea7e4babaefbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'actual_controller' || CHR(125) || CHR(125)
+    || convert_from(decode('0a0a', 'hex'), 'UTF8')
+    || convert_from(decode('2320e8b083e7a094e697b6e997b4e88c83e59bb40a0a', 'hex'), 'UTF8')
+    || convert_from(decode('e8bf9120', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'window_months' || CHR(125) || CHR(125)
+    || convert_from(decode('20e4b8aae69c88e38082e7aa97e58fa3efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'start_date' || CHR(125) || CHR(125)
+    || convert_from(decode('20e887b320', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'end_date' || CHR(125) || CHR(125)
+    || convert_from(decode('e380820a', 'hex'), 'UTF8')
+    || convert_from(decode('e79b91e6b58be6a8a1e5bc8fefbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'monitor_mode' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('e58f98e58c96e8bfbde8b8aae8a784e58899efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'change_tracking_rule' || CHR(125) || CHR(125)
+    || convert_from(decode('0a0a', 'hex'), 'UTF8')
+    || convert_from(decode('2320e8b083e7a094e7bbb4e5baa60a0a23232320312e20e69c80e696b0e58aa8e68081e4b88ee696b0e997bb0a2d20e9878de5a4a7e4b89ae58aa1e8bf9be5b195efbc9ae696b0e4baa7e59381e58f91e5b883e38081e68898e795a5e59088e4bd9ce38081e9878de5a4a7e8aea2e58d95e38081e4baa7e883bde689a9e5bca0e38081e68a95e89e8de8b584e38081e5b9b6e8b4ade9878de7bb840a2d20e8b4a2e58aa1e8a1a8e78eb0efbc9ae69c80e696b0e8b4a2e68aa5e585b3e994aee695b0e68daeefbc88e890a5e694b62fe588a9e6b6a62fe6af9be588a9e78e872fe78eb0e98791e6b581efbc89e38081e4b89ae7bba9e68c87e5bc95e58f98e58c96e38081e58886e69e90e5b888e8af84e7baa7e8b083e695b40a0a23232320322e20e88886e68385e58886e69e900a2d20e6ada3e8b49fe99da2e4bfa1e681afe58da0e6af94e58f8ae4b8bbe8a681e8aeaee9a298e58886e5b8830a2d20e7a4bee4baa4e5aa92e4bd93e783ade782b9efbc88e5beaee58d9ae38081e99baae79083e3808158e38081526564646974e38081e8a18ce4b89ae8aebae59d9befbc890a2d20e5aa92e4bd93e68aa5e98193e580bee59091e58886e7baa7efbc8ce58897e4b8be20332d3520e69da1e4bba3e8a1a8e680a7e68aa5e98193efbc88e6a087e9a2982be587bae5a4842be580bee59091efbc890a0a23232320332e20e9ab98e7aea1e4b88ee4babae4ba8be58f98e69bb40a2d20e6a0b8e5bf83e9ab98e7aea1e58f98e58aa8efbc9a43454f2f43464f2f43544f2fe891a3e4ba8be4bc9ae68890e59198e4b88ae4bbbbe38081e7a6bbe8818ce38081e8b083e4bbbb0a2d20e882a1e69d83e6bf80e58ab1e8aea1e58892e38081e7bb84e7bb87e69eb6e69e84e8b083e695b4e38081e585b3e994aee5b297e4bd8de995bfe69c9fe7a9bae7bcba0a2d20e68b9be88198e5bc82e58aa8e4bfa1e58fb7efbc9ae5a4a7e8a784e6a8a1e689a9e68b9b2fe8a381e59198e38081e68b9be88198e696b9e59091e58f98e58c960a0a23232320342e20e8af89e8aebce4b88ee79b91e7aea1e59088e8a7840a2d20e8af89e8aebce4bbb2e8a381efbc9ae5bd93e4ba8be4babae59cb0e4bd8de38081e6a188e794b1e38081e8bf9be5b195e38081e6b689e58f8ae98791e9a29de38081e588a4e586b3e7bb93e69e9c0a2d20e79b91e7aea1e5a484e7bd9aefbc9ae7ab8be6a188e8b083e69fa5e38081e997aee8afa2e587bde38081e8a18ce694bfe5a484e7bd9ae38081e59088e8a784e695b4e694b90a2d20e69da5e6ba90e4bc98e58588e7baa7efbc9ae8a381e588a4e69687e4b9a6e7bd912fe8af81e79b91e4bc9a2fe4baa4e69893e68980e585ace5918a203e20e69d83e5a881e5aa92e4bd93203e20e585b6e4bb960a0a23232320352e20e882a1e4b89ce4b88ee8b584e69cace8bf90e4bd9c0a2d20e5a4a7e882a1e4b89c2fe9ab98e7aea1e5a29ee5878fe68c81e38081e882a1e69d83e8b4a8e68abce6af94e4be8b0a2d20e59b9ee8b4ade38081e5ae9ae5a29ee38081e9858de882a1e38081e58f91e580bae7ad89e89e8de8b584e58aa8e4bd9c0a2d20e69cbae69e84e68c81e4bb93e58f98e58c96e38081e4b8bbe8a681e8af84e7baa7e69cbae69e84e69c80e696b0e8a782e782b90a0a23232320362e20e4be9be5ba94e993bee4b88ee4b88ae4b88be6b8b80a2d20e4b8bbe8a681e4be9be5ba94e595862fe5aea2e688b7e58f98e58aa8efbc8ce5a4a7e5aea2e688b7e6b581e5a4b1e68896e696b0e7adbee68385e586b50a2d20e58e9fe69d90e696992fe585b3e994aee8aebee5a487e4be9de8b596e4b88ee696ade4be9be9a38ee999a90a2d20e6b8a0e98193e5ba93e5ad98e6b0b4e4bd8d0a0a23232320372e20e7ab9ee4ba89e6a0bce5b180e4b88ee8a18ce4b89ae4bd8de7bdae0a2d20e4b8bbe8a681e7ab9ee4ba89e5afb9e6898be5908ce69c9fe585b3e994aee58aa8e680810a2d20e585ace58fb8e5b882e59cbae4bbbde9a29de58f98e58c96e38081e68a80e69cafe8b7afe7babfe698afe590a6e99da2e4b8b4e69bbfe4bba3e9a38ee999a90a0a23232320382e20e694bfe7ad96e4b88ee5ae8fe8a782e9a38ee999a90a2d20e8a18ce4b89ae79b91e7aea1e694bfe7ad96e58f98e58c96efbc88e8a1a5e8b4b4e38081e587bae58fa3e7aea1e588b6e38081e58f8de59e84e696ade38081e695b0e68daee59088e8a784efbc890a2d20e59cb0e7bc98e694bfe6b2bbe9a38ee999a9efbc9ae588b6e8a381e6b885e58d95e38081e585b3e7a88ee38081e6b5b7e5a496e4b89ae58aa1e58f97e99990e68385e586b50a0a23232320392e20e79fa5e8af86e4baa7e69d83e4b88ee68a80e69caf0a2d20e4b893e588a9e794b3e8afb72fe68e88e69d83e8b68be58abfe38081e6a0b8e5bf83e68a80e69cafe5b883e5b180e696b9e590910a2d20e6a0b8e5bf83e68a80e69cafe4babae59198e6b581e5a4b1e38081e68a80e69cafe6b384e5af86e4ba8be4bbb60a0a2323232031302e2045534720e4b88ee5a3b0e8aa890a2d20e78eafe4bf9de5a484e7bd9ae38081e5ae89e585a8e4ba8be69585e38081e58ab3e5b7a5e7baa0e7bab7e38081e4baa7e59381e8b4a8e9878fe58face59b9e0a2d20e695b0e68daee6b384e99cb2e38081e5aea2e688b7e68a95e8af89e7ad89e8b49fe99da2e7a4bee4bc9ae4ba8be4bbb60a0a2323232031312e20e7bb8fe890a5e5898de79ebbe4bfa1e58fb7efbc88e68c89e8a18ce4b89ae98089e69fa5efbc890a2d20e68b9be68a95e6a0872fe4b8ade6a087e8aeb0e5bd95e38081e696b0e4baa7e59381e8aea4e8af81e38081e4baa7e7babfe68a95e4baa7e8bf9be5baa60a2d20e585b3e88194e4baa4e69893e38081e59586e8aa89e5878fe580bce38081e8b584e98791e58da0e794a8e9a38ee999a90a2d20e5ae9ee68ea7e4babae4b8aae4babae9a38ee999a9efbc9ae8b4a8e68abce38081e99990e9ab98e38081e585b3e88194e585ace58fb8e78886e99bb7e789b5e8bf9e0a0a2320e8be93e587bae6a0bce5bc8f0a0ae5bf85e9a1bbe68c89e4b88be58897e4ba8ce7baa7e6a087e9a298e7bb84e7bb87204d61726b646f776eefbc88e4b88de8a681e8be93e587ba204a534f4eefbc89efbc9a0a0a232320e6a0b8e5bf83e69198e8a6810ae69cace6aca1e8b083e7a094e69c80e9878de8a681e79a8420332d3520e69da1e7bb93e8aebaefbc8ce4b880e58fa5e8af9de4b880e69da1e3808232303020e5ad97e58685e380820a0a232320e4ba8be5ae9ee8afa6e683850ae68c89e4b88ae8bfb020313120e4b8aae7bbb4e5baa6e794a8e4b889e7baa7e6a087e9a298e58886e88a82e38082e6af8fe69da1e4bfa1e681afe6a0bce5bc8fefbc9ae38090595959592d4d4d2d4444e38091e4ba8be5ae9ee69198e8a681efbd9ce69da5e6ba90efbd9ce993bee68ea50ae697a0e4bfa1e681afe79a84e7bbb4e5baa6e6b3a8e6988ee3808ce69cace69c9fe697a0e9878de5a4a7e4ba8be9a1b9e3808de380820a0a232320e9a38ee999a9e99bb7e8bebe0a2d20e9ab98e9a38ee999a9efbc9ae99c80e8a681e7ab8be58db3e586b3e7ad96e68896e5ba94e5afb9e79a84e4ba8be9a1b90a2d20e585b3e6b3a8e9a1b9efbc9ae5ad98e59ca8e681b6e58c96e58fafe883bdefbc8ce5bbbae8aeaee8b79fe8b8aa0a2d20e5b7b2e6b688e58c96efbc9ae5b882e59cbae5b7b2e69c89e58585e58886e58f8de5ba94e79a84e4bfa1e681af0a0a232320e58f98e58c96e8bfbde8b8aa0ae4b88ee4b88ae6aca1e8b083e7a094e5afb9e6af94efbc9ae696b0e5a29ee4ba8be9a1b9202f20e9a38ee999a9e681b6e58c96202f20e9a38ee999a9e7bc93e8a7a3202f20e5b7b2e4ba86e7bb93e38082e9a696e6aca1e8b083e7a094e697b6e79c81e795a5e69cace88a82e380820a0a232320e5be85e6a0b8e5ae9ee58cba0ae4bca0e997bbe38081e58d95e4b880e69da5e6ba90e38081e5ad98e59ca8e79f9be79bbee79a84e4bfa1e681afefbc8ce6b3a8e6988ee5ad98e79691e782b9e380820a', 'hex'), 'UTF8'),
+    'text',
+    convert_from(decode('e8bf94e59b9e204d61726b646f776e20e6ada3e69687efbc8ce4b88de8a681e58c85e59ca8204a534f4e20e9878ce38082e4ba8ce7baa7e6a087e9a298e5bf85e9a1bbe98090e5ad97e4b8baefbc9ae6a0b8e5bf83e69198e8a681e38081e4ba8be5ae9ee8afa6e68385e38081e9a38ee999a9e99bb7e8bebee38081e58f98e58c96e8bfbde8b8aae38081e5be85e6a0b8e5ae9ee58cbae38082e6af8fe69da1e4ba8be5ae9ee58699e38090e697a5e69c9fe38091e69198e8a681efbd9ce69da5e6ba90efbd9ce993bee68ea5e380820a', 'hex'), 'UTF8'),
+    true
+)
+ON CONFLICT (code, version) DO NOTHING;
+
+INSERT INTO public.ai_scenario (
+    id, code, name, description, provider_code, model, prompt_template_id,
+    cache_ttl_seconds, cache_key_fields, allowed_input_fields, max_tokens, temperature,
+    permission_code, rate_limit_per_user_per_min, is_enabled, enable_web_search
+)
+VALUES (
+    'a3000001-0000-4000-8000-000000000013',
+    'customer.news.monitor',
+    '客户新闻动态监测',
+    '按客户抓取公开情报监测简报，首次近 3 个月，再次仅收录上次窗口之后的新信息',
+    'mock',
+    'mock',
+    'a2000001-0000-4000-8000-000000000013',
+    0,
+    jsonb_build_array(
+      'company_name','start_date','end_date','monitor_mode'
+    ),
+    jsonb_build_array(
+      'company_name','nick_name','stock_code','industry','hq_location','related_companies',
+      'actual_controller','window_months','start_date','end_date','monitor_mode','change_tracking_rule'
+    ),
+    8192,
+    0.30,
+    'biz.ai.customer_intel.lookup',
+    5,
+    true,
+    true
+)
+ON CONFLICT (code) DO NOTHING;
+
+INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+SELECT '20260915080000_CustomerNewsMonitor', '9.0.11'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public."__EFMigrationsHistory" h
+  WHERE h."MigrationId" = '20260915080000_CustomerNewsMonitor'
+);
+
+UPDATE public.ai_prompt_template
+SET system_prompt = convert_from(decode('e4bda0e698afe4b880e5908de4b893e4b89ae79a84e4bc81e4b89ae68385e68aa5e58886e69e90e5b888efbc8ce69385e995bfe4bfa1e681afe6a380e7b4a2e38081e4ba8be5ae9ee6a0b8e69fa5e38081e4baa4e58f89e9aa8ce8af81e4b88ee88886e68385e58886e69e90e38082e8afb7e59bb4e7bb95e79baee6a087e585ace58fb8e5bc80e5b195e585a8e99da2e68385e68aa5e79b91e6b58be380820a0ae6a0b8e5bf83e58e9fe58899efbc9a0a2d20e68980e69c89e4bfa1e681afe5bf85e9a1bbe6a087e6b3a8e38090e69da5e6ba90e380912be38090e697a5e69c9fe38091efbc8ce585b3e994aee4ba8be5ae9ee4bc98e58588e98787e794a8e5ae98e696b9e585ace5918ae38081e69d83e5a881e5aa92e4bd93e38081e58fb8e6b3952fe79b91e7aea1e585ace5bc80e5b9b3e58fb00a2d20e697a0e6b395e6a0b8e5ae9ee79a84e4bfa1e681afe58d95e78bace5bd92e585a5e3808ce5be85e6a0b8e5ae9ee3808de58cbaefbc8ce4b88de5be97e4b88ee4ba8be5ae9ee6b7b7e588970a2d20e58cbae58886e585ace58fb8e4b8bbe4bd93e4b88ee585b6e6af8d2fe5ad90e585ace58fb8e38081e5908ce5908de585ace58fb8efbc8ce981bfe5858de5bca0e586a0e69d8ee688b40a2d20e5908ce4b880e4ba8be4bbb6e5a49ae69da5e6ba90e68aa5e98193e697b6efbc8ce4bba5e69c80e697a9e68896e69c80e69d83e5a881e69da5e6ba90e4b8bae587860a2d20e4bdbfe794a8e7ae80e4bd93e4b8ade69687efbc9be6ada3e69687e5bf85e9a1bbe698af204d61726b646f776e0a2d20e4ba8ce7baa7e6a087e9a298e5bf85e9a1bbe98090e5ad97e4b8baefbc9ae6a0b8e5bf83e69198e8a681e38081e4ba8be5ae9ee8afa6e68385e38081e9a38ee999a9e99bb7e8bebee38081e58f98e58c96e8bfbde8b8aae38081e5be85e6a0b8e5ae9ee58cbaefbc88e9a696e6aca1e8b083e7a094e68c89e794a8e688b7e68c87e4bba4e79c81e795a5e58f98e58c96e8bfbde8b8aaefbc890a2d20e6a087e9a298e5898de4b88de8a681e58699e3808ce4b880e38081e4ba8ce38081e4b889e3808defbc9be697a0e4bfa1e681afe79a84e7bbb4e5baa6e6b3a8e6988ee3808ce69cace69c9fe697a0e9878de5a4a7e4ba8be9a1b9e3808d0a2d20e7a681e6ada2e8be93e587bae6a380e7b4a2e8bf87e7a88be38081e6809de88083e8bf87e7a88be38081e5b7a5e585b7e8b083e794a8e38081e887aae68891e7baa0e6ada3e38081e5afb9e7aa97e58fa3e698afe590a6e4b8bae3808ce69caae69da5e697a5e69c9fe3808de79a84e8aea8e8aebae38082e59b9ee5a48de79a84e7acace4b880e8a18ce5bf85e9a1bbe698afe3808c232320e6a0b8e5bf83e69198e8a681e3808defbc8ce585b6e5898de4b88de5be97e69c89e4bbbbe4bd95e69687e5ad970a2d20e697b6e997b4e7aa97e58fa3e68c89e794a8e688b7e7bb99e587bae79a84e8b5b7e6ada2e697a5e5ad97e99da2e689a7e8a18cefbc9be4b88de8a681e59ba0e8aeade7bb83e695b0e68daee688aae6ada2e697a5e69c9fe68a8ae697a5e69c9fe5bd93e68890e69caae69da50a2d20e5ae9ee99985e6a380e7b4a2e88c83e59bb4e58faae79c8be8b5b7e6ada2e697a5e38082e58d95e697a5e7aa97e58fa3e4b99fe79bb4e68ea5e6a380e7b4a2efbc9be689bee4b88de588b0e5b0b1e58699e3808ce69cace69c9fe697a0e9878de5a4a7e4ba8be9a1b9e3808defbc8ce4b88de8a681e8a7a3e9878ae4b8bae4bb80e4b988e689bee4b88de588b00a', 'hex'), 'UTF8'),
+    user_prompt_template =
+    convert_from(decode('2320e8b083e7a094e5afb9e8b1a10a0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e585ace58fb8e585a8e7a7b0efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'company_name' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e7ae80e7a7b02fe588abe5908defbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'nick_name' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e882a1e7a5a8e4bba3e7a081efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'stock_code' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e68980e59ca8e8a18ce4b89aefbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'industry' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e680bbe983a82fe6b3a8e5868ce59cb0efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'hq_location' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e6af8de585ace58fb82fe4b8bbe8a681e5ad90e585ace58fb8efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'related_companies' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('2d20e5ae9ee68ea7e4babaefbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'actual_controller' || CHR(125) || CHR(125)
+    || convert_from(decode('0a0a', 'hex'), 'UTF8')
+    || convert_from(decode('2320e8b083e7a094e697b6e997b4e88c83e59bb40a0a', 'hex'), 'UTF8')
+    || convert_from(decode('e7aa97e58fa3efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'start_date' || CHR(125) || CHR(125)
+    || convert_from(decode('20e887b320', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'end_date' || CHR(125) || CHR(125)
+    || convert_from(decode('e380820a', 'hex'), 'UTF8')
+    || convert_from(decode('e7aa97e58fa3e8afb4e6988eefbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'window_months' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('e79b91e6b58be6a8a1e5bc8fefbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'monitor_mode' || CHR(125) || CHR(125)
+    || convert_from(decode('0a', 'hex'), 'UTF8')
+    || convert_from(decode('e58f98e58c96e8bfbde8b8aae8a784e58899efbc9a', 'hex'), 'UTF8')
+    || CHR(123) || CHR(123) || 'change_tracking_rule' || CHR(125) || CHR(125)
+    || convert_from(decode('0a0a', 'hex'), 'UTF8')
+    || convert_from(decode('2320e8b083e7a094e7bbb4e5baa60a0a23232320312e20e69c80e696b0e58aa8e68081e4b88ee696b0e997bb0a2d20e9878de5a4a7e4b89ae58aa1e8bf9be5b195efbc9ae696b0e4baa7e59381e58f91e5b883e38081e68898e795a5e59088e4bd9ce38081e9878de5a4a7e8aea2e58d95e38081e4baa7e883bde689a9e5bca0e38081e68a95e89e8de8b584e38081e5b9b6e8b4ade9878de7bb840a2d20e8b4a2e58aa1e8a1a8e78eb0efbc9ae69c80e696b0e8b4a2e68aa5e585b3e994aee695b0e68daeefbc88e890a5e694b62fe588a9e6b6a62fe6af9be588a9e78e872fe78eb0e98791e6b581efbc89e38081e4b89ae7bba9e68c87e5bc95e58f98e58c96e38081e58886e69e90e5b888e8af84e7baa7e8b083e695b40a0a23232320322e20e88886e68385e58886e69e900a2d20e6ada3e8b49fe99da2e4bfa1e681afe58da0e6af94e58f8ae4b8bbe8a681e8aeaee9a298e58886e5b8830a2d20e7a4bee4baa4e5aa92e4bd93e783ade782b9efbc88e5beaee58d9ae38081e99baae79083e3808158e38081526564646974e38081e8a18ce4b89ae8aebae59d9befbc890a2d20e5aa92e4bd93e68aa5e98193e580bee59091e58886e7baa7efbc8ce58897e4b8be20332d3520e69da1e4bba3e8a1a8e680a7e68aa5e98193efbc88e6a087e9a2982be587bae5a4842be580bee59091efbc890a0a23232320332e20e9ab98e7aea1e4b88ee4babae4ba8be58f98e69bb40a2d20e6a0b8e5bf83e9ab98e7aea1e58f98e58aa8efbc9a43454f2f43464f2f43544f2fe891a3e4ba8be4bc9ae68890e59198e4b88ae4bbbbe38081e7a6bbe8818ce38081e8b083e4bbbb0a2d20e882a1e69d83e6bf80e58ab1e8aea1e58892e38081e7bb84e7bb87e69eb6e69e84e8b083e695b4e38081e585b3e994aee5b297e4bd8de995bfe69c9fe7a9bae7bcba0a2d20e68b9be88198e5bc82e58aa8e4bfa1e58fb7efbc9ae5a4a7e8a784e6a8a1e689a9e68b9b2fe8a381e59198e38081e68b9be88198e696b9e59091e58f98e58c960a0a23232320342e20e8af89e8aebce4b88ee79b91e7aea1e59088e8a7840a2d20e8af89e8aebce4bbb2e8a381efbc9ae5bd93e4ba8be4babae59cb0e4bd8de38081e6a188e794b1e38081e8bf9be5b195e38081e6b689e58f8ae98791e9a29de38081e588a4e586b3e7bb93e69e9c0a2d20e79b91e7aea1e5a484e7bd9aefbc9ae7ab8be6a188e8b083e69fa5e38081e997aee8afa2e587bde38081e8a18ce694bfe5a484e7bd9ae38081e59088e8a784e695b4e694b90a2d20e69da5e6ba90e4bc98e58588e7baa7efbc9ae8a381e588a4e69687e4b9a6e7bd912fe8af81e79b91e4bc9a2fe4baa4e69893e68980e585ace5918a203e20e69d83e5a881e5aa92e4bd93203e20e585b6e4bb960a0a23232320352e20e882a1e4b89ce4b88ee8b584e69cace8bf90e4bd9c0a2d20e5a4a7e882a1e4b89c2fe9ab98e7aea1e5a29ee5878fe68c81e38081e882a1e69d83e8b4a8e68abce6af94e4be8b0a2d20e59b9ee8b4ade38081e5ae9ae5a29ee38081e9858de882a1e38081e58f91e580bae7ad89e89e8de8b584e58aa8e4bd9c0a2d20e69cbae69e84e68c81e4bb93e58f98e58c96e38081e4b8bbe8a681e8af84e7baa7e69cbae69e84e69c80e696b0e8a782e782b90a0a23232320362e20e4be9be5ba94e993bee4b88ee4b88ae4b88be6b8b80a2d20e4b8bbe8a681e4be9be5ba94e595862fe5aea2e688b7e58f98e58aa8efbc8ce5a4a7e5aea2e688b7e6b581e5a4b1e68896e696b0e7adbee68385e586b50a2d20e58e9fe69d90e696992fe585b3e994aee8aebee5a487e4be9de8b596e4b88ee696ade4be9be9a38ee999a90a2d20e6b8a0e98193e5ba93e5ad98e6b0b4e4bd8d0a0a23232320372e20e7ab9ee4ba89e6a0bce5b180e4b88ee8a18ce4b89ae4bd8de7bdae0a2d20e4b8bbe8a681e7ab9ee4ba89e5afb9e6898be5908ce69c9fe585b3e994aee58aa8e680810a2d20e585ace58fb8e5b882e59cbae4bbbde9a29de58f98e58c96e38081e68a80e69cafe8b7afe7babfe698afe590a6e99da2e4b8b4e69bbfe4bba3e9a38ee999a90a0a23232320382e20e694bfe7ad96e4b88ee5ae8fe8a782e9a38ee999a90a2d20e8a18ce4b89ae79b91e7aea1e694bfe7ad96e58f98e58c96efbc88e8a1a5e8b4b4e38081e587bae58fa3e7aea1e588b6e38081e58f8de59e84e696ade38081e695b0e68daee59088e8a784efbc890a2d20e59cb0e7bc98e694bfe6b2bbe9a38ee999a9efbc9ae588b6e8a381e6b885e58d95e38081e585b3e7a88ee38081e6b5b7e5a496e4b89ae58aa1e58f97e99990e68385e586b50a0a23232320392e20e79fa5e8af86e4baa7e69d83e4b88ee68a80e69caf0a2d20e4b893e588a9e794b3e8afb72fe68e88e69d83e8b68be58abfe38081e6a0b8e5bf83e68a80e69cafe5b883e5b180e696b9e590910a2d20e6a0b8e5bf83e68a80e69cafe4babae59198e6b581e5a4b1e38081e68a80e69cafe6b384e5af86e4ba8be4bbb60a0a2323232031302e2045534720e4b88ee5a3b0e8aa890a2d20e78eafe4bf9de5a484e7bd9ae38081e5ae89e585a8e4ba8be69585e38081e58ab3e5b7a5e7baa0e7bab7e38081e4baa7e59381e8b4a8e9878fe58face59b9e0a2d20e695b0e68daee6b384e99cb2e38081e5aea2e688b7e68a95e8af89e7ad89e8b49fe99da2e7a4bee4bc9ae4ba8be4bbb60a0a2323232031312e20e7bb8fe890a5e5898de79ebbe4bfa1e58fb7efbc88e68c89e8a18ce4b89ae98089e69fa5efbc890a2d20e68b9be68a95e6a0872fe4b8ade6a087e8aeb0e5bd95e38081e696b0e4baa7e59381e8aea4e8af81e38081e4baa7e7babfe68a95e4baa7e8bf9be5baa60a2d20e585b3e88194e4baa4e69893e38081e59586e8aa89e5878fe580bce38081e8b584e98791e58da0e794a8e9a38ee999a90a2d20e5ae9ee68ea7e4babae4b8aae4babae9a38ee999a9efbc9ae8b4a8e68abce38081e99990e9ab98e38081e585b3e88194e585ace58fb8e78886e99bb7e789b5e8bf9e0a0a2320e8be93e587bae6a0bce5bc8f0a0ae5bf85e9a1bbe68c89e4b88be58897e4ba8ce7baa7e6a087e9a298e7bb84e7bb87204d61726b646f776eefbc88e4b88de8a681e8be93e587ba204a534f4eefbc89efbc9a0a0a232320e6a0b8e5bf83e69198e8a6810ae69cace6aca1e8b083e7a094e69c80e9878de8a681e79a8420332d3520e69da1e7bb93e8aebaefbc8ce4b880e58fa5e8af9de4b880e69da1e3808232303020e5ad97e58685e380820a0a232320e4ba8be5ae9ee8afa6e683850ae68c89e4b88ae8bfb020313120e4b8aae7bbb4e5baa6e794a8e4b889e7baa7e6a087e9a298e58886e88a82e38082e6af8fe69da1e4bfa1e681afe6a0bce5bc8fefbc9ae38090595959592d4d4d2d4444e38091e4ba8be5ae9ee69198e8a681efbd9ce69da5e6ba90efbd9ce993bee68ea50ae697a0e4bfa1e681afe79a84e7bbb4e5baa6e6b3a8e6988ee3808ce69cace69c9fe697a0e9878de5a4a7e4ba8be9a1b9e3808de380820a0a232320e9a38ee999a9e99bb7e8bebe0a2d20e9ab98e9a38ee999a9efbc9ae99c80e8a681e7ab8be58db3e586b3e7ad96e68896e5ba94e5afb9e79a84e4ba8be9a1b90a2d20e585b3e6b3a8e9a1b9efbc9ae5ad98e59ca8e681b6e58c96e58fafe883bdefbc8ce5bbbae8aeaee8b79fe8b8aa0a2d20e5b7b2e6b688e58c96efbc9ae5b882e59cbae5b7b2e69c89e58585e58886e58f8de5ba94e79a84e4bfa1e681af0a0a232320e58f98e58c96e8bfbde8b8aa0ae4b88ee4b88ae6aca1e8b083e7a094e5afb9e6af94efbc9ae696b0e5a29ee4ba8be9a1b9202f20e9a38ee999a9e681b6e58c96202f20e9a38ee999a9e7bc93e8a7a3202f20e5b7b2e4ba86e7bb93e38082e9a696e6aca1e8b083e7a094e697b6e79c81e795a5e69cace88a82e380820a0a232320e5be85e6a0b8e5ae9ee58cba0ae4bca0e997bbe38081e58d95e4b880e69da5e6ba90e38081e5ad98e59ca8e79f9be79bbee79a84e4bfa1e681afefbc8ce6b3a8e6988ee5ad98e79691e782b9e380820a', 'hex'), 'UTF8'),
+    json_schema_hint = convert_from(decode('e8bf94e59b9e204d61726b646f776e20e6ada3e69687efbc8ce4b88de8a681e58c85e59ca8204a534f4e20e9878ce38082e7acace4b880e8a18ce5bf85e9a1bbe698afe3808c232320e6a0b8e5bf83e69198e8a681e3808defbc8ce7a681e6ada2e59ca8e6ada4e4b98be5898de58699e6a380e7b4a2e8afb4e6988ee38082e4ba8ce7baa7e6a087e9a298e5bf85e9a1bbe98090e5ad97e4b8baefbc9ae6a0b8e5bf83e69198e8a681e38081e4ba8be5ae9ee8afa6e68385e38081e9a38ee999a9e99bb7e8bebee38081e58f98e58c96e8bfbde8b8aae38081e5be85e6a0b8e5ae9ee58cbae38082e6af8fe69da1e4ba8be5ae9ee58699e38090e697a5e69c9fe38091e69198e8a681efbd9ce69da5e6ba90efbd9ce993bee68ea5e380820a', 'hex'), 'UTF8'),
+    modify_time = (now() AT TIME ZONE 'utc')
+WHERE code = 'customer.news.monitor' AND version = 1;
+
+DELETE FROM public.ai_invocation_cache WHERE scenario_code = 'customer.news.monitor';
+
+INSERT INTO public."__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+SELECT '20260915093000_CustomerNewsMonitorPromptV2', '9.0.11'
+WHERE NOT EXISTS (
+  SELECT 1 FROM public."__EFMigrationsHistory" h
+  WHERE h."MigrationId" = '20260915093000_CustomerNewsMonitorPromptV2'
+);

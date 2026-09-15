@@ -26,10 +26,13 @@ const props = withDefaults(
     filters?: RfqItemListAnalyticsQuery
     reportQuery?: SalesAnalyticsQuery
     mode?: 'list' | 'report'
+    /** 单客户切片：隐藏发布客户数、客户趋势、客户排行 */
+    customerScoped?: boolean
     active?: boolean
   }>(),
   {
     mode: 'list',
+    customerScoped: false,
     active: true
   }
 )
@@ -64,7 +67,7 @@ const kpiItems = computed(() => {
   const s = dashboard.value?.snapshot
   if (!s) return []
 
-  return [
+  const items = [
     {
       key: 'publishedCustomers',
       label: tt('kpi.publishedCustomers'),
@@ -108,6 +111,7 @@ const kpiItems = computed(() => {
       ...def('kpi.conversionRate')
     }
   ]
+  return props.customerScoped ? items.filter((i) => i.key !== 'publishedCustomers') : items
 })
 
 const trendCustomerPoints = computed(() =>
@@ -224,6 +228,7 @@ function reportQueryKey(q: SalesAnalyticsQuery): string {
     q.salesUserId ?? '',
     q.dateFrom ?? '',
     q.dateTo ?? '',
+    q.customerId ?? '',
     q.groupBy ?? groupBy.value
   ].join('|')
 }
@@ -326,8 +331,8 @@ defineExpose({ reload: () => loadData(true) })
       <AnalyticsKpiGrid :items="kpiItems" />
     </section>
 
-    <div v-if="showTrends" class="charts-row">
-      <div class="card chart-panel">
+    <div v-if="showTrends" class="charts-row" :class="{ 'charts-row--dual': customerScoped }">
+      <div v-if="!customerScoped" class="card chart-panel">
         <AnalyticsPanelHeader :title="tt('sections.trendCustomers')" v-bind="def('trend.customers')" />
         <AnalyticsTrendChart :points="trendCustomerPoints" :value-suffix="tt('trendUnit.customers')" />
       </div>
@@ -360,7 +365,7 @@ defineExpose({ reload: () => loadData(true) })
     </div>
 
     <div class="rankings-row">
-      <div class="card ranking-panel">
+      <div v-if="!customerScoped" class="card ranking-panel">
         <AnalyticsPanelHeader
           :title="tt('rankings.customerByLineCount')"
           v-bind="def('rankings.customerByLineCount')"
@@ -446,6 +451,14 @@ defineExpose({ reload: () => loadData(true) })
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
+}
+
+.charts-row--dual {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  @media (max-width: 900px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .breakdown-row {

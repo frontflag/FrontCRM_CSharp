@@ -134,13 +134,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? salesUserId,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? customerId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var request = BuildOrderItemsRequest(scope!);
+        var request = BuildOrderItemsRequest(scope!, customerId);
         var data = await _orderItemLineListQuery.GetListAnalyticsDashboardAsync(request, scope!.MaskAmounts, cancellationToken);
         return Ok(ApiResponse<SalesOrderItemListAnalyticsDashboardDto>.Ok(data));
     }
@@ -153,13 +154,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
         [FromQuery] string? groupBy,
+        [FromQuery] string? customerId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, groupBy, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var request = BuildOrderItemsRequest(scope!);
+        var request = BuildOrderItemsRequest(scope!, customerId);
         var data = await _orderItemLineListQuery.GetListAnalyticsTrendsAsync(
             request,
             scope!.GroupBy,
@@ -175,13 +177,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? salesUserId,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? customerId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var request = BuildOrderItemsRequest(scope!);
+        var request = BuildOrderItemsRequest(scope!, customerId);
         var data = await _orderItemLineListQuery.GetListAnalyticsBreakdownsAsync(request, scope!.MaskAmounts, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
     }
@@ -195,13 +198,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? dateTo,
         [FromQuery] string? rankingSort = null,
         [FromQuery] string? rankingLineMetric = null,
+        [FromQuery] string? customerId = null,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var request = BuildOrderItemsRequest(scope!);
+        var request = BuildOrderItemsRequest(scope!, customerId);
         request.AnalyticsRankingSort = rankingSort;
         request.AnalyticsRankingLineMetric = rankingLineMetric;
         var data = await _orderItemLineListQuery.GetListAnalyticsRankingsAsync(request, scope!.MaskAmounts, cancellationToken);
@@ -216,13 +220,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? salesUserId,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? customerId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var (request, maskCustomerNames) = BuildRfqItemsRequest(scope!);
+        var (request, maskCustomerNames) = BuildRfqItemsRequest(scope!, customerId);
         var data = await _rfqItemListQuery.GetListAnalyticsDashboardAsync(request, maskCustomerNames, cancellationToken);
         return Ok(ApiResponse<RfqListAnalyticsDashboardDto>.Ok(data));
     }
@@ -235,13 +240,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
         [FromQuery] string? groupBy,
+        [FromQuery] string? customerId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, groupBy, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var (request, _) = BuildRfqItemsRequest(scope!);
+        var (request, _) = BuildRfqItemsRequest(scope!, customerId);
         var data = await _rfqItemListQuery.GetListAnalyticsTrendsAsync(request, scope!.GroupBy, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<RfqListAnalyticsTrendPointDto>>.Ok(data));
     }
@@ -253,13 +259,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? salesUserId,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? customerId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var (request, _) = BuildRfqItemsRequest(scope!);
+        var (request, _) = BuildRfqItemsRequest(scope!, customerId);
         var data = await _rfqItemListQuery.GetListAnalyticsBreakdownsAsync(request, cancellationToken);
         return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
     }
@@ -271,13 +278,14 @@ public class SalesAnalyticsController : ControllerBase
         [FromQuery] string? salesUserId,
         [FromQuery] string? dateFrom,
         [FromQuery] string? dateTo,
+        [FromQuery] string? customerId,
         CancellationToken cancellationToken = default)
     {
         var (ok, error, scope) = await ResolveAsync(viewLevel, departmentId, salesUserId, dateFrom, dateTo, null, cancellationToken);
         if (!ok)
             return Forbidden(error);
 
-        var (request, maskCustomerNames) = BuildRfqItemsRequest(scope!);
+        var (request, maskCustomerNames) = BuildRfqItemsRequest(scope!, customerId);
         var data = await _rfqItemListQuery.GetListAnalyticsRankingsAsync(request, maskCustomerNames, cancellationToken);
         return Ok(ApiResponse<RfqItemListAnalyticsRankingsDto>.Ok(data));
     }
@@ -308,13 +316,16 @@ public class SalesAnalyticsController : ControllerBase
         return await _service.ResolveScopeAsync(userId, query, cancellationToken);
     }
 
-    private static SellOrderItemLineQueryRequest BuildOrderItemsRequest(SalesAnalyticsResolvedScope scope)
+    private static SellOrderItemLineQueryRequest BuildOrderItemsRequest(
+        SalesAnalyticsResolvedScope scope,
+        string? customerId)
     {
         var viewLevel = scope.ViewLevel?.Trim().ToLowerInvariant() ?? SalesAnalyticsViewLevels.Company;
         return new SellOrderItemLineQueryRequest
         {
             OrderCreateStart = scope.DateFrom,
             OrderCreateEnd = scope.DateTo,
+            CustomerId = string.IsNullOrWhiteSpace(customerId) ? null : customerId.Trim(),
             AnalyticsDataset = SalesOrderItemAnalyticsDatasets.ReportApproved,
             AnalyticsViewLevel = viewLevel,
             AnalyticsDepartmentId = viewLevel == SalesAnalyticsViewLevels.Department ? scope.DepartmentId : null,
@@ -324,7 +335,8 @@ public class SalesAnalyticsController : ControllerBase
     }
 
     private static (RFQItemQueryRequest Request, bool MaskCustomerNames) BuildRfqItemsRequest(
-        SalesAnalyticsResolvedScope scope)
+        SalesAnalyticsResolvedScope scope,
+        string? customerId)
     {
         var viewLevel = scope.ViewLevel?.Trim().ToLowerInvariant() ?? SalesAnalyticsViewLevels.Company;
         var mask521 = SaleSensitiveFieldMask521.ShouldMask(scope.Summary);
@@ -335,6 +347,7 @@ public class SalesAnalyticsController : ControllerBase
         {
             StartDate = scope.DateFrom,
             EndDate = scope.DateTo,
+            CustomerId = string.IsNullOrWhiteSpace(customerId) ? null : customerId.Trim(),
             AnalyticsDataset = RfqItemAnalyticsDatasets.ReportScope,
             AnalyticsViewLevel = viewLevel,
             AnalyticsDepartmentId = viewLevel == SalesAnalyticsViewLevels.Department ? scope.DepartmentId : null,

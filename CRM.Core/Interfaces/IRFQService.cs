@@ -244,6 +244,8 @@ namespace CRM.Core.Interfaces
         public DateTime? QuoteCreateEndExclusiveUtc { get; set; }
         /// <summary>左栏业务快捷检索码，见 <c>RfqItemListQuickFilterCodes</c></summary>
         public string? QuickFilter { get; set; }
+        /// <summary>客户主键精确匹配（主单 <c>rfq.customer_id</c>）。</summary>
+        public string? CustomerId { get; set; }
         public string? CustomerKeyword { get; set; }
         public string? MaterialModel { get; set; }
         /// <summary>按明细品牌主键精确筛选（biz_brand / rfqitem.brand_id）</summary>

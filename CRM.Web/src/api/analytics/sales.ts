@@ -15,6 +15,8 @@ export interface SalesAnalyticsQuery {
   salesUserId?: string
   dateFrom?: string
   dateTo?: string
+  /** 锁定单个客户（客户详情业务画像） */
+  customerId?: string
   groupBy?: 'day' | 'week' | 'month'
   /** 排行排序：amount（默认）或 count */
   rankingSort?: 'amount' | 'count'
@@ -170,6 +172,7 @@ function buildParams(q: SalesAnalyticsQuery): Record<string, string> {
   if (q.salesUserId) p.salesUserId = q.salesUserId
   if (q.dateFrom) p.dateFrom = q.dateFrom
   if (q.dateTo) p.dateTo = q.dateTo
+  if (q.customerId) p.customerId = q.customerId
   if (q.groupBy) p.groupBy = q.groupBy
   if (q.rankingSort) p.rankingSort = q.rankingSort
   if (q.rankingLineMetric) p.rankingLineMetric = q.rankingLineMetric

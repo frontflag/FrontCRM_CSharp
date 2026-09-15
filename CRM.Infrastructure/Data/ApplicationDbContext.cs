@@ -63,6 +63,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<IncentiveTarget> IncentiveTargets { get; set; } = null!;
         public DbSet<RiskAlertSetting> RiskAlertSettings { get; set; } = null!;
         public DbSet<IndustryNewsBriefing> IndustryNewsBriefings { get; set; } = null!;
+        public DbSet<CustomerNewsBriefing> CustomerNewsBriefings { get; set; } = null!;
         public DbSet<TelemetryEvent> TelemetryEvents { get; set; } = null!;
         public DbSet<TelemetryDailyPage> TelemetryDailyPages { get; set; } = null!;
         public DbSet<TelemetryDailyAction> TelemetryDailyActions { get; set; } = null!;
@@ -2907,6 +2908,16 @@ namespace CRM.Infrastructure.Data
                 entity.HasIndex(e => e.BriefingDate)
                     .HasDatabaseName("ux_industry_news_briefing_date")
                     .IsUnique();
+            });
+
+            modelBuilder.Entity<CustomerNewsBriefing>(entity =>
+            {
+                entity.ToTable("customer_news_briefing");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.CustomerId).HasColumnName("customer_id").HasMaxLength(36);
+                entity.HasIndex(e => new { e.CustomerId, e.GeneratedAt })
+                    .HasDatabaseName("ix_customer_news_briefing_customer_generated");
             });
 
             modelBuilder.Entity<RFQ>().Ignore(e => e.AssignedAt);

@@ -2,6 +2,7 @@ using System.Diagnostics;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Ai;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Ai.EntityParse;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
@@ -144,6 +145,11 @@ public sealed class AiOrchestrator : IAiOrchestrator
             systemPrompt = AppendVendorIntelLanguageGuard(systemPrompt);
             userPrompt = userPrompt.TrimEnd()
                 + "\n请使用简体中文输出所有描述性内容。从采购与供应链视角评估供应商资质、交付与合规；禁止编造司法风险数量、行政处罚或联系方式；查不到填 null 或空数组并标注 confidence: low。";
+        }
+        else if (string.Equals(scenario.Code, AiScenarioCodes.CustomerNewsMonitor, StringComparison.OrdinalIgnoreCase))
+        {
+            userPrompt = userPrompt.TrimEnd()
+                + "\n\n" + CustomerNewsMarkdownSanitizer.OutputHardConstraint;
         }
         var messages = new List<AiChatMessageDto>
         {

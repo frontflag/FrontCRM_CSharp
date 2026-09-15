@@ -38,17 +38,22 @@ const props = withDefaults(
     markdown: string
     staleHint?: string
     variant?: 'dialog' | 'page'
+    /** 行业新闻卡片规则（★、内容总结拆句）；客户新闻动态请关 */
+    normalizeMarkdown?: boolean
   }>(),
-  { staleHint: '', variant: 'dialog' }
+  { staleHint: '', variant: 'dialog', normalizeMarkdown: true }
 )
 
 const { t } = useI18n()
 const scrollRef = ref<HTMLElement | null>(null)
 const activeFloorId = ref('')
 
-const renderedMarkdown = computed(() =>
-  renderAnnouncementMarkdown(normalizeIndustryNewsMarkdown(props.markdown || ''))
-)
+const renderedMarkdown = computed(() => {
+  const raw = props.markdown || ''
+  return renderAnnouncementMarkdown(
+    props.normalizeMarkdown ? normalizeIndustryNewsMarkdown(raw) : raw
+  )
+})
 const decorated = computed(() => decorateIndustryNewsHtml(renderedMarkdown.value))
 const decoratedHtml = computed(() => decorated.value.html)
 const floors = computed(() => decorated.value.floors)

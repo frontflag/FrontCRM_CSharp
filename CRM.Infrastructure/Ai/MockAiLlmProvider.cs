@@ -343,6 +343,16 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
             });
         }
 
+        if (systemMsg.Contains("企业情报分析师", StringComparison.Ordinal))
+        {
+            var md = BuildMockCustomerNewsMarkdown(userMsg);
+            return Task.FromResult(new AiChatCompletionResult
+            {
+                Content = md,
+                Usage = new AiTokenUsageDto { PromptTokens = 200, CompletionTokens = 800, TotalTokens = 1000 }
+            });
+        }
+
         if (systemMsg.Contains("电子元器件行业研究分析师", StringComparison.Ordinal))
         {
             var json = BuildMockIndustryNewsJson(userMsg);
@@ -743,6 +753,65 @@ public sealed class MockAiLlmProvider : IAiLlmProvider
                      "disclaimer": "本信息来自公开渠道及 AI 整理，仅供参考；当前为 Mock 开发数据。"
                    }
                    """;
+    }
+
+    private static string BuildMockCustomerNewsMarkdown(string userMsg)
+    {
+        var company = ExtractBetween(userMsg, "公司全称：", "\n") ?? "Mock 客户有限公司";
+        company = company.Trim();
+        var start = ExtractBetween(userMsg, "窗口：", " 至 ") ?? "2026-06-15";
+        var endRaw = ExtractBetween(userMsg, " 至 ", "。") ?? "2026-09-15";
+        var end = endRaw.Trim();
+        return $"""
+            ## 核心摘要
+
+            - {company} 窗口期内公开渠道未见足以改变合作判断的重大公告（Mock 数据）。
+            - 行业与产能消息需以联网检索结果为准，当前为开发占位。
+            - 诉讼、监管与实控人风险未见可核验条目。
+
+            ## 事实详情
+
+            ### 最新动态与新闻
+            【{end}】未检索到可核验的重大业务进展｜Mock｜无链接
+
+            ### 舆情分析
+            本期无重大事项。
+
+            ### 高管与人事变更
+            本期无重大事项。
+
+            ### 诉讼与监管合规
+            本期无重大事项。
+
+            ### 股东与资本运作
+            本期无重大事项。
+
+            ### 供应链与上下游
+            本期无重大事项。
+
+            ### 竞争格局与行业位置
+            本期无重大事项。
+
+            ### 政策与宏观风险
+            本期无重大事项。
+
+            ### 知识产权与技术
+            本期无重大事项。
+
+            ### ESG 与声誉
+            本期无重大事项。
+
+            ### 经营前瞻信号
+            本期无重大事项。
+
+            ## 风险雷达
+
+            - 关注项：窗口 {start}～{end} 为 Mock 占位，生产请将场景厂商改为 moonshot 并打开联网。
+
+            ## 待核实区
+
+            当前为 Mock 开发数据，请勿当作真实舆情。
+            """;
     }
 
     private static string BuildMockIndustryNewsJson(string userMsg)

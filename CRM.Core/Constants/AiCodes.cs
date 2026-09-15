@@ -13,6 +13,7 @@ public static class AiScenarioCodes
     public const string CustomerIntelLookup = "customer.intel.lookup";
     public const string VendorIntelLookup = "vendor.intel.lookup";
     public const string IndustryNewsBriefing = "industry.news.briefing";
+    public const string CustomerNewsMonitor = "customer.news.monitor";
 }
 
 public static class AiPermissionCodes

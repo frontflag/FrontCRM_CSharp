@@ -122,8 +122,24 @@
       </div>
     </div>
 
+    <div v-if="customer" class="customer-primary-tabs">
+      <div class="tabs-nav customer-primary-tabs__nav">
+        <button
+          v-for="tab in customerPrimaryTabDefs"
+          :key="tab.key"
+          type="button"
+          class="tab-btn"
+          :class="{ 'tab-btn--active': primaryTab === tab.key }"
+          @click="selectPrimaryTab(tab.key)"
+        >
+          {{ t(`customerDetail.primaryTabs.${tab.key}`) }}
+        </button>
+      </div>
+    </div>
+
     <div v-loading="loading" element-loading-background="rgba(10,22,40,0.8)" class="detail-content">
       <template v-if="customer">
+        <div v-show="primaryTab === 'profile'" class="customer-primary-tab-panel">
         <!-- 基本信息卡片 -->
         <div class="info-section">
           <div class="section-header">
@@ -690,6 +706,54 @@
             </div>
           </div>
         </div>
+        </div>
+
+        <div v-show="primaryTab === 'portrait'" class="customer-portrait-tab">
+          <div v-if="!canViewCustomerPortrait" class="info-section customer-primary-tab-placeholder">
+            <DetailListPanelEmpty size="high" :description="t('customerDetail.primaryTabs.portraitNoPermission')" />
+          </div>
+          <CustomerPortraitAnalyticsPanel
+            v-else-if="portraitTabReady"
+            :customer-id="customerId"
+            :active="primaryTab === 'portrait'"
+          />
+        </div>
+
+        <div v-show="primaryTab === 'statement'" class="customer-statement-tab">
+          <div v-if="!canViewCustomerStatement" class="info-section customer-primary-tab-placeholder">
+            <DetailListPanelEmpty size="high" :description="t('customerDetail.primaryTabs.statementNoPermission')" />
+          </div>
+          <FinanceReceivableStatementLedgerPanel
+            v-else-if="statementTabReady"
+            :customer-id="customerId"
+            :currency="customerCurrencyCode"
+            :customer-code="customer.customerCode || ''"
+            show-meta-header
+            show-preview
+            allow-currency-switch
+          />
+        </div>
+
+        <div v-show="primaryTab === 'news'" class="customer-news-tab">
+          <div v-if="maskSaleSensitiveFields" class="info-section customer-primary-tab-placeholder">
+            <DetailListPanelEmpty size="high" :description="t('customerDetail.primaryTabs.newsHidden')" />
+          </div>
+          <CustomerNewsMonitorPanel
+            v-else-if="newsTabReady"
+            :customer-id="customerId"
+            :sales-user-id="customer.salesPersonId || ''"
+            :active="primaryTab === 'news'"
+          />
+        </div>
+
+        <div
+          v-for="tab in customerDetailPlaceholderTabs"
+          :key="tab"
+          v-show="primaryTab === tab"
+          class="info-section customer-primary-tab-placeholder"
+        >
+          <DetailListPanelEmpty size="high" :description="t('customerDetail.primaryTabs.comingSoon')" />
+        </div>
       </template>
 
       <div v-else-if="!loading" class="empty-state">
@@ -811,8 +875,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import type { LocationQuery } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useAuthStore } from '@/stores/auth';
 import { ElNotification, ElMessageBox } from 'element-plus';
@@ -838,6 +903,9 @@ import BankDialog from './components/BankDialog.vue';
 import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue';
 import DocumentListPanel from '@/components/Document/DocumentListPanel.vue';
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue';
+import FinanceReceivableStatementLedgerPanel from '@/components/Finance/FinanceReceivableStatementLedgerPanel.vue';
+import CustomerPortraitAnalyticsPanel from '@/components/Customer/CustomerPortraitAnalyticsPanel.vue';
+import CustomerNewsMonitorPanel from '@/components/Customer/CustomerNewsMonitorPanel.vue';
 import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat';
@@ -852,6 +920,12 @@ import { isDistrictPlaceholder } from '@/constants/region';
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly';
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick';
+import {
+  CUSTOMER_DETAIL_PRIMARY_TAB_KEYS,
+  CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS,
+  parseCustomerDetailPrimaryTab,
+  type CustomerDetailPrimaryTab
+} from '@/utils/customerDetailPrimaryTabs';
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue';
 import { AI_PERMISSION_ENTITY_PARSE_CUSTOMER_CONTACT, AI_PERMISSION_ENTITY_PARSE_CUSTOMER_ADDRESS } from '@/api/ai';
 
@@ -864,6 +938,10 @@ const { canWriteSaleData } = useDepartmentDataReadOnly();
 const canCreateRfqFromCustomer = computed(() => authStore.hasPermission('rfq.create'));
 const canAiParseCustomerContact = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER_CONTACT));
 const canAiParseCustomerAddress = computed(() => authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_CUSTOMER_ADDRESS));
+const canViewCustomerStatement = computed(() => authStore.hasPermission('finance-receipt.read'));
+const canViewCustomerPortrait = computed(
+  () => authStore.hasPermission('analytics-sales.read') || authStore.hasPermission('sales-order.read')
+);
 const aiContactCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
 const aiAddressCreateHostRef = ref<InstanceType<typeof AiEntityCreateHost> | null>(null);
 const customerDict = useCustomerDictStore();
@@ -993,6 +1071,20 @@ const customerDunsText = computed(() => {
 
 const customerTags = ref<TagDefinitionDto[]>([]);
 const showCustomerHeaderTags = computed(() => canWriteSaleData.value || customerTags.value.length > 0);
+const primaryTab = ref<CustomerDetailPrimaryTab>(
+  parseCustomerDetailPrimaryTab(route.query.tab) === 'news' && maskSaleSensitiveFields.value
+    ? 'profile'
+    : parseCustomerDetailPrimaryTab(route.query.tab)
+);
+const customerPrimaryTabDefs = computed(() =>
+  CUSTOMER_DETAIL_PRIMARY_TAB_KEYS.filter((key) => key !== 'news' || !maskSaleSensitiveFields.value).map(
+    (key) => ({ key })
+  )
+);
+const customerDetailPlaceholderTabs = CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS;
+const statementTabReady = ref(primaryTab.value === 'statement');
+const portraitTabReady = ref(primaryTab.value === 'portrait');
+const newsTabReady = ref(primaryTab.value === 'news' && !maskSaleSensitiveFields.value);
 const activeTab = ref('contacts');
 /** 《列表操作列规范》：联系人/地址/银行子表共用列头切换（同页仅一张 v-show 表可见） */
 const customerDetailSubOpColExpanded = ref(false);
@@ -1008,6 +1100,39 @@ const customerDetailSubOpColMinWidth = computed(() =>
 function toggleCustomerDetailSubOpCol() {
   customerDetailSubOpColExpanded.value = !customerDetailSubOpColExpanded.value;
 }
+
+function selectPrimaryTab(key: CustomerDetailPrimaryTab) {
+  if (key === 'news' && maskSaleSensitiveFields.value) return;
+  primaryTab.value = key;
+  if (key === 'statement') statementTabReady.value = true;
+  if (key === 'portrait') portraitTabReady.value = true;
+  if (key === 'news') newsTabReady.value = true;
+  if (String(route.query.tab ?? '') === key) return;
+  const nextQuery: LocationQuery = { ...route.query, tab: key };
+  if (key !== 'news') delete nextQuery.newsId;
+  void router.replace({ query: nextQuery });
+}
+
+watch(
+  () => route.query.tab,
+  (raw) => {
+    let parsed = parseCustomerDetailPrimaryTab(raw);
+    if (parsed === 'news' && maskSaleSensitiveFields.value) parsed = 'profile';
+    if (parsed === 'statement') statementTabReady.value = true;
+    if (parsed === 'portrait') portraitTabReady.value = true;
+    if (parsed === 'news') newsTabReady.value = true;
+    if (primaryTab.value !== parsed) primaryTab.value = parsed;
+  }
+);
+
+watch(maskSaleSensitiveFields, (masked) => {
+  if (masked && primaryTab.value === 'news') {
+    primaryTab.value = 'profile';
+    const q: LocationQuery = { ...route.query, tab: 'profile' };
+    delete q.newsId;
+    void router.replace({ query: q });
+  }
+});
 const showAddressDialog = ref(false);
 const showBankDialog = ref(false);
 const editingAddress = ref<CustomerAddress | undefined>(undefined);
@@ -1429,7 +1554,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 
   .header-left {
     display: flex;
@@ -1744,6 +1869,32 @@ onMounted(() => {
     transform: translateY(-1px);
     font-weight: 700;
   }
+}
+
+.customer-primary-tabs {
+  margin: 0 0 16px;
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+}
+
+.customer-primary-tab-placeholder {
+  :deep(.detail-list-panel-empty) {
+    padding: 24px 16px 32px;
+  }
+}
+
+.customer-statement-tab {
+  min-height: 240px;
+}
+
+.customer-portrait-tab {
+  min-height: 240px;
+}
+
+.customer-news-tab {
+  min-height: 240px;
 }
 
 // ---- 基本信息 ----

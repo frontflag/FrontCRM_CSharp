@@ -136,6 +136,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IIncentiveTargetService, CRM.Infrastructure.Finance.IncentiveTargetService>();
             services.AddScoped<IRiskAlertService, CRM.Infrastructure.RiskAlert.RiskAlertService>();
             services.AddScoped<IIndustryNewsService, CRM.Infrastructure.IndustryNews.IndustryNewsService>();
+            services.AddScoped<ICustomerNewsMonitorService, CRM.Infrastructure.CustomerNews.CustomerNewsMonitorService>();
             services.AddScoped<IRfqMpnPurchaserAffinityLookup, RfqMpnPurchaserAffinityLookup>();
 
             return services;

@@ -30,11 +30,14 @@ const props = withDefaults(
     reportQuery?: SalesAnalyticsQuery
     /** list=明细列表看板；report=报表订单 Tab */
     mode?: 'list' | 'report'
+    /** 单客户切片：隐藏成单/在库/应收客户数与客户排行 */
+    customerScoped?: boolean
     /** 报表 Tab lazy：仅 active 时加载 */
     active?: boolean
   }>(),
   {
     mode: 'list',
+    customerScoped: false,
     active: true
   }
 )
@@ -80,7 +83,9 @@ const rankingTablesAll: RankingTableConfig[] = [
   { key: 'salesUser', titleKey: 'salesUserByAmount', dataKey: 'salesUserByAmount', countKind: 'line' }
 ]
 
-const rankingTables = computed(() => rankingTablesAll)
+const rankingTables = computed(() =>
+  props.customerScoped ? rankingTablesAll.filter((t) => t.key !== 'customer') : rankingTablesAll
+)
 
 const maskAmounts = computed(() => dashboard.value?.context.maskAmounts === true)
 
@@ -181,7 +186,7 @@ const orderKpiItems = computed(() => {
       currencyItems: currencyItems.length ? currencyItems : undefined,
       ...def('kpi.approvedAmount')
     }
-  ]
+  ].filter((i) => !props.customerScoped || i.key !== 'approvedCustomers')
 })
 
 const profitKpiItems = computed(() => {
@@ -234,7 +239,7 @@ const inStockKpiItems = computed(() => {
       value: formatDays(s.maxStockAgeDays),
       ...def('kpi.maxStockAge')
     }
-  ]
+  ].filter((i) => !props.customerScoped || i.key !== 'inStockCustomers')
 })
 
 const receivableKpiItems = computed(() => {
@@ -278,7 +283,7 @@ const receivableKpiItems = computed(() => {
       value: formatDays(s.maxReceivableAgeDays),
       ...def('kpi.maxReceivableAge')
     }
-  ]
+  ].filter((i) => !props.customerScoped || i.key !== 'receivableCustomers')
 })
 
 const trendOrderPoints = computed(() =>
@@ -381,6 +386,7 @@ function reportQueryKey(q: SalesAnalyticsQuery): string {
     q.salesUserId ?? '',
     q.dateFrom ?? '',
     q.dateTo ?? '',
+    q.customerId ?? '',
     q.groupBy ?? groupBy.value,
     rp.rankingSort ?? 'amount',
     rp.rankingLineMetric ?? ''
