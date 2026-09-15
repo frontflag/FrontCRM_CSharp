@@ -2,12 +2,6 @@
   <section v-if="canRead" class="incentive" aria-labelledby="dashboard-incentive-title">
     <header class="incentive__head">
       <div class="incentive__title-row">
-        <span class="incentive__icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 7v10M9.5 9.5c.8-1 2-1.5 3.3-1.2 1.6.4 2.2 1.6 2.2 2.7 0 2.2-3 2.4-4.4 2.8-1.5.4-2.6 1.2-2.6 2.7 0 1.2.9 2.2 2.6 2.5 1.4.3 2.8 0 3.7-1" />
-          </svg>
-        </span>
         <h3 id="dashboard-incentive-title" class="incentive__title">
           {{ titleText }}
         </h3>
@@ -113,7 +107,12 @@ import { getApiErrorMessage } from '@/utils/apiError'
 const { t } = useI18n()
 const authStore = useAuthStore()
 
-const canRead = computed(() => authStore.hasPermission('incentive-target.read'))
+const canRead = computed(() => {
+  if (!authStore.hasPermission('incentive-target.read')) return false
+  if (authStore.hasSysAdminRole()) return true
+  const identity = authStore.user?.identityType ?? 0
+  return identity === 1 || identity === 2 || identity === 3 || authStore.user?.belongsToPurchaseDept === true
+})
 const canWrite = computed(() => authStore.hasPermission('incentive-target.write'))
 
 const loading = ref(false)
@@ -245,25 +244,9 @@ onMounted(() => {
 
 .incentive__title-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
   min-width: 0;
-}
-
-.incentive__icon {
-  display: inline-flex;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
-  color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
-  svg {
-    width: 16px;
-    height: 16px;
-  }
 }
 
 .incentive__title {

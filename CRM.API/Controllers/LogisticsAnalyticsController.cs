@@ -8,7 +8,11 @@ using System.Security.Claims;
 
 namespace CRM.API.Controllers;
 
-[RequireAnyPermission("analytics-logistics.read", "inventory.read")]
+[RequireAnyPermission(
+    "analytics-logistics.read",
+    "inventory.read",
+    "purchase-order.read",
+    "sales-order.read")]
 [ApiController]
 [Route("api/v1/analytics/logistics")]
 public class LogisticsAnalyticsController : ControllerBase

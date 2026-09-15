@@ -20,6 +20,7 @@ UPDATE public.ai_prompt_template SET name = '物料情报查询' WHERE code = 'm
 UPDATE public.ai_prompt_template SET name = '客户情报调查' WHERE code = 'customer.intel.lookup' AND btrim(name) = '';
 UPDATE public.ai_prompt_template SET name = '供应商情报调查' WHERE code = 'vendor.intel.lookup' AND btrim(name) = '';
 UPDATE public.ai_prompt_template SET name = '行业新闻简报' WHERE code = 'industry.news.briefing' AND btrim(name) = '';
+UPDATE public.ai_prompt_template SET name = '客户新闻动态监测' WHERE code = 'customer.news.monitor' AND btrim(name) = '';
 UPDATE public.ai_prompt_template SET name = 'AI 反馈助手收集' WHERE code = 'assistant.feedback.collect' AND btrim(name) = '';
 UPDATE public.ai_prompt_template SET name = '解析创建客户' WHERE code = 'entity.parse.customer' AND btrim(name) = '';
 UPDATE public.ai_prompt_template SET name = '解析创建需求' WHERE code = 'entity.parse.rfq' AND btrim(name) = '';
