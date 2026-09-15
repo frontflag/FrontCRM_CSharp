@@ -53,10 +53,40 @@
             {{ draftWarehouseDisplay || '—' }}
           </el-descriptions-item>
           <el-descriptions-item :label="t('packingList.columns.shipmentMethod')">
-            {{ shipmentMethodDisplay(shipmentMethod) }}
+            <el-select
+              v-if="isCustomsPacking"
+              v-model="shipmentMethod"
+              filterable
+              :placeholder="t('packingCreate.deliveryMethodPlaceholder')"
+              class="packing-create-summary-select"
+            >
+              <el-option
+                v-for="o in shipmentArrivalOptions"
+                :key="o.value"
+                :label="o.label"
+                :value="o.value"
+              />
+            </el-select>
+            <template v-else>{{ shipmentMethodDisplay(shipmentMethod) }}</template>
           </el-descriptions-item>
           <el-descriptions-item :label="t('pickingSlip.detail.expressCompany')">
-            {{ expressCompanyDisplay(expressCompany) }}
+            <el-select
+              v-if="isCustomsPacking"
+              v-model="expressCompany"
+              filterable
+              clearable
+              :disabled="!isExpressShipmentMethod(shipmentMethod)"
+              :placeholder="t('packingCreate.deliveryMethodPlaceholder')"
+              class="packing-create-summary-select"
+            >
+              <el-option
+                v-for="o in expressOptions"
+                :key="o.value"
+                :label="o.label"
+                :value="o.value"
+              />
+            </el-select>
+            <template v-else>{{ expressCompanyDisplay(expressCompany) }}</template>
           </el-descriptions-item>
         </el-descriptions>
       </div>
@@ -200,7 +230,7 @@ import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMa
 import { useStockOutNotifyListBasketStore } from '@/stores/stockOutNotifyListBasket'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { fetchCustomsBrokersAdmin, isCustomsBrokerConsigneeReady, type CustomsBrokerDto } from '@/api/customs'
-import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
+import { isExpressShipmentMethod, useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import ShipmentExpressFields from '@/components/Logistics/ShipmentExpressFields.vue'
 
 const route = useRoute()
@@ -307,6 +337,12 @@ watch(customsBrokerId, (id) => {
   if (broker) applyBrokerConsignee(broker)
 })
 
+watch(shipmentMethod, (next) => {
+  if (!isExpressShipmentMethod(next) && expressCompany.value) {
+    expressCompany.value = ''
+  }
+})
+
 let customerAddresses: ReturnType<typeof normalizeCustomerAddressFromApi>[] = []
 
 async function loadPage() {
@@ -395,7 +431,7 @@ async function handleSubmit() {
   if (!draft.value || !requestIds.value.length) return
   if (!shipmentMethod.value.trim()) {
     ElMessage.warning(t('packingCreate.shipmentMethodRequired'))
-    packingExtendTab.value = 'deliveryReq'
+    if (!isCustomsPacking.value) packingExtendTab.value = 'deliveryReq'
     return
   }
   if (isCustomsPacking.value && !customsBrokerId.value.trim()) {
@@ -563,5 +599,10 @@ onMounted(() => {
 
 .packing-extend-form :deep(.el-input-number .el-input__inner) {
   text-align: left;
+}
+
+.packing-create-summary-select {
+  width: 100%;
+  max-width: 280px;
 }
 </style>
