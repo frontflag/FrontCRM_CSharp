@@ -187,4 +187,39 @@ public class CustomerNewsController : ControllerBase
             AcceptedAt = acceptedAt
         }, "已开始抓取"));
     }
+
+    [HttpDelete("{briefingId}")]
+    public async Task<ActionResult<ApiResponse<object>>> Delete(
+        string customerId,
+        string briefingId,
+        CancellationToken cancellationToken)
+    {
+        var uid = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(uid))
+            return Unauthorized(ApiResponse<object>.Fail("未登录", 401));
+
+        if (CustomerNewsManualRunGate.IsRunning(customerId))
+            return StatusCode(409, ApiResponse<object>.Fail("正在抓取，请稍候后再删除", 409));
+
+        try
+        {
+            await _service.DeleteAsync(customerId, briefingId, uid, cancellationToken);
+            return Ok(ApiResponse<object>.Ok(new { }, "已删除"));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.Fail(
+                string.IsNullOrWhiteSpace(ex.Message) ? "没有该次简报" : ex.Message,
+                404));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<object>.Fail(ex.Message, 403));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "删除客户新闻失败 customerId={CustomerId} id={Id}", customerId, briefingId);
+            return StatusCode(500, ApiResponse<object>.Fail("删除失败", 500));
+        }
+    }
 }

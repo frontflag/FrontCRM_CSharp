@@ -4,8 +4,8 @@ using CRM.Core.Interfaces;
 namespace CRM.Core.Utilities;
 
 /// <summary>
-/// 客户详情「新闻动态」立即抓取：业务员本人、组织上级、SYS_ADMIN / SYS_MANAGER、或客户调查 AI 权限。
-/// 521 脱敏账号不可看、不可抓（由调用方先判 <see cref="SaleSensitiveFieldMask521"/>）。
+/// 客户详情「新闻动态」：抓取权见 <see cref="CanFetch"/>；删除存档仅 SYS_ADMIN（<see cref="CanDelete"/>）。
+/// 521 脱敏账号不可看、不可抓、不可删（由调用方先判 <see cref="SaleSensitiveFieldMask521"/>）。
 /// </summary>
 public static class CustomerNewsMonitorAccessRules
 {
@@ -49,5 +49,15 @@ public static class CustomerNewsMonitorAccessRules
         if (isSalesOwner)
             return true;
         return IsOrgSuperiorRole(summary) && salespersonInOrgAllowSet;
+    }
+
+    /// <summary>删除存档简报：仅 SYS_ADMIN，不含 SYS_MANAGER。</summary>
+    public static bool CanDelete(UserPermissionSummaryDto? summary)
+    {
+        if (summary == null)
+            return false;
+        if (summary.IsSysAdmin)
+            return true;
+        return ManagementRoleCodes.IsSuperAdmin(summary.RoleCodes);
     }
 }

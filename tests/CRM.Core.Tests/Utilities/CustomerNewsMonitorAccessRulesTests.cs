@@ -63,4 +63,36 @@ public class CustomerNewsMonitorAccessRulesTests
         };
         Assert.False(CustomerNewsMonitorAccessRules.CanFetch(summary, false, true));
     }
+
+    [Fact]
+    public void SysAdmin_can_delete()
+    {
+        var summary = new UserPermissionSummaryDto { IsSysAdmin = true };
+        Assert.True(CustomerNewsMonitorAccessRules.CanDelete(summary));
+    }
+
+    [Fact]
+    public void SysAdmin_role_code_can_delete_without_flag()
+    {
+        var summary = new UserPermissionSummaryDto { RoleCodes = new[] { "SYS_ADMIN" } };
+        Assert.True(CustomerNewsMonitorAccessRules.CanDelete(summary));
+    }
+
+    [Fact]
+    public void SysManager_cannot_delete()
+    {
+        var summary = new UserPermissionSummaryDto
+        {
+            IsSysManager = true,
+            RoleCodes = new[] { "SYS_MANAGER" }
+        };
+        Assert.False(CustomerNewsMonitorAccessRules.CanDelete(summary));
+    }
+
+    [Fact]
+    public void Sales_owner_cannot_delete()
+    {
+        var summary = new UserPermissionSummaryDto { UserId = "u1" };
+        Assert.False(CustomerNewsMonitorAccessRules.CanDelete(summary));
+    }
 }

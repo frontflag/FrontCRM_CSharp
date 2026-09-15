@@ -10,6 +10,7 @@ export interface CustomerNewsListItem {
 
 export interface CustomerNewsList {
   canFetch: boolean
+  canDelete?: boolean
   isRunning?: boolean
   items: CustomerNewsListItem[]
 }
@@ -63,5 +64,8 @@ export const customerNewsApi = {
     return apiClient.post<CustomerNewsRunResult>(`${base(customerId)}/run`, null, {
       timeout: 30000
     })
+  },
+  remove(customerId: string, briefingId: string) {
+    return apiClient.delete(`${base(customerId)}/${encodeURIComponent(briefingId)}`)
   }
 }

@@ -61,6 +61,7 @@ public sealed class CustomerNewsMonitorService : ICustomerNewsMonitorService
         return new CustomerNewsListDto
         {
             CanFetch = ctx.CanFetch,
+            CanDelete = ctx.CanDelete,
             Items = items
         };
     }
@@ -157,7 +158,15 @@ public sealed class CustomerNewsMonitorService : ICustomerNewsMonitorService
 
             var markdown = CustomerNewsMarkdownSanitizer.SanitizeForPersist(invoke.Content);
             if (string.IsNullOrWhiteSpace(markdown))
-                markdown = CustomerNewsMarkdownSanitizer.EmptyBriefingMarkdown;
+            {
+                _logger.LogWarning(
+                    "客户新闻简报被丢弃（无「## 核心摘要」或检索循环）customerId={CustomerId} invocationId={InvocationId} rawLen={RawLen} preview={Preview}",
+                    ctx.Customer.Id,
+                    invoke.InvocationId,
+                    invoke.Content?.Length ?? 0,
+                    Truncate(invoke.Content, 240));
+                throw new InvalidOperationException("模型未生成有效简报，请重新抓取");
+            }
 
             row.Markdown = markdown;
             row.Status = CustomerNewsCodes.StatusSuccess;
@@ -203,6 +212,37 @@ public sealed class CustomerNewsMonitorService : ICustomerNewsMonitorService
         }
     }
 
+    public async Task DeleteAsync(
+        string customerId,
+        string briefingId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var ctx = await LoadAccessAsync(customerId, userId, cancellationToken);
+        if (!ctx.CanDelete)
+            throw new UnauthorizedAccessException("仅系统管理员可删除新闻动态");
+
+        var id = (briefingId ?? string.Empty).Trim();
+        if (string.IsNullOrEmpty(id))
+            throw new KeyNotFoundException("没有该次简报");
+
+        var row = await _db.CustomerNewsBriefings
+            .FirstOrDefaultAsync(
+                x => x.Id == id
+                     && x.CustomerId == ctx.Customer.Id
+                     && x.Status == CustomerNewsCodes.StatusSuccess,
+                cancellationToken)
+            ?? throw new KeyNotFoundException("没有该次简报");
+
+        _db.CustomerNewsBriefings.Remove(row);
+        await _db.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation(
+            "已删除客户新闻简报 customerId={CustomerId} briefingId={BriefingId} by={UserId}",
+            ctx.Customer.Id,
+            row.Id,
+            userId);
+    }
+
     async Task<AccessContext> LoadAccessAsync(string customerId, string userId, CancellationToken cancellationToken)
     {
         var id = (customerId ?? string.Empty).Trim();
@@ -237,7 +277,8 @@ public sealed class CustomerNewsMonitorService : ICustomerNewsMonitorService
         return new AccessContext
         {
             Customer = customer,
-            CanFetch = CustomerNewsMonitorAccessRules.CanFetch(summary, isOwner, salespersonInAllow)
+            CanFetch = CustomerNewsMonitorAccessRules.CanFetch(summary, isOwner, salespersonInAllow),
+            CanDelete = CustomerNewsMonitorAccessRules.CanDelete(summary)
         };
     }
 
@@ -263,14 +304,14 @@ public sealed class CustomerNewsMonitorService : ICustomerNewsMonitorService
                 ? customer.CustomerCode
                 : customer.OfficialName.Trim(),
             ["nick_name"] = nickParts.Count == 0 ? "未维护" : string.Join("、", nickParts),
-            ["stock_code"] = "未上市",
+            ["stock_code"] = "未知（请按公司全称检索是否上市及证券代码，禁止当成未上市）",
             ["industry"] = string.IsNullOrWhiteSpace(customer.Industry) ? "未维护" : customer.Industry.Trim(),
             ["hq_location"] = string.IsNullOrWhiteSpace(hq) ? "未维护" : hq,
             ["related_companies"] = "未维护",
             ["actual_controller"] = "未维护",
             ["window_months"] = isFirst
-                ? "首次全量，覆盖近 3 个月；只按上面的起止日检索，不要把起止日理解成未来。"
-                : "动态监测，只收录该窗口内新信息；窗口可以只有一天，不要再按近 3 个月检索，不要讨论日期是否未来。",
+                ? "首次全量，覆盖近 3 个月；须检索窗口内交易所公告、巨潮、官网与财经媒体。只按上面的起止日检索，不要把起止日理解成未来，禁止写入窗口外旧闻。"
+                : "动态监测，只收录该窗口内新信息；窗口可以只有一天，不要再按近 3 个月检索，不要讨论日期是否未来。禁止写入窗口外旧闻。",
             ["start_date"] = start.ToString("yyyy-MM-dd"),
             ["end_date"] = end.ToString("yyyy-MM-dd"),
             ["monitor_mode"] = isFirst
@@ -302,5 +343,6 @@ public sealed class CustomerNewsMonitorService : ICustomerNewsMonitorService
     {
         public required CustomerInfo Customer { get; init; }
         public required bool CanFetch { get; init; }
+        public required bool CanDelete { get; init; }
     }
 }

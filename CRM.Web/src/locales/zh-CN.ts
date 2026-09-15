@@ -4702,7 +4702,11 @@ const zhCN = {
       historyDates: '抓取记录',
       historyEmpty: '暂无新闻动态，可点立即抓取',
       historyMissing: '没有该次简报',
-      periodCover: '覆盖 {start}～{end}'
+      periodCover: '覆盖 {start}～{end}',
+      delete: '删除',
+      deleteTitle: '删除简报',
+      deleteDone: '已删除',
+      deleteFailed: '删除失败'
     }
   },
   customerEdit: {

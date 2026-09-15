@@ -22,6 +22,12 @@ public interface ICustomerNewsMonitorService
         string customerId,
         string userId,
         CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(
+        string customerId,
+        string briefingId,
+        string userId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class CustomerNewsListItemDto
@@ -36,6 +42,7 @@ public sealed class CustomerNewsListItemDto
 public sealed class CustomerNewsListDto
 {
     public bool CanFetch { get; set; }
+    public bool CanDelete { get; set; }
     public bool IsRunning { get; set; }
     public List<CustomerNewsListItemDto> Items { get; set; } = new();
 }

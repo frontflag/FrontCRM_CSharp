@@ -2,16 +2,29 @@
   <div class="customer-news" v-loading="listLoading">
     <div class="customer-news__toolbar">
       <span class="customer-news__hint">{{ t('customerDetail.news.hint') }}</span>
-      <el-button
-        v-if="showFetchButton"
-        class="customer-news__fetch"
-        type="primary"
-        :loading="busy"
-        :disabled="busy"
-        @click="runFetch"
-      >
-        {{ busy ? t('customerDetail.news.fetchRunning') : t('customerDetail.news.fetchNow') }}
-      </el-button>
+      <div class="customer-news__actions">
+        <el-button
+          v-if="showDeleteButton"
+          class="customer-news__delete"
+          type="danger"
+          plain
+          :loading="deleting"
+          :disabled="busy || deleting || !selectedId"
+          @click="runDelete"
+        >
+          {{ t('customerDetail.news.delete') }}
+        </el-button>
+        <el-button
+          v-if="showFetchButton"
+          class="customer-news__fetch"
+          type="primary"
+          :loading="busy"
+          :disabled="busy"
+          @click="runFetch"
+        >
+          {{ busy ? t('customerDetail.news.fetchRunning') : t('customerDetail.news.fetchNow') }}
+        </el-button>
+      </div>
     </div>
 
     <div class="customer-news__body">
@@ -47,8 +60,8 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { useRoute, useRouter, type LocationQuery } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { AI_PERMISSION_CUSTOMER_INTEL_LOOKUP } from '@/api/ai'
 import {
@@ -73,7 +86,9 @@ const authStore = useAuthStore()
 const listLoading = ref(false)
 const detailLoading = ref(false)
 const busy = ref(false)
+const deleting = ref(false)
 const canFetchFromApi = ref(false)
+const canDeleteFromApi = ref(false)
 const listError = ref('')
 const items = ref<CustomerNewsListItem[]>([])
 const detail = ref<CustomerNewsDetail | null>(null)
@@ -81,6 +96,11 @@ const detailError = ref('')
 const loaded = ref(false)
 let watchGen = 0
 let watchTimer: ReturnType<typeof setTimeout> | null = null
+
+const showDeleteButton = computed(() => {
+  if (canDeleteFromApi.value) return true
+  return authStore.hasSysAdminRole()
+})
 
 const showFetchButton = computed(() => {
   if (canFetchFromApi.value) return true
@@ -150,6 +170,8 @@ async function applyListPayload(
   data: CustomerNewsListItem[] | {
     canFetch?: boolean
     CanFetch?: boolean
+    canDelete?: boolean
+    CanDelete?: boolean
     isRunning?: boolean
     IsRunning?: boolean
     items?: CustomerNewsListItem[]
@@ -157,10 +179,12 @@ async function applyListPayload(
 ) {
   if (Array.isArray(data)) {
     canFetchFromApi.value = false
+    canDeleteFromApi.value = false
     items.value = data
     return undefined as boolean | undefined
   }
   canFetchFromApi.value = !!(data?.canFetch ?? data?.CanFetch)
+  canDeleteFromApi.value = !!(data?.canDelete ?? data?.CanDelete)
   items.value = Array.isArray(data?.items) ? data.items : []
   if (data?.isRunning === true || data?.IsRunning === true) return true
   if (data?.isRunning === false || data?.IsRunning === false) return false
@@ -175,6 +199,8 @@ async function loadList(opts?: { followRunning?: boolean }) {
     const stillRunning = await applyListPayload(data as CustomerNewsListItem[] | {
       canFetch?: boolean
       CanFetch?: boolean
+      canDelete?: boolean
+      CanDelete?: boolean
       isRunning?: boolean
       IsRunning?: boolean
       items?: CustomerNewsListItem[]
@@ -187,6 +213,7 @@ async function loadList(opts?: { followRunning?: boolean }) {
   } catch (e: unknown) {
     items.value = []
     canFetchFromApi.value = false
+    canDeleteFromApi.value = false
     listError.value = getApiErrorMessage(e, t('customerDetail.news.historyEmpty'))
   } finally {
     listLoading.value = false
@@ -304,6 +331,73 @@ async function runFetch() {
   }
 }
 
+async function selectAfterDelete(fallbackId: string) {
+  const remaining = items.value
+  const next = remaining.find((x) => x.id === fallbackId) || remaining[0]
+  const query: LocationQuery = { ...route.query, tab: 'news' }
+  if (next) {
+    await router.replace({ query: { ...query, newsId: next.id } })
+    if (next.id === selectedId.value) {
+      await loadDetail(next.id)
+    }
+    return
+  }
+  const nextQuery: LocationQuery = { ...query }
+  delete nextQuery.newsId
+  await router.replace({ query: nextQuery })
+  await loadDetail('')
+}
+
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+function selectedRowConfirmHtml(row: CustomerNewsListItem | undefined) {
+  const main = dateKey(row?.briefingDate)
+  const sub = row ? subText(row) : ''
+  const mainLine = `<div style="font-size:13px;font-weight:600;line-height:1.4">${escapeHtml(main)}</div>`
+  const subLine = sub
+    ? `<div style="margin-top:2px;font-size:11px;color:var(--el-text-color-secondary);line-height:1.4">${escapeHtml(sub)}</div>`
+    : ''
+  return `${mainLine}${subLine}`
+}
+
+async function runDelete() {
+  if (busy.value || deleting.value || !showDeleteButton.value) return
+  const id = selectedId.value
+  if (!id) return
+  const row = items.value.find((x) => x.id === id)
+  try {
+    await ElMessageBox.confirm(
+      selectedRowConfirmHtml(row),
+      t('customerDetail.news.deleteTitle'),
+      { type: 'warning', dangerouslyUseHTMLString: true }
+    )
+  } catch {
+    return
+  }
+
+  const ids = items.value.map((x) => x.id)
+  const idx = ids.indexOf(id)
+  const fallbackId = (idx >= 0 ? ids[idx + 1] || ids[idx - 1] : '') || ''
+
+  deleting.value = true
+  try {
+    await customerNewsApi.remove(props.customerId, id)
+    await loadList({ followRunning: false })
+    await selectAfterDelete(fallbackId)
+    ElMessage.success(t('customerDetail.news.deleteDone'))
+  } catch (e: unknown) {
+    ElMessage.error(getApiErrorMessage(e, t('customerDetail.news.deleteFailed')))
+  } finally {
+    deleting.value = false
+  }
+}
+
 watch(selectedId, (id) => {
   if (!props.active) return
   void loadDetail(id)
@@ -360,6 +454,14 @@ onUnmounted(() => {
   color: var(--el-text-color-secondary);
 }
 
+.customer-news__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.customer-news__delete,
 .customer-news__fetch {
   flex-shrink: 0;
 }

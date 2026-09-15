@@ -28,6 +28,15 @@ public class CustomerNewsMarkdownSanitizerTests
     }
 
     [Fact]
+    public void OutputHardConstraint_requires_search_and_does_not_stop_after_first_miss()
+    {
+        var text = CustomerNewsMarkdownSanitizer.OutputHardConstraint;
+        Assert.DoesNotContain("立即停止", text);
+        Assert.Contains("未知", text);
+        Assert.Contains("窗口外", text);
+    }
+
+    [Fact]
     public void Collapses_consecutive_duplicate_sentences()
     {
         var raw = "## 核心摘要\n\n本期无重大事项。本期无重大事项。本期无重大事项。\n\n## 事实详情\n本期无重大事项。\n";

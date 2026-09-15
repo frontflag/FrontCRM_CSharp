@@ -4712,7 +4712,11 @@ const enUS = {
       historyDates: 'Fetch history',
       historyEmpty: 'No briefings yet. Click Fetch now.',
       historyMissing: 'This briefing is missing',
-      periodCover: 'Covered {start}–{end}'
+      periodCover: 'Covered {start}–{end}',
+      delete: 'Delete',
+      deleteTitle: 'Delete briefing',
+      deleteDone: 'Deleted',
+      deleteFailed: 'Delete failed'
     }
   },
   customerEdit: {
