@@ -173,6 +173,13 @@
         >
           刷新出库利润
         </el-button>
+        <el-button
+          type="warning"
+          :loading="refreshingPurchasedStockAvailable"
+          @click="onRefreshPurchasedStockAvailable"
+        >
+          刷新备货可用量
+        </el-button>
         <el-button type="primary" :loading="refreshingPurchaseOrderMainStatus" @click="onRefreshPurchaseOrderMainStatus">
           刷新采购订单状态
         </el-button>
@@ -247,6 +254,26 @@
         </div>
         <div v-if="sellOrderItemExtendOutboundProfitResult.failedMessages.length">
           失败明细：{{ sellOrderItemExtendOutboundProfitResult.failedMessages.join('；') }}
+        </div>
+      </div>
+      <div class="refresh-hint refresh-hint--second">
+        「刷新备货可用量」：一次性加载库存与销售明细，按现网口径重算全部<strong>出库未完成</strong>行的
+        <span class="mono">PurchasedStock_AvailableQty</span>（同 PN+品牌备货池可用量之和，排除移库源
+        <span class="mono">TransferType=10</span>）。值没变不写库。池为 0 的行会收回申请出库放宽。不替代入库/出库/建单/面板四处触发。仅调试使用。
+      </div>
+      <div v-if="purchasedStockAvailableResult" class="simulate-result">
+        <div>扫描明细：{{ purchasedStockAvailableResult.totalLines }} 条</div>
+        <div>出库未完成候选：{{ purchasedStockAvailableResult.candidateLines }} 条</div>
+        <div>已对齐未改：{{ purchasedStockAvailableResult.unchangedCount }} 条</div>
+        <div>已改写：{{ purchasedStockAvailableResult.updatedCount }} 条（调高 {{ purchasedStockAvailableResult.increasedCount }}，调低 {{ purchasedStockAvailableResult.decreasedCount }}）</div>
+        <div>
+          跳过：取消/数量≤0 {{ purchasedStockAvailableResult.skippedCancelledOrQty }}，
+          无型号品牌 {{ purchasedStockAvailableResult.skippedNoPnBrand }}，
+          出库完成 {{ purchasedStockAvailableResult.skippedOutboundComplete }}，
+          无扩展 {{ purchasedStockAvailableResult.skippedNoExtend }}
+        </div>
+        <div v-if="purchasedStockAvailableResult.changedLineCodes.length">
+          变更明细号（最多 50 条）：{{ purchasedStockAvailableResult.changedLineCodes.join('，') }}
         </div>
       </div>
       <div class="refresh-hint refresh-hint--second">
@@ -357,6 +384,7 @@ import {
   refreshSellOrderCommentSplit,
   refreshSellOrderMainStatus,
   refreshSellOrderItemExtendOutboundProfit,
+  refreshPurchasedStockAvailableBatch,
   refreshPurchaseOrderMainStatus,
   refreshArrivalNoticeStatuses,
   refreshSellOrderItemCustomerPnFromComment,
@@ -373,6 +401,7 @@ import {
   type RefreshSellOrderCommentSplitResult,
   type RefreshSellOrderMainStatusResult,
   type RefreshSellOrderItemExtendOutboundProfitResult,
+  type RefreshPurchasedStockAvailableBatchResult,
   type RefreshPurchaseOrderMainStatusResult,
   type RefreshArrivalNoticeStatusesResult,
   type RefreshSellOrderItemCustomerPnFromCommentResult,
@@ -536,6 +565,8 @@ const refreshingSellOrderMainStatus = ref(false)
 const sellOrderMainStatusResult = ref<RefreshSellOrderMainStatusResult | null>(null)
 const refreshingSellOrderItemExtendOutboundProfit = ref(false)
 const sellOrderItemExtendOutboundProfitResult = ref<RefreshSellOrderItemExtendOutboundProfitResult | null>(null)
+const refreshingPurchasedStockAvailable = ref(false)
+const purchasedStockAvailableResult = ref<RefreshPurchasedStockAvailableBatchResult | null>(null)
 const refreshingPurchaseOrderMainStatus = ref(false)
 const purchaseOrderMainStatusResult = ref<RefreshPurchaseOrderMainStatusResult | null>(null)
 const refreshingArrivalNoticeStatuses = ref(false)
@@ -773,6 +804,33 @@ const onRefreshSellOrderItemExtendOutboundProfit = async () => {
     ElMessage.error(getApiErrorMessage(e, '刷新出库利润失败'))
   } finally {
     refreshingSellOrderItemExtendOutboundProfit.value = false
+  }
+}
+
+const onRefreshPurchasedStockAvailable = async () => {
+  if (refreshingPurchasedStockAvailable.value) return
+  try {
+    await ElMessageBox.confirm(
+      '将按现网口径重算全部出库未完成销售明细的备货可用量快照（同 PN+品牌备货池）。' +
+        '池为 0 的行会收回申请出库放宽，快照偏高的行会调低。出库已完成行不改。是否继续？',
+      '确认刷新备货可用量',
+      { type: 'warning', confirmButtonText: '继续', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  refreshingPurchasedStockAvailable.value = true
+  try {
+    const result = await refreshPurchasedStockAvailableBatch()
+    purchasedStockAvailableResult.value = result
+    ElMessage.success(
+      `刷新完成：扫描 ${result.totalLines} 条，候选 ${result.candidateLines} 条，` +
+        `改写 ${result.updatedCount} 条（调高 ${result.increasedCount}，调低 ${result.decreasedCount}）`
+    )
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, '刷新备货可用量失败'))
+  } finally {
+    refreshingPurchasedStockAvailable.value = false
   }
 }
 

@@ -203,6 +203,21 @@ export type RefreshSellOrderItemExtendOutboundProfitResult = {
   failedMessages: string[]
 }
 
+/** POST /api/v1/debug/refresh-purchased-stock-available — 全量重算出库未完成行备货可用量快照 */
+export type RefreshPurchasedStockAvailableBatchResult = {
+  totalLines: number
+  candidateLines: number
+  skippedCancelledOrQty: number
+  skippedNoPnBrand: number
+  skippedOutboundComplete: number
+  skippedNoExtend: number
+  unchangedCount: number
+  updatedCount: number
+  increasedCount: number
+  decreasedCount: number
+  changedLineCodes: string[]
+}
+
 function normalizeRfqChainPreview(raw: unknown): RfqChainPreview {
   const r = raw as Record<string, unknown> | null | undefined
   const inner = (r?.data ?? r?.Data ?? r) as Record<string, unknown> | null | undefined
@@ -358,6 +373,31 @@ export async function refreshSellOrderItemExtendOutboundProfit(): Promise<Refres
     changedLineCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : [],
     failedCount: Number(inner?.failedCount ?? inner?.FailedCount ?? 0),
     failedMessages: normalizeStringList(inner?.failedMessages ?? inner?.FailedMessages)
+  }
+}
+
+/** POST /api/v1/debug/refresh-purchased-stock-available — 全量重算出库未完成行备货可用量快照 */
+export async function refreshPurchasedStockAvailableBatch(): Promise<RefreshPurchasedStockAvailableBatchResult> {
+  const raw = await apiClient.post<any>(
+    '/api/v1/debug/refresh-purchased-stock-available',
+    {},
+    { timeout: 3_600_000 }
+  )
+  const outer = (raw?.data ?? raw?.Data ?? raw) as Record<string, any>
+  const inner = (outer?.data ?? outer?.Data ?? outer) as Record<string, any>
+  const codesRaw = inner?.changedLineCodes ?? inner?.ChangedLineCodes
+  return {
+    totalLines: Number(inner?.totalLines ?? inner?.TotalLines ?? 0),
+    candidateLines: Number(inner?.candidateLines ?? inner?.CandidateLines ?? 0),
+    skippedCancelledOrQty: Number(inner?.skippedCancelledOrQty ?? inner?.SkippedCancelledOrQty ?? 0),
+    skippedNoPnBrand: Number(inner?.skippedNoPnBrand ?? inner?.SkippedNoPnBrand ?? 0),
+    skippedOutboundComplete: Number(inner?.skippedOutboundComplete ?? inner?.SkippedOutboundComplete ?? 0),
+    skippedNoExtend: Number(inner?.skippedNoExtend ?? inner?.SkippedNoExtend ?? 0),
+    unchangedCount: Number(inner?.unchangedCount ?? inner?.UnchangedCount ?? 0),
+    updatedCount: Number(inner?.updatedCount ?? inner?.UpdatedCount ?? 0),
+    increasedCount: Number(inner?.increasedCount ?? inner?.IncreasedCount ?? 0),
+    decreasedCount: Number(inner?.decreasedCount ?? inner?.DecreasedCount ?? 0),
+    changedLineCodes: Array.isArray(codesRaw) ? codesRaw.map((x: unknown) => String(x)) : []
   }
 }
 

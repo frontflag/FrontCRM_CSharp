@@ -41,6 +41,7 @@ namespace CRM.API.Controllers
         private readonly IPurchaseOrderService _purchaseOrderService;
         private readonly ISellOrderItemExtendSyncService _sellOrderItemExtendSync;
         private readonly IPurchaseOrderItemExtendSyncService _poItemExtendSync;
+        private readonly ISellOrderItemPurchasedStockAvailableSyncService _purchasedStockAvailableSync;
         private readonly ICustomsAgencyRateInboundCostRefreshService _customsAgencyRateInboundCostRefresh;
         private const short PoStatusInProgress = 50;
         private const short PoStatusCompleted = 100;
@@ -67,6 +68,7 @@ namespace CRM.API.Controllers
             IPurchaseOrderService purchaseOrderService,
             ISellOrderItemExtendSyncService sellOrderItemExtendSync,
             IPurchaseOrderItemExtendSyncService poItemExtendSync,
+            ISellOrderItemPurchasedStockAvailableSyncService purchasedStockAvailableSync,
             ICustomsAgencyRateInboundCostRefreshService customsAgencyRateInboundCostRefresh)
         {
             _context = context;
@@ -83,6 +85,7 @@ namespace CRM.API.Controllers
             _purchaseOrderService = purchaseOrderService;
             _sellOrderItemExtendSync = sellOrderItemExtendSync;
             _poItemExtendSync = poItemExtendSync;
+            _purchasedStockAvailableSync = purchasedStockAvailableSync;
             _customsAgencyRateInboundCostRefresh = customsAgencyRateInboundCostRefresh;
         }
 
@@ -1163,6 +1166,34 @@ namespace CRM.API.Controllers
             catch (Exception ex)
             {
                 return StatusCode(500, ApiResponse<RefreshSellOrderMainStatusResultDto>.Fail($"刷新销售订单主状态失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>
+        /// 临时调试工具：按现网口径一次性重算全部出库未完成销售明细的 <c>PurchasedStock_AvailableQty</c>。
+        /// 库存与销售明细各加载一次；池为 0 的行会收回申请出库放宽。
+        /// </summary>
+        [Authorize]
+        [HttpPost("refresh-purchased-stock-available")]
+        public async Task<ActionResult<ApiResponse<PurchasedStockAvailableBatchRecalcResult>>>
+            RefreshPurchasedStockAvailableUnfinishedLines(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var result = await _purchasedStockAvailableSync.RecalculateAllUnfinishedSellLinesAsync(cancellationToken);
+                return Ok(ApiResponse<PurchasedStockAvailableBatchRecalcResult>.Ok(
+                    result,
+                    result.UpdatedCount > 0
+                        ? $"备货可用量快照批量重算完成：改写 {result.UpdatedCount} 条"
+                        : "备货可用量快照已是最新，无需变更"));
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(
+                    500,
+                    ApiResponse<PurchasedStockAvailableBatchRecalcResult>.Fail(
+                        $"批量重算备货可用量失败: {ex.Message}",
+                        500));
             }
         }
 

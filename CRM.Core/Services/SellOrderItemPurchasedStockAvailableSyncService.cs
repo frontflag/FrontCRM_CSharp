@@ -105,6 +105,94 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
     }
 
     /// <inheritdoc />
+    public async Task<PurchasedStockAvailableBatchRecalcResult> RecalculateAllUnfinishedSellLinesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var result = new PurchasedStockAvailableBatchRecalcResult();
+        var stockItems = (await _stockItemRepo.GetAllAsync()).ToList();
+        var pool = new Dictionary<PnBrandKey, int>(PnBrandKeyComparer.Instance);
+        foreach (var s in stockItems)
+        {
+            if (s.StockType != StockInventoryTypeCodes.Stocking)
+                continue;
+            if (s.TransferType != null && s.TransferType == StockItemTransferTypeCodes.ManualTransferSource)
+                continue;
+            var key = TryKey(s.PurchasePn, s.PurchaseBrand);
+            if (key == null)
+                continue;
+            pool.TryGetValue(key.Value, out var cur);
+            pool[key.Value] = ToIntNonNegative(cur + s.QtyRepertoryAvailable);
+        }
+
+        var soItems = (await _soItemRepo.GetAllAsync()).ToList();
+        result.TotalLines = soItems.Count;
+        var extById = (await _extendRepo.GetAllAsync()).ToDictionary(e => e.Id, StringComparer.Ordinal);
+
+        foreach (var line in soItems)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (line.Status == SellOrderItemCancelled || line.Qty <= 0m)
+            {
+                result.SkippedCancelledOrQty++;
+                continue;
+            }
+
+            var key = TryKey(line.PN, line.Brand);
+            if (key == null)
+            {
+                result.SkippedNoPnBrand++;
+                continue;
+            }
+
+            if (!extById.TryGetValue(line.Id, out var ext))
+            {
+                result.SkippedNoExtend++;
+                continue;
+            }
+
+            if (ext.StockOutProgressStatus == StockOutProgressComplete)
+            {
+                result.SkippedOutboundComplete++;
+                continue;
+            }
+
+            result.CandidateLines++;
+            pool.TryGetValue(key.Value, out var intVal);
+            intVal = ToIntNonNegative(intVal);
+            if (ext.PurchasedStock_AvailableQty == intVal)
+            {
+                result.UnchangedCount++;
+                continue;
+            }
+
+            var before = ext.PurchasedStock_AvailableQty;
+            ext.PurchasedStock_AvailableQty = intVal;
+            ext.ModifyTime = DateTime.UtcNow;
+            await _extendRepo.UpdateAsync(ext);
+            result.UpdatedCount++;
+            if (intVal > before)
+                result.IncreasedCount++;
+            else
+                result.DecreasedCount++;
+            if (result.ChangedLineCodes.Count < 50)
+            {
+                var code = string.IsNullOrWhiteSpace(line.SellOrderItemCode) ? line.Id : line.SellOrderItemCode;
+                result.ChangedLineCodes.Add(code);
+            }
+        }
+
+        if (result.UpdatedCount > 0)
+        {
+            await _unitOfWork.SaveChangesAsync();
+            _logger.LogInformation(
+                "[PurchasedStockAvail] Batch unfinished lines Updated={Updated} Increased={Inc} Decreased={Dec} Candidates={Cand}",
+                result.UpdatedCount, result.IncreasedCount, result.DecreasedCount, result.CandidateLines);
+        }
+
+        return result;
+    }
+
+    /// <inheritdoc />
     public async Task TryRecalculateFromCompletedStockInAsync(StockIn stockIn, CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
@@ -229,5 +317,30 @@ public sealed class SellOrderItemPurchasedStockAvailableSyncService : ISellOrder
     private static string NormKey(string? v) =>
         string.IsNullOrWhiteSpace(v) ? string.Empty : v.Trim();
 
+    private static PnBrandKey? TryKey(string? pn, string? br)
+    {
+        var p = NormKey(pn);
+        var b = NormKey(br);
+        if (p.Length == 0 || b.Length == 0)
+            return null;
+        return new PnBrandKey(p, b);
+    }
+
     private static int ToIntNonNegative(int sum) => sum < 0 ? 0 : sum;
+
+    private readonly record struct PnBrandKey(string Pn, string Br);
+
+    private sealed class PnBrandKeyComparer : IEqualityComparer<PnBrandKey>
+    {
+        public static readonly PnBrandKeyComparer Instance = new();
+
+        public bool Equals(PnBrandKey x, PnBrandKey y) =>
+            string.Equals(x.Pn, y.Pn, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(x.Br, y.Br, StringComparison.OrdinalIgnoreCase);
+
+        public int GetHashCode(PnBrandKey obj) =>
+            HashCode.Combine(
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Pn),
+                StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Br));
+    }
 }
