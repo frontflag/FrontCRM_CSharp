@@ -6,6 +6,13 @@ namespace CRM.Core.Tests.Utilities;
 public class SalesDirectorSelfApprovalRulesTests
 {
     [Fact]
+    public void SysManager_Allowed()
+    {
+        Assert.True(SalesDirectorSelfApprovalRules.AllowsOwnCustomerOrSalesOrderDecide(
+            new UserPermissionSummaryDto { IsSysManager = true, IdentityType = 6 }));
+    }
+
+    [Fact]
     public void SysAdmin_Allowed()
     {
         Assert.True(SalesDirectorSelfApprovalRules.AllowsOwnCustomerOrSalesOrderDecide(

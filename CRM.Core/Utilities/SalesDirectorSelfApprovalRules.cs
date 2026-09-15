@@ -12,12 +12,12 @@ public static class SalesDirectorSelfApprovalRules
 
     public const string DeptDirectorRoleCode = "DEPT_DIRECTOR";
 
-    /// <summary>系统管理员或销售部门总监：可对本人提交的客户 / 销售订单做通过或拒绝。</summary>
+    /// <summary>SuperAdmin、产品 Admin（SYS_MANAGER）或销售部门总监：可对本人提交的客户 / 销售订单做通过或拒绝。</summary>
     public static bool AllowsOwnCustomerOrSalesOrderDecide(UserPermissionSummaryDto? summary)
     {
         if (summary == null)
             return false;
-        if (summary.IsSysAdmin)
+        if (ApprovalDecideAccessRules.HasPlatformApproveBypass(summary))
             return true;
         if (summary.IdentityType != SalesIdentityType)
             return false;

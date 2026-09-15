@@ -117,10 +117,10 @@ namespace CRM.API.Controllers
 
         private static bool HasApprovePermission(CRM.Core.Interfaces.UserPermissionSummaryDto summary, BizTypeConfig cfg)
         {
-            return summary.IsSysAdmin || summary.PermissionCodes.Contains(cfg.PermissionCode);
+            return ApprovalDecideAccessRules.HasApprovePermission(summary, cfg.PermissionCode);
         }
 
-        /// <summary>待审且为本人提交时，是否禁止本人决定。客户/销售订单对销售总监放行；供应商/采购订单对采购总监放行。</summary>
+        /// <summary>待审且为本人提交时，是否禁止本人决定。客户/销售订单对销售总监放行；供应商/采购订单对采购总监放行；SYS_ADMIN / SYS_MANAGER 全部放行。</summary>
         private static bool IsSelfDecideBlocked(
             CRM.Core.Interfaces.UserPermissionSummaryDto summary,
             bool isPendingState,
@@ -135,7 +135,7 @@ namespace CRM.API.Controllers
             if (bizType.Equals("VENDOR", StringComparison.OrdinalIgnoreCase)
                 || bizType.Equals("PURCHASE_ORDER", StringComparison.OrdinalIgnoreCase))
                 return !PurchaseDirectorSelfApprovalRules.AllowsOwnVendorOrPurchaseOrderDecide(summary);
-            return !summary.IsSysAdmin;
+            return !ApprovalDecideAccessRules.HasPlatformApproveBypass(summary);
         }
 
         /// <summary>各业务类型「仅查看待审批/本人提交」所需的读权限（与路由菜单一致）。</summary>
@@ -156,7 +156,7 @@ namespace CRM.API.Controllers
         /// <summary>无审批写权限时，凭读权限可查看本人提交的记录。</summary>
         private static bool HasSubmitterViewPermission(CRM.Core.Interfaces.UserPermissionSummaryDto summary, BizTypeConfig cfg)
         {
-            if (summary.IsSysAdmin) return true;
+            if (ApprovalDecideAccessRules.HasPlatformApproveBypass(summary)) return true;
             if (!BizTypeReadPermission.TryGetValue(cfg.BizType, out var readCode)) return false;
             return SummaryHasPermissionCode(summary, readCode);
         }
@@ -690,7 +690,8 @@ namespace CRM.API.Controllers
                         if (!canApprove && !(canViewOwn && own))
                             continue;
 
-                        var selfPending = isPendingState && own && !summary.IsSysAdmin;
+                        var selfPending = isPendingState && own
+                            && !ApprovalDecideAccessRules.HasPlatformApproveBypass(summary);
                         var dto = new PendingApprovalItemDto
                         {
                             BizType = cfg.BizType,
@@ -729,7 +730,8 @@ namespace CRM.API.Controllers
 
                         // 请款阶段仅有 PaymentAmountToBe；PaymentAmount 在付款完成后才与待付对齐
                         var payDisplayAmount = p.PaymentAmountToBe != 0 ? p.PaymentAmountToBe : p.PaymentAmount;
-                        var selfPayPending = isPendingState && own && !summary.IsSysAdmin;
+                        var selfPayPending = isPendingState && own
+                            && !ApprovalDecideAccessRules.HasPlatformApproveBypass(summary);
                         allItems.Add(new PendingApprovalItemDto
                         {
                             BizType = cfg.BizType,

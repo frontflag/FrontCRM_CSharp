@@ -6,6 +6,13 @@ namespace CRM.Core.Tests.Utilities;
 public class PurchaseDirectorSelfApprovalRulesTests
 {
     [Fact]
+    public void SysManager_Allowed()
+    {
+        Assert.True(PurchaseDirectorSelfApprovalRules.AllowsOwnVendorOrPurchaseOrderDecide(
+            new UserPermissionSummaryDto { IsSysManager = true, IdentityType = 1 }));
+    }
+
+    [Fact]
     public void SysAdmin_Allowed()
     {
         Assert.True(PurchaseDirectorSelfApprovalRules.AllowsOwnVendorOrPurchaseOrderDecide(

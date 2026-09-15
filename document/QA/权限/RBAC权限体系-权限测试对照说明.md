@@ -200,20 +200,23 @@
 
 ## 八、审批自审规则
 
-> 代码实现核对：`CRM.Core/Utilities/SalesDirectorSelfApprovalRules.cs`、`PurchaseDirectorSelfApprovalRules.cs`。
-> - 销售总监可自审条件：`IsSysAdmin == true` OR (`IdentityType == 1` 且角色码含 `DEPT_DIRECTOR`)
-> - 采购总监可自审条件：`IsSysAdmin == true` OR (`IdentityType == 2 或 3` 且角色码含 `DEPT_DIRECTOR`)
-> - 非总监级经理/员工：不可自审（但系统管理员仍可通过 `IsSysAdmin` 自审）
+> 代码实现核对：`ApprovalDecideAccessRules`、`SalesDirectorSelfApprovalRules`、`PurchaseDirectorSelfApprovalRules`。
+> - 平台审批人：`IsSysAdmin == true` OR `IsSysManager == true`（可审全部类型，含本人与付款，不要求业务写权限）
+> - 销售总监可自审条件：平台审批人 OR (`IdentityType == 1` 且角色码含 `DEPT_DIRECTOR`)
+> - 采购总监可自审条件：平台审批人 OR (`IdentityType == 2 或 3` 且角色码含 `DEPT_DIRECTOR`)
+> - 非总监级经理/员工：不可自审
 
 | 用例编号 | 用例标题 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
 |----------|----------|----------|----------|----------|--------|
-| SELF-001 | 系统管理员可自审全部 | 用户 `SYS_ADMIN` 提交自己的待审 | 1. 打开审批桌面 | 显示「审核」，可通过/拒绝 | P0 |
+| SELF-001 | SuperAdmin 可自审全部 | 用户 `SYS_ADMIN` 提交自己的待审 | 1. 打开审批桌面 | 显示「审核」，可通过/拒绝 | P0 |
+| SELF-001b | 产品 Admin 可审全部类型 | 用户 `SYS_MANAGER`（物流主部门、无 `purchase-order.write`） | 1. 打开他人待审采购订单/供应商/付款 | 显示「审核」，可通过/拒绝 | P0 |
+| SELF-001c | 产品 Admin 可自审全部 | 用户 `SYS_MANAGER` 提交自己的待审（含付款） | 1. 打开审批桌面 | 显示「审核」，可通过/拒绝 | P0 |
 | SELF-002 | 销售总监可自审客户/销售订单 | `DEPT_DIRECTOR` + `IdentityType=1` | 1. 提交自己的客户/销售订单<br>2. 打开待审批 | 显示「审核」 | P0 |
-| SELF-003 | 销售总监不可自审供应商/采购订单 | `DEPT_DIRECTOR` + `IdentityType=1` | 1. 提交自己的供应商/采购订单 | 显示「仅查看」；decide 403 | P0 |
+| SELF-003 | 销售总监不可自审供应商/采购订单 | `DEPT_DIRECTOR` + `IdentityType=1`（非 SYS_MANAGER） | 1. 提交自己的供应商/采购订单 | 显示「仅查看」；decide 403 | P0 |
 | SELF-004 | 采购总监可自审供应商/采购订单 | `DEPT_DIRECTOR` + `IdentityType=2/3` | 1. 提交自己的供应商/采购订单 | 显示「审核」 | P0 |
-| SELF-005 | 采购总监不可自审客户/销售订单 | `DEPT_DIRECTOR` + `IdentityType=2/3` | 1. 提交自己的客户/销售订单 | 显示「仅查看」；decide 403 | P0 |
+| SELF-005 | 采购总监不可自审客户/销售订单 | `DEPT_DIRECTOR` + `IdentityType=2/3`（非 SYS_MANAGER） | 1. 提交自己的客户/销售订单 | 显示「仅查看」；decide 403 | P0 |
 | SELF-006 | 经理/员工不可自审 | `DEPT_MANAGER` / `DEPT_EMPLOYEE` | 1. 提交自己的单据 | 显示「仅查看」 | P0 |
-| SELF-007 | 付款不可自审 | 非系统管理员 | 1. 提交自己的付款 | 显示「仅查看」；decide 403 | P0 |
+| SELF-007 | 付款不可自审 | 非 SYS_ADMIN / SYS_MANAGER | 1. 提交自己的付款 | 显示「仅查看」 | P0 |
 | SELF-008 | 无业务 write 权限的总监只能查看 | `DEPT_DIRECTOR` + `IdentityType=1` 但无 `customer.write` | 1. 打开自己的客户待审 | 显示「仅查看」 | P0 |
 | SELF-009 | 已提交单据的采购员换供应商后审批桌面按最新展示 | 采购员修改供应商后 | 1. 打开审批桌面 | 按最新供应商展示（见 [采购订单换供应商-权限测试对照说明](./采购订单换供应商-权限测试对照说明.md)） | P1 |
 
