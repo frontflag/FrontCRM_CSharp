@@ -650,7 +650,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
           <el-table-column :label="t('customsPages.fees.purchaseRatio')" min-width="112" align="right">
             <template #default="{ row }">{{ ratioText(linePurchaseRatio(row)) }}</template>
           </el-table-column>
-          <el-table-column min-width="188" align="right">
+          <el-table-column min-width="176" align="right">
             <template #header>
               <div class="fees-cost-usd-header">
                 <span>{{ t('customsPages.fees.costUsd') }}</span>
@@ -927,8 +927,24 @@ $fees-highlight-text: #78350f;
 }
 
 .fees-cost-usd-mode {
-  width: 88px;
+  width: 72px;
   flex-shrink: 0;
+
+  :deep(.el-select__wrapper) {
+    min-width: 72px;
+    width: 72px;
+    padding: 0 6px 0 8px;
+  }
+
+  :deep(.el-select__selection) {
+    overflow: visible;
+  }
+
+  :deep(.el-select__placeholder),
+  :deep(.el-select__selected-item) {
+    overflow: visible;
+    text-overflow: clip;
+  }
 }
 
 .fees-cost-usd-mode-text {
