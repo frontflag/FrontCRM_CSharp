@@ -1,4 +1,6 @@
 using CRM.Core.Constants;
+using CRM.Core.Utilities;
+using CRM.Infrastructure.Data;
 
 namespace CRM.Infrastructure.PurchaseOrders;
 
@@ -9,6 +11,7 @@ internal static partial class PurchaseOrderItemListFilter
     private const short PoConfirmed = 30;
 
     public static IQueryable<PurchaseOrderItemLineJoin> ApplyQuickFilter(
+        ApplicationDbContext db,
         IQueryable<PurchaseOrderItemLineJoin> q,
         string? quickFilter)
     {
@@ -22,6 +25,8 @@ internal static partial class PurchaseOrderItemListFilter
             PurchaseOrderItemListQuickFilterCodes.PendingVendorConfirm => ApplyPendingVendorConfirm(q),
             PurchaseOrderItemListQuickFilterCodes.PendingSubmitPaymentRequest => ApplyPendingSubmitPaymentRequest(q),
             PurchaseOrderItemListQuickFilterCodes.PendingSubmitArrivalNotify => ApplyPendingSubmitArrivalNotify(q),
+            PurchaseOrderItemListQuickFilterCodes.HasPurchaseOrderDocs => ApplyPurchaseOrderDocs(db, q, hasDocs: true),
+            PurchaseOrderItemListQuickFilterCodes.NoPurchaseOrderDocs => ApplyPurchaseOrderDocs(db, q, hasDocs: false),
             PurchaseOrderItemListQuickFilterCodes.PayLater => ApplyPayLater(q),
             PurchaseOrderItemListQuickFilterCodes.ConfirmedUnpaid => ApplyConfirmedUnpaid(q),
             PurchaseOrderItemListQuickFilterCodes.StockedInUnpaid => ApplyStockedInUnpaid(q),
@@ -59,6 +64,29 @@ internal static partial class PurchaseOrderItemListFilter
         ApplyExcludeCancelled(q).Where(x =>
             x.Po.Status >= PoConfirmed
             && (x.Ext != null ? x.Ext.QtyStockInNotifyNot > 0m : x.Item.Qty > 0m));
+
+    /// <summary>
+    /// 订单头 <c>PURCHASE_ORDER</c> 未删除附件投影到该单全部未取消明细行（与详情「文档」Tab 计数一致）。
+    /// </summary>
+    private static IQueryable<PurchaseOrderItemLineJoin> ApplyPurchaseOrderDocs(
+        ApplicationDbContext db,
+        IQueryable<PurchaseOrderItemLineJoin> q,
+        bool hasDocs)
+    {
+        q = ApplyExcludeCancelled(q);
+        if (hasDocs)
+        {
+            return q.Where(x => db.UploadDocuments.Any(d =>
+                !d.IsDeleted
+                && d.BizType == CrossSideDocumentAttachmentPolicy.BizPurchaseOrder
+                && d.BizId == x.Po.Id));
+        }
+
+        return q.Where(x => !db.UploadDocuments.Any(d =>
+            !d.IsDeleted
+            && d.BizType == CrossSideDocumentAttachmentPolicy.BizPurchaseOrder
+            && d.BizId == x.Po.Id));
+    }
 
     private static IQueryable<PurchaseOrderItemLineJoin> ApplyPayLater(IQueryable<PurchaseOrderItemLineJoin> q) =>
         ApplyExcludeCancelOnly(q).Where(x => x.Po.IsPayLater);

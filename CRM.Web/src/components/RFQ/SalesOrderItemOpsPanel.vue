@@ -57,7 +57,8 @@
 
       <SalesOrderOpsDocumentsCard
         v-if="!maskSensitive && salesOrderId"
-        :sell-order-id="salesOrderId"
+        biz-type="SALES_ORDER"
+        :biz-id="salesOrderId"
       />
 
       <section class="ops-card">

@@ -38,21 +38,30 @@ export function previewMimeForUpload(doc: {
 }
 
 export const SO_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.so-item-ops.docs-expanded'
+export const PO_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.po-item-ops.docs-expanded'
 
-/** 从未写过偏好时视为收起。 */
-export function readSoOpsDocsExpanded(): boolean {
+export function readOpsDocsExpanded(key: string): boolean {
   try {
-    return localStorage.getItem(SO_OPS_DOCS_EXPANDED_STORAGE_KEY) === '1'
+    return localStorage.getItem(key) === '1'
   } catch {
     return false
   }
 }
 
-export function writeSoOpsDocsExpanded(expanded: boolean): void {
+export function writeOpsDocsExpanded(key: string, expanded: boolean): void {
   try {
-    localStorage.setItem(SO_OPS_DOCS_EXPANDED_STORAGE_KEY, expanded ? '1' : '0')
+    localStorage.setItem(key, expanded ? '1' : '0')
   } catch {
     /* ignore quota / private mode */
   }
+}
+
+/** 从未写过偏好时视为收起。 */
+export function readSoOpsDocsExpanded(): boolean {
+  return readOpsDocsExpanded(SO_OPS_DOCS_EXPANDED_STORAGE_KEY)
+}
+
+export function writeSoOpsDocsExpanded(expanded: boolean): void {
+  writeOpsDocsExpanded(SO_OPS_DOCS_EXPANDED_STORAGE_KEY, expanded)
 }
 

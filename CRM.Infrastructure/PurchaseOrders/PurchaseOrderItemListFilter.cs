@@ -163,7 +163,7 @@ internal static partial class PurchaseOrderItemListFilter
             }
         }
 
-        q = ApplyQuickFilter(q, request.QuickFilter);
+        q = ApplyQuickFilter(db, q, request.QuickFilter);
 
         if (PurchaseOrderItemAnalyticsDatasets.IsReportApproved(request.AnalyticsDataset))
             q = ApplyReportViewLens(db, q, request);

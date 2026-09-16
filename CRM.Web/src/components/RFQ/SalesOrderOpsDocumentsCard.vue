@@ -2,15 +2,15 @@
   <section class="ops-card" :class="{ 'ops-card--collapsed': !expanded }">
     <header class="ops-card__head">
       <h3 class="ops-card__title">
-        {{ t('salesOrderItemList.opsPanel.docsTitle') }}
+        {{ t(`${i18nPrefix}.docsTitle`) }}
         <span v-if="loaded && count > 0" class="ops-docs-count">（<span class="ops-docs-count__n">{{ count }}</span>）</span>
-        <span v-else-if="loaded" class="ops-docs-none">{{ t('salesOrderItemList.opsPanel.docsNone') }}</span>
+        <span v-else-if="loaded" class="ops-docs-none">{{ t(`${i18nPrefix}.docsNone`) }}</span>
       </h3>
       <button
         type="button"
         class="ops-card__toggle"
         :aria-expanded="expanded"
-        :aria-label="expanded ? t('salesOrderItemList.opsPanel.docsCollapse') : t('salesOrderItemList.opsPanel.docsExpand')"
+        :aria-label="expanded ? t(`${i18nPrefix}.docsCollapse`) : t(`${i18nPrefix}.docsExpand`)"
         @click="toggleExpanded"
       >
         <el-icon>
@@ -20,9 +20,9 @@
       </button>
     </header>
     <div v-show="expanded" class="ops-card__body ops-card__body--docs">
-      <p v-if="loading" class="ops-docs-empty">{{ t('salesOrderItemList.opsPanel.docsLoading') }}</p>
+      <p v-if="loading" class="ops-docs-empty">{{ t(`${i18nPrefix}.docsLoading`) }}</p>
       <p v-else-if="!docs.length" class="ops-docs-empty">
-        {{ t('salesOrderItemList.opsPanel.docsEmptyExpanded') }}
+        {{ t(`${i18nPrefix}.docsEmptyExpanded`) }}
       </p>
       <ul v-else class="ops-docs-list">
         <li v-for="doc in docs" :key="doc.id">
@@ -52,28 +52,39 @@ import { getApiErrorMessage } from '@/utils/apiError'
 import {
   isInlinePreviewableUpload,
   previewMimeForUpload,
-  readSoOpsDocsExpanded,
-  writeSoOpsDocsExpanded
+  readOpsDocsExpanded,
+  writeOpsDocsExpanded,
+  SO_OPS_DOCS_EXPANDED_STORAGE_KEY
 } from '@/utils/salesOrderOpsDocuments'
 
-const props = defineProps<{
-  sellOrderId: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    bizType: string
+    bizId: string
+    i18nPrefix?: string
+    storageKey?: string
+  }>(),
+  {
+    i18nPrefix: 'salesOrderItemList.opsPanel',
+    storageKey: SO_OPS_DOCS_EXPANDED_STORAGE_KEY
+  }
+)
 
 const { t } = useI18n()
 const docs = ref<UploadDocumentDto[]>([])
 const loading = ref(false)
 const loaded = ref(false)
-const expanded = ref(readSoOpsDocsExpanded())
+const expanded = ref(readOpsDocsExpanded(props.storageKey))
 const previewVisible = ref(false)
 const previewId = ref('')
 const previewMime = ref('')
 
 const count = computed(() => docs.value.length)
+const i18nPrefix = computed(() => props.i18nPrefix)
 
 function toggleExpanded() {
   expanded.value = !expanded.value
-  writeSoOpsDocsExpanded(expanded.value)
+  writeOpsDocsExpanded(props.storageKey, expanded.value)
 }
 
 async function fetchDocs(orderId: string) {
@@ -85,7 +96,7 @@ async function fetchDocs(orderId: string) {
   loading.value = true
   loaded.value = false
   try {
-    const list = await documentApi.getDocuments('SALES_ORDER', orderId)
+    const list = await documentApi.getDocuments(props.bizType, orderId)
     docs.value = Array.isArray(list) ? list : []
   } catch {
     docs.value = []
@@ -96,8 +107,8 @@ async function fetchDocs(orderId: string) {
 }
 
 watch(
-  () => props.sellOrderId,
-  (id) => {
+  () => [props.bizType, props.bizId] as const,
+  ([, id]) => {
     docs.value = []
     loaded.value = false
     void fetchDocs(id)
@@ -114,10 +125,10 @@ async function onOpen(doc: UploadDocumentDto) {
   }
   try {
     await ElMessageBox.confirm(
-      t('salesOrderItemList.opsPanel.docsCannotPreview'),
-      t('salesOrderItemList.opsPanel.docsCannotPreviewTitle'),
+      t(`${props.i18nPrefix}.docsCannotPreview`),
+      t(`${props.i18nPrefix}.docsCannotPreviewTitle`),
       {
-        confirmButtonText: t('salesOrderItemList.opsPanel.docsDownload'),
+        confirmButtonText: t(`${props.i18nPrefix}.docsDownload`),
         cancelButtonText: t('common.cancel'),
         type: 'warning'
       }
@@ -128,7 +139,7 @@ async function onOpen(doc: UploadDocumentDto) {
   try {
     await documentApi.downloadDocument(doc.id, doc.originalFileName)
   } catch (e: unknown) {
-    ElMessage.error(getApiErrorMessage(e, t('salesOrderItemList.opsPanel.docsDownloadFailed')))
+    ElMessage.error(getApiErrorMessage(e, t(`${props.i18nPrefix}.docsDownloadFailed`)))
   }
 }
 </script>

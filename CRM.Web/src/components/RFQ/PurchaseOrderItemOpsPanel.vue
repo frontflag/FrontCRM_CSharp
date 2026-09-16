@@ -55,6 +55,14 @@
         </div>
       </section>
 
+      <SalesOrderOpsDocumentsCard
+        v-if="!maskSensitive && purchaseOrderId"
+        biz-type="PURCHASE_ORDER"
+        :biz-id="purchaseOrderId"
+        i18n-prefix="purchaseOrderItemList.opsPanel"
+        :storage-key="PO_OPS_DOCS_EXPANDED_STORAGE_KEY"
+      />
+
       <section class="ops-card">
         <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('purchaseOrderItemList.opsPanel.overviewTitle') }}</h3>
@@ -224,6 +232,8 @@ import { purchaseOrderMainStatusLabel, purchaseOrderMainStatusAwaitingVendorConf
 import { DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import OpsGeneratedDocsRow from '@/components/Common/OpsGeneratedDocsRow.vue'
+import SalesOrderOpsDocumentsCard from '@/components/RFQ/SalesOrderOpsDocumentsCard.vue'
+import { PO_OPS_DOCS_EXPANDED_STORAGE_KEY } from '@/utils/salesOrderOpsDocuments'
 
 const props = defineProps<{
   row: Record<string, unknown> | null

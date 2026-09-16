@@ -768,8 +768,10 @@ public static class ExportOperationAudit
                 or PurchaseOrderItemListQuickFilterCodes.PendingSubmitAudit => "待提交审核",
             SellOrderItemListQuickFilterCodes.PendingSubmitPurchaseReq => "待提交采购申请",
             SellOrderItemListQuickFilterCodes.PendingSubmitStockOutNotify => "待提交出库通知",
-            SellOrderItemListQuickFilterCodes.HasSalesOrderDocs => "有上传文档",
-            SellOrderItemListQuickFilterCodes.NoSalesOrderDocs => "未上传文档",
+            SellOrderItemListQuickFilterCodes.HasSalesOrderDocs
+                or PurchaseOrderItemListQuickFilterCodes.HasPurchaseOrderDocs => "有上传文档",
+            SellOrderItemListQuickFilterCodes.NoSalesOrderDocs
+                or PurchaseOrderItemListQuickFilterCodes.NoPurchaseOrderDocs => "未上传文档",
             SellOrderItemListQuickFilterCodes.AppliedPendingPo => "已申请待下采购",
             SellOrderItemListQuickFilterCodes.PurchasedPendingStockIn => "已采购待入库",
             SellOrderItemListQuickFilterCodes.NotifyPendingPacking => "已通知待装箱",

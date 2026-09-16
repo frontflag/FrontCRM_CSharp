@@ -16,6 +16,8 @@ export const PO_ITEM_QUICK_FILTER_PRESET_IDS = [
   'pending_vendor_confirm',
   'pending_submit_payment_request',
   'pending_submit_arrival_notify',
+  'has_purchase_order_docs',
+  'no_purchase_order_docs',
   'pay_later',
   'confirmed_unpaid',
   'stocked_in_unpaid',

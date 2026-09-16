@@ -7,6 +7,10 @@ public static class PurchaseOrderItemListQuickFilterCodes
     public const string PendingVendorConfirm = "pending_vendor_confirm";
     public const string PendingSubmitPaymentRequest = "pending_submit_payment_request";
     public const string PendingSubmitArrivalNotify = "pending_submit_arrival_notify";
+
+    public const string HasPurchaseOrderDocs = "has_purchase_order_docs";
+    public const string NoPurchaseOrderDocs = "no_purchase_order_docs";
+
     public const string PayLater = "pay_later";
     public const string ConfirmedUnpaid = "confirmed_unpaid";
     public const string StockedInUnpaid = "stocked_in_unpaid";
@@ -24,6 +28,8 @@ public static class PurchaseOrderItemListQuickFilterCodes
             or PendingVendorConfirm
             or PendingSubmitPaymentRequest
             or PendingSubmitArrivalNotify
+            or HasPurchaseOrderDocs
+            or NoPurchaseOrderDocs
             or PayLater
             or ConfirmedUnpaid
             or StockedInUnpaid

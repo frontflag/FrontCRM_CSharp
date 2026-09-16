@@ -28,6 +28,11 @@ const todoPresets = [
   'pending_submit_arrival_notify'
 ] as const satisfies readonly PoItemListPresetId[]
 
+const documentPresets = [
+  'has_purchase_order_docs',
+  'no_purchase_order_docs'
+] as const satisfies readonly PoItemListPresetId[]
+
 const paymentPresets = [
   'pay_later',
   'confirmed_unpaid',
@@ -80,6 +85,22 @@ function onPresetClick(id: PoItemListPresetId) {
       <h4 class="po-item-search-panel__group-title">{{ t('purchaseOrderItemList.searchPanel.groups.todo') }}</h4>
       <ul class="po-item-search-panel__list">
         <li v-for="id in todoPresets" :key="id">
+          <button
+            type="button"
+            class="po-item-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="po-item-search-panel__group">
+      <h4 class="po-item-search-panel__group-title">{{ t('purchaseOrderItemList.searchPanel.groups.docs') }}</h4>
+      <ul class="po-item-search-panel__list">
+        <li v-for="id in documentPresets" :key="id">
           <button
             type="button"
             class="po-item-search-panel__item"
