@@ -1,3 +1,4 @@
+using CRM.Core.Interfaces;
 using CRM.Core.Services;
 using CRM.Core.Utilities;
 using Xunit;
@@ -63,6 +64,21 @@ public class CustomsFeeCalculatorTests
         Assert.Equal(269.10m, result.CustomsAgencyFee);
         Assert.Equal(9259.04m, result.TotalValueTax);
         Assert.Equal(92.5904m, result.TaxIncludedUnitPrice);
+    }
+
+    [Fact]
+    public void CalculateLineFromManualCostUsd_OtherFeeFullyEntersP1_InspectionExcluded()
+    {
+        CustomsFeeLineResult Line(decimal otherFee, decimal inspectionFee) =>
+            _calc.CalculateLineFromManualCostUsd(
+                10.5m, 7.2m, 100, 0.05m, 0.13m, 1.03m, otherFee, inspectionFee);
+
+        var none = Line(0m, 0m);
+        var other = Line(100m, 0m);
+        var both = Line(100m, 50m);
+        Assert.Equal(none.TotalValueTax + 100m, other.TotalValueTax);
+        Assert.Equal(other.TotalValueTax, both.TotalValueTax);
+        Assert.Equal(other.TaxIncludedUnitPrice, both.TaxIncludedUnitPrice);
     }
 
     [Fact]

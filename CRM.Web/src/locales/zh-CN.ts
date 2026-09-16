@@ -487,11 +487,13 @@ const zhCN = {
       recalculateOkWithDownstream:
         '费用已重算，并已回写到货通知 {notices}、入库明细 {stockIns}、库存 {layers}',
       saveOk: '费用已保存',
-      alertLockedPartial: '费用已锁定（已结关），仅可修改杂费与商检费；修改杂费后将重算价税总额',
+      alertLockedPartial: '费用已锁定（已结关），仅可修改杂费与商检费；修改杂费后将重算价税总额并回写到货、入库与库存',
       alertLockedAdminCostUsd:
-        '费用已锁定（已结关）。系统管理员或平台管理员可将采购美金价改为手工并保存，以更正历史数据并刷新下游成本。',
+        '费用已锁定（已结关）。系统管理员或平台管理员可将采购美金价改为手工并保存，以更正历史数据并刷新下游成本。杂费变化同样会刷新下游。',
       alertCompletedAdminCostUsd:
-        '报关单已完成。系统管理员或平台管理员仍可将采购美金价改为手工并保存，以更正历史数据并刷新下游成本。',
+        '报关单已完成。管理员可以将采购美金价改为手工后修改；也可补录杂费、商检费。系统会自动刷新下游数据。（修改后需要点击“保存”按钮）',
+      validateOtherFeeNegative: '杂费不能为负数',
+      validateInspectionFeeNegative: '商检费不能为负数',
       changeLogs: '变更日志',
       changeLogEmpty: '暂无采购美金价变更记录',
       colChangedAt: '时间',

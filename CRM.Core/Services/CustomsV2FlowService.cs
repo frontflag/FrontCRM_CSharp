@@ -757,63 +757,59 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             throw new InvalidOperationException("报关单已作废。");
 
         var touchesCostUsd = patch.CostUsd.HasValue || patch.CostUsdManual.HasValue;
+        var touchesFooter = patch.OtherFee.HasValue || patch.InspectionFee.HasValue;
+        var touchesCore = patch.HsCode != null
+            || patch.DeclareQty.HasValue
+            || patch.DeclareUnitPrice.HasValue
+            || patch.DutyRate.HasValue
+            || patch.VatRate.HasValue;
+
         if (dec.InternalStatus == CustomsDeclarationInternalStatus.Completed)
         {
-            CustomsLockedCostUsdCorrection.EnsureCanChangeCostUsd(
-                feesLocked: false,
-                canCorrectLockedCostUsd,
-                completed: true);
-            var touchesOther = patch.HsCode != null
-                || patch.DeclareQty.HasValue
-                || patch.DeclareUnitPrice.HasValue
-                || patch.DutyRate.HasValue
-                || patch.VatRate.HasValue
-                || patch.OtherFee.HasValue
-                || patch.InspectionFee.HasValue;
-            if (touchesOther || !touchesCostUsd)
+            if (touchesCore || (!touchesFooter && !touchesCostUsd))
                 throw new InvalidOperationException("已完成报关单不能修改明细。");
-
-            if (await ApplyCostUsdPatchAsync(dec, row, patch, actingUserId) && dec.ExchangeRate > 0m)
+            if (touchesCostUsd)
             {
-                row.ModifyTime = DateTime.UtcNow;
-                await _declarationItemRepo.UpdateAsync(row);
-                await _unitOfWork.SaveChangesAsync();
-                await RecalculateDeclarationFeesAsync(dec.Id, actingUserId, canCorrectLockedCostUsd: true, cancellationToken);
+                CustomsLockedCostUsdCorrection.EnsureCanChangeCostUsd(
+                    feesLocked: false,
+                    canCorrectLockedCostUsd,
+                    completed: true);
             }
 
+            if (touchesFooter)
+                CustomsLockedCostUsdCorrection.EnsureCanChangeFooterFees(true, canCorrectLockedCostUsd);
+
+            var footer = await ApplyFooterFeePatchAsync(dec, row, patch, actingUserId);
+            var costUsdChanged = false;
+            if (touchesCostUsd)
+                costUsdChanged = await ApplyCostUsdPatchAsync(dec, row, patch, actingUserId);
+            if (!footer.OtherChanged && !footer.InspectionChanged && !costUsdChanged)
+                return;
+
+            row.ModifyTime = DateTime.UtcNow;
+            await _declarationItemRepo.UpdateAsync(row);
+            await _unitOfWork.SaveChangesAsync();
+            if (dec.ExchangeRate > 0m)
+                await RecalculateDeclarationFeesAsync(dec.Id, actingUserId, canCorrectLockedCostUsd: true, cancellationToken);
             return;
         }
 
         if (dec.FeesLocked)
         {
-            var touchesCore = patch.HsCode != null
-                || patch.DeclareQty.HasValue
-                || patch.DeclareUnitPrice.HasValue
-                || patch.DutyRate.HasValue
-                || patch.VatRate.HasValue;
             if (touchesCore)
                 throw new InvalidOperationException("报关费用已锁定，仅可修改杂费、商检费或由管理员更正采购美金价。");
             if (touchesCostUsd)
                 CustomsLockedCostUsdCorrection.EnsureCanChangeCostUsd(true, canCorrectLockedCostUsd);
 
-            var footerChanged = false;
-            if (patch.OtherFee.HasValue)
-            {
-                row.OtherFee = patch.OtherFee.Value;
-                footerChanged = true;
-            }
-
-            if (patch.InspectionFee.HasValue)
-                row.InspectionFee = patch.InspectionFee.Value;
-
+            var footer = await ApplyFooterFeePatchAsync(dec, row, patch, actingUserId);
             var costUsdChanged = false;
             if (touchesCostUsd)
                 costUsdChanged = await ApplyCostUsdPatchAsync(dec, row, patch, actingUserId);
 
-            if (!footerChanged && !patch.InspectionFee.HasValue && !costUsdChanged)
+            if (!footer.OtherChanged && !footer.InspectionChanged && !costUsdChanged)
                 return;
 
-            if (footerChanged && !costUsdChanged)
+            if (footer.OtherChanged && !costUsdChanged)
                 ApplyLineFooterTotals(row);
 
             row.ModifyTime = DateTime.UtcNow;
@@ -832,6 +828,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             dec.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _declarationRepo.UpdateAsync(dec);
             await _unitOfWork.SaveChangesAsync();
+            if (footer.OtherChanged)
+                await CascadeLineInboundCostAsync(row, cancellationToken);
             return;
         }
 
@@ -866,14 +864,9 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             shouldRecalculate = true;
         }
 
-        if (patch.OtherFee.HasValue)
-        {
-            row.OtherFee = patch.OtherFee.Value;
+        var unlockedFooter = await ApplyFooterFeePatchAsync(dec, row, patch, actingUserId);
+        if (unlockedFooter.OtherChanged)
             shouldRecalculate = true;
-        }
-
-        if (patch.InspectionFee.HasValue)
-            row.InspectionFee = patch.InspectionFee.Value;
 
         if (patch.CostUsd.HasValue || patch.CostUsdManual.HasValue)
         {
@@ -1711,6 +1704,73 @@ ORDER BY c.""ChangedAt"" DESC";
         return rows.ToList();
     }
 
+    private async Task CascadeLineInboundCostAsync(
+        CustomsDeclarationItem row,
+        CancellationToken cancellationToken)
+    {
+        if (row.TaxIncludedUnitPrice <= 0m)
+            return;
+        var cascade = await _inboundCostCascade.CascadeDeclarationItemAsync(
+            row.Id,
+            row.TaxIncludedUnitPrice,
+            cancellationToken);
+        if (cascade.ArrivalNotices + cascade.StockInItems + cascade.StockItemLayers > 0)
+            await _unitOfWork.SaveChangesAsync();
+    }
+
+    private async Task<(bool OtherChanged, bool InspectionChanged)> ApplyFooterFeePatchAsync(
+        CustomsDeclaration dec,
+        CustomsDeclarationItem row,
+        CustomsDeclarationItemPatch patch,
+        string? actingUserId)
+    {
+        var otherChanged = false;
+        var inspectionChanged = false;
+        var code = $"{dec.DeclarationCode}-L{row.LineNo}";
+
+        if (patch.OtherFee.HasValue)
+        {
+            if (patch.OtherFee.Value < 0m)
+                throw new InvalidOperationException("杂费不能为负数。");
+            var old = row.OtherFee;
+            if (old != patch.OtherFee.Value)
+            {
+                row.OtherFee = patch.OtherFee.Value;
+                await AppendItemFieldChangeAsync(
+                    row,
+                    code,
+                    "otherFee",
+                    "杂费",
+                    FormatMoney2(old),
+                    FormatMoney2(row.OtherFee),
+                    actingUserId);
+                otherChanged = true;
+            }
+        }
+
+        if (patch.InspectionFee.HasValue)
+        {
+            if (patch.InspectionFee.Value < 0m)
+                throw new InvalidOperationException("商检费不能为负数。");
+            var old = row.InspectionFee;
+            if (old != patch.InspectionFee.Value)
+            {
+                row.InspectionFee = patch.InspectionFee.Value;
+                await AppendItemFieldChangeAsync(
+                    row,
+                    code,
+                    "inspectionFee",
+                    "商检费",
+                    FormatMoney2(old),
+                    FormatMoney2(row.InspectionFee),
+                    actingUserId);
+                inspectionChanged = true;
+            }
+        }
+
+        return (otherChanged, inspectionChanged);
+    }
+
     private async Task<bool> ApplyCostUsdPatchAsync(
         CustomsDeclaration dec,
         CustomsDeclarationItem row,
@@ -1807,6 +1867,8 @@ ORDER BY c.""ChangedAt"" DESC";
     }
 
     private static string FormatCostUsd(decimal value) => value.ToString("0.######");
+
+    private static string FormatMoney2(decimal value) => value.ToString("0.00");
 
     private static void ApplyLineFooterTotals(CustomsDeclarationItem item)
     {

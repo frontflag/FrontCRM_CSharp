@@ -122,9 +122,6 @@ const panelMode = computed<PanelMode>(() => {
 
 const isLockedPartial = computed(() => panelMode.value === 'readonly_locked')
 const isCompletedReadonly = computed(() => panelMode.value === 'readonly_completed')
-const persistCostUsdOnly = computed(
-  () => isCompletedReadonly.value || (isLockedPartial.value && canCorrectLocked.value)
-)
 
 const canMaintainFees = computed(
   () => panelMode.value === 'editable' || panelMode.value === 'blocked_no_p0'
@@ -143,7 +140,11 @@ const canEditCostUsdMode = computed(
 const canEditLineCoreInputs = computed(() => props.canWrite && panelMode.value === 'editable')
 
 const canEditLineFooterInputs = computed(
-  () => props.canWrite && (panelMode.value === 'editable' || panelMode.value === 'readonly_locked')
+  () =>
+    props.canWrite &&
+    (panelMode.value === 'editable' ||
+      panelMode.value === 'readonly_locked' ||
+      (panelMode.value === 'readonly_completed' && canCorrectLocked.value))
 )
 
 const showRecalculateActions = computed(
@@ -348,6 +349,8 @@ function validateDrafts(): string | null {
     if (d.dutyRate < 0) return t('customsPages.fees.validateDutyNegative')
     if (d.dutyRate === 0 && !d.hsCode.trim()) return t('customsPages.fees.validateZeroDutyHs', { line: row.lineNo })
     if (d.vatRate <= 0) return t('customsPages.fees.validateVatPositive', { line: row.lineNo })
+    if (d.otherFee < 0) return t('customsPages.fees.validateOtherFeeNegative')
+    if (d.inspectionFee < 0) return t('customsPages.fees.validateInspectionFeeNegative')
     if (costUsdManual.value && d.costUsdManual && !isValidCustomsCostUsd(d.costUsd)) {
       return t('customsPages.fees.validateCostUsd')
     }
@@ -391,11 +394,13 @@ async function persistDirtyFields(): Promise<void> {
   for (const row of d.items ?? []) {
     const draft = rowDraft(row)
     const patch: Parameters<typeof patchCustomsDeclarationItem>[1] = {}
-    if (!persistCostUsdOnly.value) {
+    if (canEditLineCoreInputs.value) {
       const hs = draft.hsCode.trim()
       if (hs !== (row.hsCode ?? '').trim()) patch.hsCode = hs || null
       if (Math.abs(draft.dutyRate - Number(row.dutyRate ?? 0)) > 0.000001) patch.dutyRate = draft.dutyRate
       if (Math.abs(draft.vatRate - Number(row.vatRate ?? 0.13)) > 0.000001) patch.vatRate = draft.vatRate
+    }
+    if (canEditLineFooterInputs.value) {
       if (Math.abs(draft.otherFee - Number(row.otherFee ?? 0)) > 0.000001) patch.otherFee = draft.otherFee
       if (Math.abs(draft.inspectionFee - Number(row.inspectionFee ?? 0)) > 0.000001) {
         patch.inspectionFee = draft.inspectionFee
@@ -645,19 +650,27 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
           <el-table-column :label="t('customsPages.fees.purchaseRatio')" min-width="112" align="right">
             <template #default="{ row }">{{ ratioText(linePurchaseRatio(row)) }}</template>
           </el-table-column>
-          <el-table-column min-width="168" align="right">
+          <el-table-column min-width="188" align="right">
             <template #header>
               <div class="fees-cost-usd-header">
                 <span>{{ t('customsPages.fees.costUsd') }}</span>
-                <el-radio-group
+                <el-select
                   v-if="canEditCostUsdMode"
                   v-model="costUsdMode"
                   size="small"
                   class="fees-cost-usd-mode"
+                  teleported
                 >
-                  <el-radio-button value="system">{{ t('customsPages.fees.costUsdModeSystem') }}</el-radio-button>
-                  <el-radio-button value="manual">{{ t('customsPages.fees.costUsdModeManual') }}</el-radio-button>
-                </el-radio-group>
+                  <el-option :label="t('customsPages.fees.costUsdModeSystem')" value="system" />
+                  <el-option :label="t('customsPages.fees.costUsdModeManual')" value="manual" />
+                </el-select>
+                <span v-else-if="!maskPurchase" class="fees-cost-usd-mode-text">
+                  {{
+                    costUsdManual
+                      ? t('customsPages.fees.costUsdModeManual')
+                      : t('customsPages.fees.costUsdModeSystem')
+                  }}
+                </span>
               </div>
             </template>
             <template #default="{ row }">
@@ -729,41 +742,33 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
           <el-table-column :label="t('customsPages.items.colAgency')" min-width="128" align="right">
             <template #default="{ row }">{{ moneyText(row.customsAgencyFee) }}</template>
           </el-table-column>
-          <el-table-column :label="t('customsPages.items.colOther')" min-width="156" align="right">
+          <el-table-column :label="t('customsPages.items.colOther')" min-width="140" align="right">
             <template #default="{ row }">
-              <span
-                v-if="canEditLineFooterInputs && (!rowMissingP0(row) || isLockedPartial)"
-                class="fees-footer-fee-row"
-              >
-                <el-input-number
-                  v-model="rowDraft(row).otherFee"
-                  size="small"
-                  :precision="2"
-                  :step="1"
-                  controls-position="right"
-                  class="fees-input-number fees-input-number--footer fees-field-highlight"
-                />
-                <span class="fees-footer-fee-row__text">{{ moneyText(rowDraft(row).otherFee) }}</span>
-              </span>
+              <el-input-number
+                v-if="canEditLineFooterInputs && (!rowMissingP0(row) || isLockedPartial || isCompletedReadonly)"
+                v-model="rowDraft(row).otherFee"
+                size="small"
+                :precision="2"
+                :min="0"
+                :step="1"
+                :controls="false"
+                class="fees-input-number fees-input-number--footer fees-field-highlight"
+              />
               <span v-else>{{ moneyText(row.otherFee) }}</span>
             </template>
           </el-table-column>
-          <el-table-column :label="t('customsPages.items.colInspection')" min-width="156" align="right">
+          <el-table-column :label="t('customsPages.items.colInspection')" min-width="140" align="right">
             <template #default="{ row }">
-              <span
-                v-if="canEditLineFooterInputs && (!rowMissingP0(row) || isLockedPartial)"
-                class="fees-footer-fee-row"
-              >
-                <el-input-number
-                  v-model="rowDraft(row).inspectionFee"
-                  size="small"
-                  :precision="2"
-                  :step="1"
-                  controls-position="right"
-                  class="fees-input-number fees-input-number--footer fees-field-highlight"
-                />
-                <span class="fees-footer-fee-row__text">{{ moneyText(rowDraft(row).inspectionFee) }}</span>
-              </span>
+              <el-input-number
+                v-if="canEditLineFooterInputs && (!rowMissingP0(row) || isLockedPartial || isCompletedReadonly)"
+                v-model="rowDraft(row).inspectionFee"
+                size="small"
+                :precision="2"
+                :min="0"
+                :step="1"
+                :controls="false"
+                class="fees-input-number fees-input-number--footer fees-field-highlight"
+              />
               <span v-else>{{ moneyText(row.inspectionFee) }}</span>
             </template>
           </el-table-column>
@@ -914,14 +919,21 @@ $fees-highlight-text: #78350f;
 
 .fees-cost-usd-header {
   display: inline-flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
   white-space: nowrap;
 }
 
 .fees-cost-usd-mode {
+  width: 88px;
   flex-shrink: 0;
+}
+
+.fees-cost-usd-mode-text {
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
 }
 
 .fees-lines-wrap {
@@ -944,6 +956,7 @@ $fees-highlight-text: #78350f;
   .el-table__body-wrapper td.el-table__cell .cell,
   .el-table__fixed-body-wrapper td.el-table__cell .cell {
     white-space: nowrap;
+    overflow: visible;
   }
 }
 
@@ -994,40 +1007,21 @@ $fees-highlight-text: #78350f;
   }
 }
 
-.fees-footer-fee-row {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  width: 100%;
-  min-width: max-content;
-}
-
 .fees-input-number--footer {
-  flex: 0 0 auto;
-  width: auto;
-  min-width: 104px;
-  max-width: none;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
 
   :deep(.el-input__wrapper) {
-    padding-left: 8px;
-    padding-right: 4px;
+    padding-left: 8px !important;
+    padding-right: 14px !important;
   }
 
   :deep(.el-input__inner) {
-    text-align: right;
-    overflow: visible;
+    text-align: right !important;
+    padding-right: 8px !important;
+    box-sizing: border-box;
   }
-}
-
-.fees-footer-fee-row__text {
-  flex: 0 0 auto;
-  min-width: 4.5em;
-  text-align: right;
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-  font-size: 13px;
-  color: $text-secondary;
 }
 
 :deep(.fees-row--no-p0) {

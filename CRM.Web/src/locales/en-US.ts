@@ -489,11 +489,13 @@ const enUS = {
       recalculateOkWithDownstream:
         'Fees recalculated; updated arrival notices {notices}, inbound lines {stockIns}, stock layers {layers}',
       saveOk: 'Fees saved',
-      alertLockedPartial: 'Fees locked after clearance; only other/inspection fees editable. Other fee changes recalculate line totals.',
+      alertLockedPartial: 'Fees locked after clearance; only other/inspection fees editable. Other fee changes recalculate line totals and refresh arrival, inbound, and stock cost.',
       alertLockedAdminCostUsd:
-        'Fees are locked after clearance. System or platform admins can switch Cost (USD) to Manual and save to correct historical data and refresh downstream cost.',
+        'Fees are locked after clearance. System or platform admins can switch Cost (USD) to Manual and save to correct historical data and refresh downstream cost. Other fee changes also refresh downstream cost.',
       alertCompletedAdminCostUsd:
-        'This declaration is completed. System or platform admins can still switch Cost (USD) to Manual and save to correct historical data and refresh downstream cost.',
+        'This declaration is completed. Admins can switch Cost (USD) to Manual and edit it, or add other/inspection fees. Downstream data is refreshed automatically. (Click Save after making changes.)',
+      validateOtherFeeNegative: 'Other fee cannot be negative',
+      validateInspectionFeeNegative: 'Inspection fee cannot be negative',
       changeLogs: 'Change log',
       changeLogEmpty: 'No Cost (USD) changes yet',
       colChangedAt: 'Time',

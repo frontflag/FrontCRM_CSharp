@@ -51,6 +51,26 @@ public class CustomsLockedCostUsdCorrectionTests
     }
 
     [Fact]
+    public void Completed_Admin_AllowsFooterFees()
+    {
+        CustomsLockedCostUsdCorrection.EnsureCanChangeFooterFees(true, true);
+    }
+
+    [Fact]
+    public void Completed_NonAdmin_CannotChangeFooterFees()
+    {
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            CustomsLockedCostUsdCorrection.EnsureCanChangeFooterFees(true, false));
+        Assert.Equal(CustomsLockedCostUsdCorrection.CompletedFooterForbiddenMessage, ex.Message);
+    }
+
+    [Fact]
+    public void NotCompleted_Anyone_CanChangeFooterFeesGate()
+    {
+        CustomsLockedCostUsdCorrection.EnsureCanChangeFooterFees(false, false);
+    }
+
+    [Fact]
     public void Locked_NonAdmin_CannotRecalculate()
     {
         var ex = Assert.Throws<InvalidOperationException>(() =>
