@@ -47,15 +47,28 @@
                 <div class="so-item-flow-kv">
                   <div class="so-item-flow-kv__cell">
                     <span class="so-item-flow-kv__label">{{ t('salesOrderItemList.flowPanel.fields.docNo') }}：</span>
-                    <span class="so-item-flow-kv__value">
-                      <router-link
-                        v-if="card.docRoute && !maskSensitive"
-                        class="link-text"
-                        :to="toRouteLocation(card.docRoute)"
-                      >
-                        {{ card.docNo }}
-                      </router-link>
-                      <template v-else>{{ card.docNo }}</template>
+                    <span
+                      class="so-item-flow-kv__value"
+                      :class="{ 'so-item-flow-kv__value--with-icon': card.showCustomsIcon }"
+                    >
+                      <span class="so-item-flow-docno">
+                        <router-link
+                          v-if="card.docRoute && !maskSensitive"
+                          class="link-text"
+                          :to="toRouteLocation(card.docRoute)"
+                        >
+                          {{ card.docNo }}
+                        </router-link>
+                        <template v-else>{{ card.docNo }}</template>
+                      </span>
+                      <CustomsDeclarationIconLink
+                        v-if="card.showCustomsIcon"
+                        :declaration-id="card.customsDeclarationId"
+                        :declaration-code="card.customsDeclarationCode"
+                        :broker-name="card.brokerName"
+                        show-pending
+                        open-in-new-tab
+                      />
                     </span>
                   </div>
                   <div class="so-item-flow-kv__cell">
@@ -124,6 +137,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
+import CustomsDeclarationIconLink from '@/components/Customs/CustomsDeclarationIconLink.vue'
 import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'

@@ -30,7 +30,7 @@
 ### 3.1 适用
 
 - `CrmDataTable` 业务单据列表中的「客户」列（销售、采购、库存、物流、财务等）。
-- **已接入试点**：`CRM.Web/src/views/Inventory/StockOutList.vue`（`/inventory/stock-out`）。
+- **已接入：** `StockOutList.vue`（`/inventory/stock-out`）、`StockOutItemList.vue`（`/inventory/stock-out/items`）。
 
 ### 3.2 豁免
 

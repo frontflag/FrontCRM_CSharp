@@ -243,7 +243,7 @@
       v-show="viewMode === 'list'"
       ref="dataTableRef"
       class="stockout-item-list-crm-table"
-      column-layout-key="stock-out-item-list-main-v2"
+      column-layout-key="stock-out-item-list-main-v3"
       :columns="stockOutItemTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -311,8 +311,19 @@
           </span>
         </template>
       </template>
-      <template #col-customerName="{ row }">
-        {{ maskSaleSensitiveFields ? '—' : row.customerName || t('quoteList.na') }}
+      <template #col-customer-header>
+        <CustomerExtendColumnHeader
+          :active-field="customerExtendActiveField"
+          @set-active-field="setCustomerExtendActiveField"
+        />
+      </template>
+      <template #col-customer="{ row }">
+        <CustomerExtendCell
+          :row="row"
+          :active-field="customerExtendActiveField"
+          :masked="maskSaleSensitiveFields"
+          :empty-text="t('quoteList.na')"
+        />
       </template>
       <template #col-salesUserName="{ row }">
         {{ maskSaleSensitiveFields ? '—' : row.salesUserName || t('quoteList.na') }}
@@ -392,6 +403,9 @@ import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
 import CustomsExtendCell from '@/components/list/CustomsExtendCell.vue'
 import { useCustomsExtendColumn, isCustomsExtendTableColumn } from '@/composables/useCustomsExtendColumn'
+import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
+import CustomerExtendCell from '@/components/list/CustomerExtendCell.vue'
+import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composables/useCustomerExtendColumn'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
@@ -490,6 +504,14 @@ function shipmentMethodDisplay(code?: string | number | null): string {
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
 const {
+  expanded: customerExtendExpanded,
+  activeField: customerExtendActiveField,
+  colWidth: customerExtendColWidth,
+  colMinWidth: customerExtendColMinWidth,
+  setActiveField: setCustomerExtendActiveField,
+  applyOuterWidthFromTable: applyCustomerExtendOuterWidth
+} = useCustomerExtendColumn()
+const {
   expanded: customsExtendExpanded,
   activeField: customsExtendActiveField,
   colWidth: customsExtendColWidth,
@@ -503,14 +525,23 @@ function onStockOutItemTableHeaderDragEnd(
   _oldWidth: number,
   column: { property?: string; label?: string }
 ) {
+  if (isCustomerExtendTableColumn(column)) {
+    applyCustomerExtendOuterWidth(newWidth)
+    return
+  }
   if (isCustomsExtendTableColumn(column)) applyCustomsExtendOuterWidth(newWidth)
 }
 
 const stockOutItemTableColumns = computed<CrmTableColumnDef[]>(() => {
+  void customerExtendExpanded.value
+  void customerExtendColWidth.value
   void customsExtendExpanded.value
   void customsExtendColWidth.value
   return buildStockOutItemListColumns({
     t,
+    withCustomerExtend: true,
+    customerExtendColWidth: customerExtendColWidth.value,
+    customerExtendColMinWidth: customerExtendColMinWidth.value,
     customsExtendColWidth: customsExtendColWidth.value,
     customsExtendColMinWidth: customsExtendColMinWidth.value
   })

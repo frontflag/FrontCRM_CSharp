@@ -74,6 +74,8 @@ declare module 'vue' {
     DetailListPanelEmpty: typeof import('./src/components/Common/DetailListPanelEmpty.vue')['default']
     DockQuoteExtendCell: typeof import('./src/components/list/DockQuoteExtendCell.vue')['default']
     DockQuoteExtendColumnHeader: typeof import('./src/components/list/DockQuoteExtendColumnHeader.vue')['default']
+    DockQuotePackagingExtendCell: typeof import('./src/components/list/DockQuotePackagingExtendCell.vue')['default']
+    DockQuotePackagingExtendColumnHeader: typeof import('./src/components/list/DockQuotePackagingExtendColumnHeader.vue')['default']
     DocumentListPanel: typeof import('./src/components/Document/DocumentListPanel.vue')['default']
     DocumentPreviewDialog: typeof import('./src/components/Document/DocumentPreviewDialog.vue')['default']
     DocumentUploadPanel: typeof import('./src/components/Document/DocumentUploadPanel.vue')['default']

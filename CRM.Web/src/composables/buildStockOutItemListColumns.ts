@@ -6,6 +6,9 @@ export type BuildStockOutItemListColumnsParams = {
   t: (key: string, ...args: unknown[]) => string
   customsExtendColWidth?: number
   customsExtendColMinWidth?: number
+  withCustomerExtend?: boolean
+  customerExtendColWidth?: number
+  customerExtendColMinWidth?: number
 }
 
 /** 与 `StockOutItemList.vue` 主表列一致；表头宽按《列表字段宽度规范》§3.3 估算。 */
@@ -19,8 +22,9 @@ export function buildStockOutItemListColumns(p: BuildStockOutItemListColumnsPara
   const itemCodeMin = headerMin('stockOutItemList.columns.stockOutItemCode')
   const sellLineMin = headerMin('stockOutItemList.columns.sellOrderItemCode')
   const ffMin = headerMin('common.freightForwarderOrderNo')
+  const withCustomerExtend = p.withCustomerExtend !== false
 
-  return [
+  const cols: CrmTableColumnDef[] = [
     {
       key: 'status',
       label: p.t('stockOutItemList.columns.status'),
@@ -79,14 +83,31 @@ export function buildStockOutItemListColumns(p: BuildStockOutItemListColumnsPara
       prop: 'stockOutDate',
       width: Math.max(118, headerMin('stockOutItemList.columns.stockOutDate')),
       minWidth: headerMin('stockOutItemList.columns.stockOutDate')
-    },
-    {
+    }
+  ]
+
+  if (withCustomerExtend) {
+    cols.push({
+      key: 'customer',
+      label: p.t('common.customerExtendCol.columnTitle'),
+      prop: 'customer',
+      minWidth: p.customerExtendColMinWidth ?? 140,
+      width: p.customerExtendColWidth ?? 140,
+      showOverflowTooltip: true,
+      className: 'customer-extend-col',
+      labelClassName: 'customer-extend-col'
+    })
+  } else {
+    cols.push({
       key: 'customerName',
       label: p.t('stockOutItemList.columns.customerName'),
       prop: 'customerName',
       minWidth: Math.max(120, headerMin('stockOutItemList.columns.customerName')),
       showOverflowTooltip: true
-    },
+    })
+  }
+
+  cols.push(
     {
       key: 'salesUserName',
       label: p.t('stockOutItemList.columns.salesUserName'),
@@ -151,5 +172,7 @@ export function buildStockOutItemListColumns(p: BuildStockOutItemListColumnsPara
       minWidth: sellLineMin,
       showOverflowTooltip: true
     }
-  ]
+  )
+
+  return cols
 }

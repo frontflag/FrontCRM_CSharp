@@ -1,6 +1,7 @@
 type QuoteAccessUser = {
   id?: string
   isSysAdmin?: boolean
+  isSysManager?: boolean
   identityType?: number
   roleCodes?: string[]
   purchaseDataScope?: number
@@ -46,25 +47,34 @@ export function canParticipateInRfqQuoteProtectionPool(
   return user.belongsToPurchaseDept === true
 }
 
+function isSysAdminOrManager(user: QuoteAccessUser | null | undefined): boolean {
+  if (!user) return false
+  if (user.isSysAdmin === true || user.isSysManager === true) return true
+  return (user.roleCodes ?? []).some((r) => {
+    const code = String(r).trim().toUpperCase()
+    return code === 'SYS_ADMIN' || code === 'SYS_MANAGER'
+  })
+}
+
 /**
  * 账号是否具备报价作业入口（「进入报价桌面」）：
- * 超管 / 采购总监 / 可参与保护到期池的采购员。
- * 平台 Admin（仅 SYS_MANAGER、非采购侧）无权报价 → 不展示入口。
+ * 超管 / 产品 Admin（SYS_MANAGER）/ 采购总监 / 可参与保护到期池的采购员。
+ * 纯业务账号（非采购侧、非 SYS_MANAGER）不展示入口。
  */
 export function canAccessQuoteDesktop(user: QuoteAccessUser | null | undefined): boolean {
   if (!user) return false
-  if (user.isSysAdmin === true) return true
+  if (isSysAdminOrManager(user)) return true
   if (isPurchaseDepartmentDirector(user)) return true
   return canParticipateInRfqQuoteProtectionPool(user)
 }
 
-/** 需求明细列表「报价」：系统管理员、采购总监、或该行分配的报价员。 */
+/** 需求明细列表「报价」：系统管理员、产品 Admin、采购总监、或该行分配的报价员。 */
 export function canQuoteRfqItem(
   user: QuoteAccessUser | null | undefined,
   row: RfqItemQuoteAssignee | null | undefined
 ): boolean {
   if (!user || !row) return false
-  if (user.isSysAdmin === true) return true
+  if (isSysAdminOrManager(user)) return true
   if (isPurchaseDepartmentDirector(user)) return true
   return isAssignedRfqItemQuoter(user.id, row)
 }

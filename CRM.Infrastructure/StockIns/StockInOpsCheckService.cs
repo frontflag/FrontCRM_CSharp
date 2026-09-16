@@ -314,13 +314,14 @@ public sealed class StockInOpsCheckService : IStockInOpsCheckService
                 var unpostedCodes = OrderSiIds(unpostedIds)
                     .Select(id => OpsCheckDocumentCodes.ForSuggestion(siById[id].StockInCode))
                     .ToList();
+                var hasUnposted = unpostedIds.Count > 0;
                 AddFinding(findings, "error", "chain", "arrivalNotice", notice.Id, notice.NoticeCode,
                     "ArrivalNoticeList", null, null,
-                    unpostedIds.Count > 0 ? "stockIn" : "debug",
-                    unpostedIds.Count > 0 ? unpostedIds[0] : null,
-                    unpostedIds.Count > 0 ? siById[unpostedIds[0]].StockInCode : "Debug",
-                    unpostedIds.Count > 0 ? "StockInDetail" : "DebugData",
-                    unpostedIds.Count > 0 ? Params(unpostedIds[0]) : null,
+                    hasUnposted ? "stockIn" : null,
+                    hasUnposted ? unpostedIds[0] : null,
+                    hasUnposted ? siById[unpostedIds[0]].StockInCode : null,
+                    hasUnposted ? "StockInDetail" : null,
+                    hasUnposted ? Params(unpostedIds[0]) : null,
                     "到货通知状态为已入库，但没有已过账的采购入库单。",
                     StockInOpsCheckSuggestions.Notice100NoPosted(unpostedCodes));
             }

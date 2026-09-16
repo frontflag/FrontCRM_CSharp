@@ -1090,6 +1090,44 @@ namespace CRM.Core.Services
             return result;
         }
 
+        private static void ResolveStockOutItemListCustomerDisplay(
+            StockOut hdr,
+            SellOrder? so,
+            IReadOnlyDictionary<string, CustomerInfo> customerById,
+            out string? customerName,
+            out string? customerEnglishName,
+            out string? customerCode)
+        {
+            customerName = null;
+            customerEnglishName = null;
+            customerCode = null;
+
+            CustomerInfo? cust = null;
+            if (!string.IsNullOrWhiteSpace(hdr.CustomerId)
+                && customerById.TryGetValue(hdr.CustomerId.Trim(), out var custDirect))
+            {
+                cust = custDirect;
+            }
+            else if (so != null && !string.IsNullOrWhiteSpace(so.CustomerId)
+                     && customerById.TryGetValue(so.CustomerId.Trim(), out var custFromOrder))
+            {
+                cust = custFromOrder;
+            }
+
+            if (cust != null)
+            {
+                customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
+                customerEnglishName = string.IsNullOrWhiteSpace(cust.EnglishOfficialName)
+                    ? null
+                    : cust.EnglishOfficialName.Trim();
+                customerCode = string.IsNullOrWhiteSpace(cust.CustomerCode) ? null : cust.CustomerCode.Trim();
+                return;
+            }
+
+            if (so != null)
+                customerName = so.CustomerName;
+        }
+
         private static string? ResolveSellOrderSalesLogin(
             SellOrder? so,
             IReadOnlyDictionary<string, string> userLoginById)
@@ -2607,14 +2645,8 @@ namespace CRM.Core.Services
                 if (soLine != null && !string.IsNullOrWhiteSpace(soLine.SellOrderId))
                     orderById.TryGetValue(soLine.SellOrderId.Trim(), out so);
 
-                string? customerName = null;
-                if (!string.IsNullOrWhiteSpace(hdr.CustomerId)
-                    && customerById.TryGetValue(hdr.CustomerId.Trim(), out var cust))
-                {
-                    customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
-                }
-                else if (so != null)
-                    customerName = so.CustomerName;
+                ResolveStockOutItemListCustomerDisplay(
+                    hdr, so, customerById, out var customerName, out var customerEnglishName, out var customerCode);
 
                 if (!TextContainsOptional(customerName, custNeedle))
                     continue;
@@ -2662,6 +2694,8 @@ namespace CRM.Core.Services
                     StockOutItemCode = stockOutItemCode,
                     StockOutDate = hdr.StockOutDate,
                     CustomerName = customerName,
+                    CustomerEnglishName = customerEnglishName,
+                    CustomerCode = customerCode,
                     SalesUserName = salesUserName,
                     PurchasePn = pn,
                     PurchaseBrand = string.IsNullOrWhiteSpace(line.PurchaseBrand) ? null : line.PurchaseBrand.Trim(),
@@ -2867,16 +2901,8 @@ namespace CRM.Core.Services
                 if (soLine != null && !string.IsNullOrWhiteSpace(soLine.SellOrderId))
                     orderById.TryGetValue(soLine.SellOrderId.Trim(), out so);
 
-                string? customerName = null;
-                if (!string.IsNullOrWhiteSpace(hdr.CustomerId)
-                    && customerById.TryGetValue(hdr.CustomerId.Trim(), out var cust))
-                {
-                    customerName = string.IsNullOrWhiteSpace(cust.OfficialName) ? cust.CustomerName : cust.OfficialName;
-                }
-                else if (so != null)
-                {
-                    customerName = so.CustomerName;
-                }
+                ResolveStockOutItemListCustomerDisplay(
+                    hdr, so, customerById, out var customerName, out var customerEnglishName, out var customerCode);
 
                 var salesUserName = ResolveSellOrderSalesLogin(so, userLoginByIdForSo);
                 var sellOrderItemCode = ResolveStockOutLineSellOrderItemCode(extForSell, soLine);
@@ -2914,6 +2940,8 @@ namespace CRM.Core.Services
                         : line.StockOutItemCode.Trim(),
                     StockOutDate = hdr.StockOutDate,
                     CustomerName = customerName,
+                    CustomerEnglishName = customerEnglishName,
+                    CustomerCode = customerCode,
                     SalesUserName = salesUserName,
                     PurchasePn = pn,
                     PurchaseBrand = string.IsNullOrWhiteSpace(line.PurchaseBrand) ? null : line.PurchaseBrand.Trim(),

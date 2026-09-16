@@ -10,7 +10,7 @@
           :key="f"
           class="customs-extend-cell__col"
           :class="{ 'customs-extend-cell__col--icon': f === 'icon' }"
-          :title="fieldTitle(f)"
+          :title="fieldTitle(f) || undefined"
         >
           <template v-if="f === 'icon'">
             <CustomsDeclarationIconLink
@@ -18,7 +18,6 @@
               :declaration-id="declarationId"
               :declaration-code="declarationCode"
             />
-            <span v-else>{{ emptyDisplay }}</span>
           </template>
           <a
             v-else-if="f === 'declarationCode' && declarationHref"
@@ -38,7 +37,7 @@
       <span
         class="customs-extend-cell__value customs-extend-cell__value--single"
         :class="{ 'customs-extend-cell__col--icon': activeField === 'icon' }"
-        :title="fieldTitle(activeField)"
+        :title="fieldTitle(activeField) || undefined"
       >
         <template v-if="activeField === 'icon'">
           <CustomsDeclarationIconLink
@@ -46,7 +45,6 @@
             :declaration-id="declarationId"
             :declaration-code="declarationCode"
           />
-          <span v-else>{{ emptyDisplay }}</span>
         </template>
         <a
           v-else-if="activeField === 'declarationCode' && declarationHref"
@@ -125,7 +123,7 @@ function statusDisplay(): string {
 
 function displayValue(field: CustomsExtendFieldKey): string {
   if (field === 'icon') {
-    return declarationId.value ? '' : emptyDisplay.value
+    return ''
   }
   if (field === 'status') {
     return statusDisplay() || emptyDisplay.value
@@ -138,7 +136,7 @@ function displayValue(field: CustomsExtendFieldKey): string {
 
 function fieldTitle(field: CustomsExtendFieldKey): string {
   if (field === 'icon') {
-    return declarationCode.value || declarationId.value || emptyDisplay.value
+    return declarationCode.value || declarationId.value || ''
   }
   if (field === 'declarationCode') {
     return declarationCode.value || emptyDisplay.value

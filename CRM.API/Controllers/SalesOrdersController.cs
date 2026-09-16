@@ -1307,7 +1307,8 @@ namespace CRM.API.Controllers
                 createUserName = d.CreateUserName,
                 hasBatchEntered = d.HasBatchEntered,
                 customsDeclarationId = d.CustomsDeclarationId,
-                customsDeclarationCode = d.CustomsDeclarationCode
+                customsDeclarationCode = d.CustomsDeclarationCode,
+                customsBrokerName = d.CustomsBrokerName
             }).ToList();
         }
 
@@ -1470,7 +1471,8 @@ namespace CRM.API.Controllers
                 salesStockOutNotifyId = d.SalesStockOutNotifyId,
                 salesStockOutNotifyCode = d.SalesStockOutNotifyCode,
                 customsDeclarationId = d.CustomsDeclarationId,
-                customsDeclarationCode = d.CustomsDeclarationCode
+                customsDeclarationCode = d.CustomsDeclarationCode,
+                customsBrokerName = d.CustomsBrokerName
             }).ToList();
         }
 
@@ -1532,7 +1534,8 @@ namespace CRM.API.Controllers
                 createByUserId = d.CreateByUserId,
                 createUserName = d.CreateUserName,
                 customsDeclarationId = d.CustomsDeclarationId,
-                customsDeclarationCode = d.CustomsDeclarationCode
+                customsDeclarationCode = d.CustomsDeclarationCode,
+                customsBrokerName = d.CustomsBrokerName
             }).ToList();
         }
 

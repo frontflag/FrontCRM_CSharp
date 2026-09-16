@@ -19,6 +19,11 @@ describe('listCustomsExtendColumnSpec', () => {
     expect(pickCustomsBrokerName({ customsBrokerName: '港通报关' })).toBe('港通报关')
   })
 
+  it('无报关单时图标字段为空串，不用横杠占位', () => {
+    expect(pickCustomsExtendFieldValue({}, 'icon')).toBe('')
+    expect(pickCustomsDeclarationId({})).toBe('')
+  })
+
   it('按子字段取值：图标用报关单 Id，单号与公司各自独立', () => {
     const row = {
       customsDeclarationId: 'id-1',

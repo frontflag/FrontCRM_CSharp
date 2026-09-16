@@ -114,6 +114,8 @@ public static class SaleSensitiveFieldMask521
     {
         if (!mask || x == null) return;
         x.CustomerName = null;
+        x.CustomerEnglishName = null;
+        x.CustomerCode = null;
         x.SalesUserName = null;
         x.SalesPrice = null;
         x.SalesCurrency = null;

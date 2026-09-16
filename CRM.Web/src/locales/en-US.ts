@@ -57,6 +57,7 @@ const enUS = {
         broker: 'Customs broker',
         status: 'Customs status'
       },
+      pendingDeclaration: 'Customs declaration not generated yet',
       fieldShort: {
         icon: 'Icon',
         declarationCode: 'Declaration no.',
@@ -120,6 +121,23 @@ const enUS = {
       freeShipping: {
         yes: 'Free',
         no: 'No'
+      }
+    },
+    dockQuotePackagingExtendCol: {
+      columnTitle: 'Stock / pack',
+      expand: 'Expand stock / pack column',
+      collapse: 'Collapse stock / pack column',
+      pickField: 'Choose field to display',
+      resizeSubCol: 'Drag to resize sub-column',
+      fields: {
+        stock: 'Stock',
+        minPackage: 'Min. pack',
+        moq: 'MOQ'
+      },
+      fieldShort: {
+        stock: 'Stock',
+        minPackage: 'Pack',
+        moq: 'MOQ'
       }
     },
     save: 'Save',

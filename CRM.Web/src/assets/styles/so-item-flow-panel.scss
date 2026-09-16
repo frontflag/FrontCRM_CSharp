@@ -236,10 +236,20 @@ $flow-status-done: #67c23a;
   &--with-icon {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    justify-content: flex-start;
+    gap: 4px;
     flex-wrap: nowrap;
     max-width: 100%;
+    overflow: hidden;
   }
+}
+
+.so-item-flow-docno {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .so-item-flow-customs-icon-wrap {

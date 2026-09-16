@@ -27,6 +27,20 @@ public class RfqItemQuoteAccessRulesTests
     }
 
     [Fact]
+    public void CanQuote_SysManager_Allows()
+    {
+        var item = new RFQItem { AssignedPurchaserUserId1 = "other" };
+        var summary = new UserPermissionSummaryDto
+        {
+            UserId = "u1",
+            IsSysManager = true,
+            IdentityType = 1,
+            RoleCodes = new[] { "SYS_MANAGER" }
+        };
+        Assert.True(RfqItemQuoteAccessRules.CanQuote(summary, item, "u1"));
+    }
+
+    [Fact]
     public void CanManualAssignPurchaser_PurchaseDirectorAndAdmin_Allows()
     {
         Assert.True(RfqItemQuoteAccessRules.CanManualAssignPurchaser(Summary(false, 2, "DEPT_DIRECTOR")));

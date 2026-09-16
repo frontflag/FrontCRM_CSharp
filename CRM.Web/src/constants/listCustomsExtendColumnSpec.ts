@@ -108,6 +108,7 @@ export function pickCustomsExtendFieldValue(
 ): string {
   switch (field) {
     case 'icon':
+      // 无报关单时留空，列表单元格不用 — 占位
       return pickCustomsDeclarationId(row)
     case 'declarationCode':
       return pickCustomsDeclarationCode(row)

@@ -552,6 +552,8 @@ export interface StockOutItemListRow {
   stockOutItemCode?: string | null
   stockOutDate: string
   customerName?: string | null
+  customerEnglishName?: string | null
+  customerCode?: string | null
   salesUserName?: string | null
   purchasePn?: string | null
   purchaseBrand?: string | null
@@ -835,6 +837,8 @@ function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
     stockOutItemCode: (r.stockOutItemCode ?? r.StockOutItemCode) as string | null | undefined,
     stockOutDate: String(r.stockOutDate ?? r.StockOutDate ?? ''),
     customerName: (r.customerName ?? r.CustomerName) as string | null | undefined,
+    customerEnglishName: (r.customerEnglishName ?? r.CustomerEnglishName) as string | null | undefined,
+    customerCode: (r.customerCode ?? r.CustomerCode) as string | null | undefined,
     salesUserName: (r.salesUserName ?? r.SalesUserName) as string | null | undefined,
     purchasePn: (r.purchasePn ?? r.PurchasePn) as string | null | undefined,
     purchaseBrand: (r.purchaseBrand ?? r.PurchaseBrand) as string | null | undefined,

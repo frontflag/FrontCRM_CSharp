@@ -741,7 +741,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
                   :precision="2"
                   :step="1"
                   controls-position="right"
-                  class="fees-input-number fees-input-number--footer"
+                  class="fees-input-number fees-input-number--footer fees-field-highlight"
                 />
                 <span class="fees-footer-fee-row__text">{{ moneyText(rowDraft(row).otherFee) }}</span>
               </span>
@@ -760,7 +760,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
                   :precision="2"
                   :step="1"
                   controls-position="right"
-                  class="fees-input-number fees-input-number--footer"
+                  class="fees-input-number fees-input-number--footer fees-field-highlight"
                 />
                 <span class="fees-footer-fee-row__text">{{ moneyText(rowDraft(row).inspectionFee) }}</span>
               </span>

@@ -4,7 +4,7 @@ using CRM.Core.Models.RFQ;
 namespace CRM.Core.Utilities;
 
 /// <summary>
-/// 需求明细「报价」操作权限：系统管理员、采购侧总监、或该行分配的报价员。
+/// 需求明细「报价」操作权限：系统管理员、产品 Admin（SYS_MANAGER）、采购侧总监、或该行分配的报价员。
 /// </summary>
 public static class RfqItemQuoteAccessRules
 {
@@ -55,7 +55,7 @@ public static class RfqItemQuoteAccessRules
         int protectionMinutes = 0,
         DateTime? utcNow = null)
     {
-        if (summary.IsSysAdmin)
+        if (summary.IsSysAdmin || summary.IsSysManager)
             return true;
         if (IsPurchaseDepartmentDirector(summary))
             return true;
@@ -96,7 +96,7 @@ public static class RfqItemQuoteAccessRules
     [Obsolete("Use overload with item CreateTime when protection applies.")]
     public static bool CanQuote(UserPermissionSummaryDto summary, string? assignedPurchaserUserId1, string? assignedPurchaserUserId2, string? actingUserId)
     {
-        if (summary.IsSysAdmin)
+        if (summary.IsSysAdmin || summary.IsSysManager)
             return true;
         if (IsPurchaseDepartmentDirector(summary))
             return true;

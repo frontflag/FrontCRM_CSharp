@@ -57,6 +57,7 @@ const zhCN = {
         broker: '报关公司',
         status: '报关状态'
       },
+      pendingDeclaration: '暂未生成报关单',
       fieldShort: {
         icon: '图标',
         declarationCode: '报关单号',
@@ -120,6 +121,23 @@ const zhCN = {
       freeShipping: {
         yes: '包邮',
         no: '不包邮'
+      }
+    },
+    dockQuotePackagingExtendCol: {
+      columnTitle: '库存包装',
+      expand: '展开库存包装列',
+      collapse: '收起库存包装列',
+      pickField: '选择显示字段',
+      resizeSubCol: '拖动调整子列宽度',
+      fields: {
+        stock: '库存',
+        minPackage: '最小包装',
+        moq: '起订量'
+      },
+      fieldShort: {
+        stock: '库存',
+        minPackage: '包装',
+        moq: '起订'
       }
     },
     save: '保存修改',

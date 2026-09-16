@@ -1,6 +1,8 @@
 import type { SalesOrderDetailTabAggregates } from '@/api/salesOrder'
 import { packingStatusLabel } from '@/api/packing'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
+import { StockInTypeCode } from '@/constants/stockInType'
+import { StockOutTypeCode } from '@/constants/stockOutType'
 import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
 import { formatDisplayDate2DigitYear } from '@/utils/displayDateTime'
 import {
@@ -67,6 +69,8 @@ export interface FlowCard {
   qtyLabelKey?: string
   brokerName?: string | null
   stockInType?: number | null
+  /** 报关类型单据在单号旁展示报关图标（销售明细流程） */
+  showCustomsIcon?: boolean
 }
 
 export interface FlowStation {
@@ -243,6 +247,19 @@ function buildStation(
   }
 }
 
+function isCustomsInType(v: unknown) {
+  return Number(v) === StockInTypeCode.Customs
+}
+
+function isCustomsOutType(v: unknown) {
+  return Number(v) === StockOutTypeCode.Customs
+}
+
+function pickCustomsBrokerName(v?: string | null) {
+  const s = String(v ?? '').trim()
+  return s || null
+}
+
 export function buildSellOrderItemFlowStations(
   row: RowRecord | null | undefined,
   aggregates: SalesOrderDetailTabAggregates | null | undefined,
@@ -387,7 +404,12 @@ export function buildSellOrderItemFlowStations(
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
       personName: dash(x.createUserName),
       qtyText: formatQtyPcs(x.totalQuantity),
-      description: null
+      description: null,
+      stockInType: x.stockInType,
+      customsDeclarationId: x.customsDeclarationId,
+      customsDeclarationCode: x.customsDeclarationCode,
+      brokerName: pickCustomsBrokerName(x.customsBrokerName),
+      showCustomsIcon: isCustomsInType(x.stockInType)
     }))
     stations.push(buildStation('stockIn', 'salesOrderItemList.flowPanel.stations.stockIn', cards))
   }
@@ -409,7 +431,12 @@ export function buildSellOrderItemFlowStations(
       personRoleKey: 'salesOrderItemList.flowPanel.role.requester',
       personName: dash(x.requestUserName),
       qtyText: formatQtyPcs(x.outQuantity),
-      description: null
+      description: null,
+      stockOutType: x.stockOutType,
+      customsDeclarationId: x.customsDeclarationId,
+      customsDeclarationCode: x.customsDeclarationCode,
+      brokerName: pickCustomsBrokerName(x.customsBrokerName),
+      showCustomsIcon: isCustomsOutType(x.stockOutType)
     }))
     stations.push(buildStation('stockOutNotify', 'salesOrderItemList.flowPanel.stations.stockOutNotify', cards))
   }
@@ -455,7 +482,12 @@ export function buildSellOrderItemFlowStations(
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
       personName: dash(x.createUserName),
       qtyText: formatQtyPcs(x.itemRows),
-      description: null
+      description: null,
+      stockOutType: x.stockOutType,
+      customsDeclarationId: x.customsDeclarationId,
+      customsDeclarationCode: x.customsDeclarationCode,
+      brokerName: pickCustomsBrokerName(x.customsBrokerName),
+      showCustomsIcon: isCustomsOutType(x.stockOutType)
     }))
     stations.push(buildStation('packing', 'salesOrderItemList.flowPanel.stations.packing', cards))
   }
@@ -477,7 +509,12 @@ export function buildSellOrderItemFlowStations(
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
       personName: dash(x.createUserName),
       qtyText: formatQtyPcs(x.totalQuantity),
-      description: null
+      description: null,
+      stockOutType: x.stockOutType,
+      customsDeclarationId: x.customsDeclarationId,
+      customsDeclarationCode: x.customsDeclarationCode,
+      brokerName: pickCustomsBrokerName(x.customsBrokerName),
+      showCustomsIcon: isCustomsOutType(x.stockOutType)
     }))
     stations.push(buildStation('stockOut', 'salesOrderItemList.flowPanel.stations.stockOut', cards))
   }

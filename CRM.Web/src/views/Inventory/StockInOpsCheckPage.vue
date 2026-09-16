@@ -141,21 +141,21 @@
             </td>
             <td class="col-code">
               <el-tooltip
-                :disabled="!docTypeTip(row.relatedDocType) || dash(row.relatedDocCode) === '—'"
+                :disabled="!docTypeTip(row.relatedDocType) || dash(relatedCode(row)) === '—'"
                 :content="docTypeTip(row.relatedDocType)"
                 placement="top"
                 :hide-after="0"
               >
                 <span class="code-wrap">
                   <button
-                    v-if="canJump(row.relatedRouteName)"
+                    v-if="relatedCode(row) && canJump(row.relatedRouteName)"
                     type="button"
                     class="link"
                     @click="jump(row.relatedRouteName, row.relatedRouteParams, row.relatedRouteQuery)"
                   >
-                    {{ dash(row.relatedDocCode) }}
+                    {{ dash(relatedCode(row)) }}
                   </button>
-                  <span v-else class="code-text">{{ dash(row.relatedDocCode) }}</span>
+                  <span v-else class="code-text">{{ dash(relatedCode(row)) }}</span>
                 </span>
               </el-tooltip>
             </td>
@@ -179,6 +179,7 @@ import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { stockInApi, type StockInOpsCheckFinding, type StockInOpsCheckResult } from '@/api/stockIn'
+import { displayOpsCheckRelatedDocCode } from '@/utils/opsCheckRelatedDocCode'
 import { getApiErrorMessage } from '@/utils/apiError'
 
 const { t } = useI18n()
@@ -212,8 +213,7 @@ const docTypeOptions = computed(() => [
   { value: 'stockItem', label: t('stockInOpsCheck.docType.stockItem') },
   { value: 'qc', label: t('stockInOpsCheck.docType.qc') },
   { value: 'purchaseInvoice', label: t('stockInOpsCheck.docType.purchaseInvoice') },
-  { value: 'purchaseOrder', label: t('stockInOpsCheck.docType.purchaseOrder') },
-  { value: 'debug', label: t('stockInOpsCheck.docType.debug') }
+  { value: 'purchaseOrder', label: t('stockInOpsCheck.docType.purchaseOrder') }
 ])
 
 const isFilterActive = computed(() =>
@@ -233,7 +233,10 @@ function matchFinding(row: StockInOpsCheckFinding) {
   if (applied.docType && row.docType !== applied.docType) return false
   const keyword = applied.keyword.trim().toUpperCase()
   if (!keyword) return true
-  return startsWithCode(row.docCode, keyword) || startsWithCode(row.relatedDocCode, keyword)
+  return (
+    startsWithCode(row.docCode, keyword) ||
+    startsWithCode(relatedCode(row), keyword)
+  )
 }
 
 const visibleFindings = computed(() => {
@@ -254,6 +257,10 @@ function resetFilters() {
   Object.assign(applied, emptyFilters())
 }
 
+function relatedCode(row: StockInOpsCheckFinding) {
+  return displayOpsCheckRelatedDocCode(row.relatedDocCode, row.relatedDocType)
+}
+
 function dash(v?: string | null) {
   const s = String(v ?? '').trim()
   return s || '—'
@@ -261,7 +268,7 @@ function dash(v?: string | null) {
 
 function docTypeTip(docType?: string | null) {
   const key = String(docType ?? '').trim()
-  if (!key) return ''
+  if (!key || key.toLowerCase() === 'debug') return ''
   const i18nKey = `stockInOpsCheck.docCodeTip.${key}`
   const label = t(i18nKey)
   return label === i18nKey ? '' : label

@@ -726,6 +726,19 @@
               <template #col-remark="{ row }">
                 {{ String((row as Record<string, unknown>).remark ?? '').trim() || '—' }}
               </template>
+              <template #col-dockQuotePackagingExtend-header>
+                <DockQuotePackagingExtendColumnHeader
+                  :active-field="dockQuotePackagingExtendActiveField"
+                  @set-active-field="setDockQuotePackagingExtendActiveField"
+                />
+              </template>
+              <template #col-dockQuotePackagingExtend="{ row }">
+                <DockQuotePackagingExtendCell
+                  :row="row as Record<string, unknown>"
+                  :active-field="dockQuotePackagingExtendActiveField"
+                  :empty-text="t('quoteList.na')"
+                />
+              </template>
               <template #col-actions-header>
                 <div class="list-op-col-header--icon-only">
                   <button
@@ -1099,10 +1112,16 @@ import RfqItemListBoard from './RfqItemListBoard.vue'
 import type { RfqItemListAnalyticsQuery } from '@/api/rfqItemAnalytics'
 import DockQuoteExtendColumnHeader from '@/components/list/DockQuoteExtendColumnHeader.vue'
 import DockQuoteExtendCell from '@/components/list/DockQuoteExtendCell.vue'
+import DockQuotePackagingExtendColumnHeader from '@/components/list/DockQuotePackagingExtendColumnHeader.vue'
+import DockQuotePackagingExtendCell from '@/components/list/DockQuotePackagingExtendCell.vue'
 import {
   useDockQuoteExtendColumn,
   isDockQuoteExtendTableColumn
 } from '@/composables/useDockQuoteExtendColumn'
+import {
+  useDockQuotePackagingExtendColumn,
+  isDockQuotePackagingExtendTableColumn
+} from '@/composables/useDockQuotePackagingExtendColumn'
 import {
   quoteMainStatusI18nKey,
   quoteMainStatusTagType,
@@ -1183,14 +1202,26 @@ const {
   setActiveField: setDockQuoteExtendActiveField,
   applyOuterWidthFromTable: applyDockQuoteExtendOuterWidth
 } = useDockQuoteExtendColumn()
+const {
+  activeField: dockQuotePackagingExtendActiveField,
+  colWidth: dockQuotePackagingExtendColWidth,
+  colMinWidth: dockQuotePackagingExtendColMinWidth,
+  setActiveField: setDockQuotePackagingExtendActiveField,
+  applyOuterWidthFromTable: applyDockQuotePackagingExtendOuterWidth
+} = useDockQuotePackagingExtendColumn()
 
 function onDockQuoteTableHeaderDragEnd(
   newWidth: number,
   _oldWidth: number,
   column: { property?: string; label?: string }
 ) {
-  if (!isDockQuoteExtendTableColumn(column)) return
-  applyDockQuoteExtendOuterWidth(newWidth)
+  if (isDockQuoteExtendTableColumn(column)) {
+    applyDockQuoteExtendOuterWidth(newWidth)
+    return
+  }
+  if (isDockQuotePackagingExtendTableColumn(column)) {
+    applyDockQuotePackagingExtendOuterWidth(newWidth)
+  }
 }
 
 const { options: materialPdOptions, ensureLoaded: ensureMaterialPdDict } = useMaterialProductionDateDict()
@@ -1522,6 +1553,7 @@ function toggleOpDockCol() {
 const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
   void locale.value
   void dockQuoteExtendColWidth.value
+  void dockQuotePackagingExtendColWidth.value
   void opDockColWidth.value
   return [
     {
@@ -1645,6 +1677,17 @@ const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
       prop: 'remark',
       minWidth: 160,
       showOverflowTooltip: true,
+      resizable: true
+    },
+    {
+      key: 'dockQuotePackagingExtend',
+      label: t('common.dockQuotePackagingExtendCol.columnTitle'),
+      prop: 'dockQuotePackagingExtend',
+      width: dockQuotePackagingExtendColWidth.value,
+      minWidth: dockQuotePackagingExtendColMinWidth.value,
+      align: 'center',
+      className: 'customer-extend-col dock-quote-extend-col dock-quote-packaging-extend-col',
+      labelClassName: 'customer-extend-col dock-quote-extend-col dock-quote-packaging-extend-col',
       resizable: true
     },
     {

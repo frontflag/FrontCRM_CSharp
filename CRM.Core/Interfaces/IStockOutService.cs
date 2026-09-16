@@ -513,6 +513,10 @@ namespace CRM.Core.Interfaces
         public string? StockOutItemCode { get; set; }
         public DateTime? StockOutDate { get; set; }
         public string? CustomerName { get; set; }
+        /// <summary>客户英文全称（来自 customerinfo.EnglishOfficialName）</summary>
+        public string? CustomerEnglishName { get; set; }
+        /// <summary>客户编号（来自 customerinfo.CustomerCode）</summary>
+        public string? CustomerCode { get; set; }
         public string? SalesUserName { get; set; }
         public string? PurchasePn { get; set; }
         public string? PurchaseBrand { get; set; }
