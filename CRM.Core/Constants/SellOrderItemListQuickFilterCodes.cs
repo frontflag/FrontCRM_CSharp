@@ -7,6 +7,9 @@ public static class SellOrderItemListQuickFilterCodes
     public const string PendingSubmitPurchaseReq = "pending_submit_purchase_req";
     public const string PendingSubmitStockOutNotify = "pending_submit_stock_out_notify";
 
+    public const string HasSalesOrderDocs = "has_sales_order_docs";
+    public const string NoSalesOrderDocs = "no_sales_order_docs";
+
     public const string AppliedPendingPo = "applied_pending_po";
     public const string PurchasedPendingStockIn = "purchased_pending_stock_in";
     public const string NotifyPendingPacking = "notify_pending_packing";
@@ -24,6 +27,8 @@ public static class SellOrderItemListQuickFilterCodes
         return c is PendingSubmitAudit
             or PendingSubmitPurchaseReq
             or PendingSubmitStockOutNotify
+            or HasSalesOrderDocs
+            or NoSalesOrderDocs
             or AppliedPendingPo
             or PurchasedPendingStockIn
             or NotifyPendingPacking

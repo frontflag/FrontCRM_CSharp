@@ -15,6 +15,8 @@ export const SO_ITEM_QUICK_FILTER_PRESET_IDS = [
   'pending_submit_audit',
   'pending_submit_purchase_req',
   'pending_submit_stock_out_notify',
+  'has_sales_order_docs',
+  'no_sales_order_docs',
   'applied_pending_po',
   'purchased_pending_stock_in',
   'notify_pending_packing',

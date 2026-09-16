@@ -55,6 +55,11 @@
         </div>
       </section>
 
+      <SalesOrderOpsDocumentsCard
+        v-if="!maskSensitive && salesOrderId"
+        :sell-order-id="salesOrderId"
+      />
+
       <section class="ops-card">
         <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('salesOrderItemList.opsPanel.overviewTitle') }}</h3>
@@ -293,6 +298,7 @@ import {
 } from '@/constants/salesOrderStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import CustomerNameReadonlyText from '@/components/Customer/CustomerNameReadonlyText.vue'
+import SalesOrderOpsDocumentsCard from '@/components/RFQ/SalesOrderOpsDocumentsCard.vue'
 import OpsGeneratedDocsRow from '@/components/Common/OpsGeneratedDocsRow.vue'
 import { buildApplyPurchaseDisabledHintContent, applyPurchaseButtonDisabled } from '@/utils/applyPurchaseDisabledHint'
 import { buildApplyStockOutDisabledHintContent } from '@/utils/applyStockOutDisabledHint'

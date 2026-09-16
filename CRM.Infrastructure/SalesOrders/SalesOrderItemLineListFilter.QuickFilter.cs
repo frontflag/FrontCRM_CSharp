@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,6 +30,8 @@ internal static partial class SalesOrderItemLineListFilter
             SellOrderItemListQuickFilterCodes.PendingSubmitAudit => ApplyPendingSubmitAudit(q),
             SellOrderItemListQuickFilterCodes.PendingSubmitPurchaseReq => ApplyPendingSubmitPurchaseReq(db, q),
             SellOrderItemListQuickFilterCodes.PendingSubmitStockOutNotify => ApplyPendingSubmitStockOutNotify(db, q),
+            SellOrderItemListQuickFilterCodes.HasSalesOrderDocs => ApplySalesOrderDocs(db, q, hasDocs: true),
+            SellOrderItemListQuickFilterCodes.NoSalesOrderDocs => ApplySalesOrderDocs(db, q, hasDocs: false),
             SellOrderItemListQuickFilterCodes.AppliedPendingPo => ApplyAppliedPendingPo(db, q),
             SellOrderItemListQuickFilterCodes.PurchasedPendingStockIn => ApplyPurchasedPendingStockIn(db, q),
             SellOrderItemListQuickFilterCodes.NotifyPendingPacking => ApplyNotifyPendingPacking(db, q),
@@ -55,6 +58,29 @@ internal static partial class SalesOrderItemLineListFilter
         ApplyActiveLineFilter(q).Where(x =>
             x.So.Status == SellOrderMainStatus.New
             || x.So.Status == SellOrderMainStatus.AuditFailed);
+
+    /// <summary>
+    /// 订单头 <c>SALES_ORDER</c> 未删除附件投影到该单全部有效明细行（与详情「文档」卡计数一致）。
+    /// </summary>
+    private static IQueryable<SellOrderItemLineJoin> ApplySalesOrderDocs(
+        ApplicationDbContext db,
+        IQueryable<SellOrderItemLineJoin> q,
+        bool hasDocs)
+    {
+        q = ApplyActiveLineFilter(q);
+        if (hasDocs)
+        {
+            return q.Where(x => db.UploadDocuments.Any(d =>
+                !d.IsDeleted
+                && d.BizType == CrossSideDocumentAttachmentPolicy.BizSalesOrder
+                && d.BizId == x.So.Id));
+        }
+
+        return q.Where(x => !db.UploadDocuments.Any(d =>
+            !d.IsDeleted
+            && d.BizType == CrossSideDocumentAttachmentPolicy.BizSalesOrder
+            && d.BizId == x.So.Id));
+    }
 
     private static IQueryable<SellOrderItemLineJoin> ApplyPendingSubmitPurchaseReq(
         ApplicationDbContext db,

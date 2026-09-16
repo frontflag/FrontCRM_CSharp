@@ -220,6 +220,7 @@ declare module 'vue' {
     SalesOrderItemFlowPanel: typeof import('./src/components/RFQ/SalesOrderItemFlowPanel.vue')['default']
     SalesOrderItemOpsPanel: typeof import('./src/components/RFQ/SalesOrderItemOpsPanel.vue')['default']
     SalesOrderItemSearchPanel: typeof import('./src/components/RFQ/SalesOrderItemSearchPanel.vue')['default']
+    SalesOrderOpsDocumentsCard: typeof import('./src/components/RFQ/SalesOrderOpsDocumentsCard.vue')['default']
     SalesOrderRecentHistoryPanel: typeof import('./src/components/SalesOrder/SalesOrderRecentHistoryPanel.vue')['default']
     SalesOrderReportBody: typeof import('./src/components/SalesOrder/salesOrderReport/SalesOrderReportBody.vue')['default']
     SalesOrderReportDocument: typeof import('./src/components/SalesOrder/SalesOrderReportDocument.vue')['default']

@@ -28,6 +28,11 @@ const todoPresets = [
   'pending_submit_stock_out_notify'
 ] as const satisfies readonly SoItemListPresetId[]
 
+const documentPresets = [
+  'has_sales_order_docs',
+  'no_sales_order_docs'
+] as const satisfies readonly SoItemListPresetId[]
+
 const inventoryPresets = [
   'in_stock_pending_out',
   'used_stocking'
@@ -42,6 +47,7 @@ const receiptPresets = [
 const businessPresets = SO_ITEM_QUICK_FILTER_PRESET_IDS.filter(
   (id) =>
     !(todoPresets as readonly string[]).includes(id) &&
+    !(documentPresets as readonly string[]).includes(id) &&
     !(inventoryPresets as readonly string[]).includes(id) &&
     !(receiptPresets as readonly string[]).includes(id)
 )
@@ -84,6 +90,22 @@ function onPresetClick(id: SoItemListPresetId) {
       <h4 class="so-item-search-panel__group-title">{{ t('salesOrderItemList.searchPanel.groups.todo') }}</h4>
       <ul class="so-item-search-panel__list">
         <li v-for="id in todoPresets" :key="id">
+          <button
+            type="button"
+            class="so-item-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="so-item-search-panel__group">
+      <h4 class="so-item-search-panel__group-title">{{ t('salesOrderItemList.searchPanel.groups.docs') }}</h4>
+      <ul class="so-item-search-panel__list">
+        <li v-for="id in documentPresets" :key="id">
           <button
             type="button"
             class="so-item-search-panel__item"
