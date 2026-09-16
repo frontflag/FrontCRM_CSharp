@@ -1,14 +1,16 @@
-# 列表扩展列规范 PRD（V1.1 · 已实现）
+# 列表扩展列规范 PRD（V1.2 · 已实现）
 
 ## 1. 文档目的
 
-统一业务列表中**「客户」复合信息列**（Extend Column）的**功能、交互、样式与接入方式**。在**不长期占满三列横向空间**的前提下，支持：
+统一业务列表中**复合信息列**（Extend Column）的功能、交互、样式与接入方式。V1 以 **「客户」列** 为规范本体（本文 §2～§13）。在**不长期占满三列横向空间**的前提下，支持：
 
-- **收起态**：只显示一个子字段（可切换中文名 / 英文名 / 编号）；
+- **收起态**：只显示一个子字段（客户列可切换中文名 / 英文名 / 编号）；
 - **展开态**：三子字段**并排**展示；
-- **宽度**：整体列宽与子列宽度均可调，并**本机持久化、全局共用**。
+- **宽度**：整体列宽与子列宽度均可调，并**本机持久化**（客户列全局共用；报价包装列见 **§15**，按页独立存储）。
 
 交互上借鉴 **[《列表操作列规范》](./列表操作列规范.md)** 的展开/收起切换，但**切换图标方向与操作列相反**（见 §6.1）。
+
+需求明细采购报价面板的 **「库存包装」** 列复用同一套交互，子字段与存储键不同，见 **§15**。
 
 ---
 
@@ -366,7 +368,8 @@ function onHeaderDragEnd(newWidth: number, _old: number, column: { property?: st
 | 阶段 | 状态 | 说明 |
 |------|------|------|
 | 组件 + composable + 样式 | ✅ 完成 | V1.1 |
-| 出库列表试点 | ✅ 完成 | `StockOutList.vue` |
+| 出库列表试点 | ✅ 完成 | `StockOutList.vue`、`StockOutItemList.vue` |
+| 需求明细报价包装列 | ✅ 完成 | `RFQItemList.vue` 采购报价面板「库存包装」，见 **§15** |
 | 其余业务列表推广 | ⏳ 待做 | SO 明细、收款等 |
 | 供应商扩展列 | ⏳ 待评审 | — |
 
@@ -391,7 +394,41 @@ function onHeaderDragEnd(newWidth: number, _old: number, column: { property?: st
 
 ---
 
-## 15. 修订记录
+## 15. 需求明细 · 报价「库存包装」扩展列（已实现）
+
+**页面：** 需求明细 `/rfq-items`（`RFQItemList`）主区 **采购报价** 面板，不是客户列。  
+**交互：** 与本文客户扩展列相同（收起单字段 + 展开三列并排、子列拖宽、列头 `▾` / `>` / `<`）。  
+**偏好作用域：** **本页独立**（`crm-table-extend-col:v1:rfq-item-list:dock-quote-packaging`），**不**与客户列全局键共用。
+
+同页另有产地/包邮扩展列（晶圆产地 | 封装产地 | 是否包邮，`crm-table-extend-col:v1:rfq-item-list:dock-quote`），交互相同、存储键不同，不在本节展开。
+
+### 15.1 子字段
+
+| 子字段 key | 表头短标签 | 取值 |
+|------------|------------|------|
+| `stock` | 库存 | 报价明细 `stockQty` / `StockQty` |
+| `minPackage` | 包装 | `minPackageQty` / `MinPackageQty` |
+| `moq` | 起订 | `moq` / `Moq` / `minOrderQty` / `MinOrderQty` |
+
+- 优先从行上 `items` / `Items` 报价明细读取；多值去重后用「、」拼接。无明细则回退行自身字段。
+- 空值显示 **`—`**。
+- 无本机偏好时：**收起态** + `activeField = stock`（库存）。
+- 列设置占 **一行**（一个 `key`），不拆子字段。
+
+### 15.2 实现索引
+
+| 路径 | 职责 |
+|------|------|
+| `CRM.Web/src/constants/listDockQuotePackagingExtendColumnSpec.ts` | 宽度、存储键、`pickDockQuotePackagingField` |
+| `CRM.Web/src/composables/useDockQuotePackagingExtendColumn.ts` | 本页单例偏好 |
+| `CRM.Web/src/components/list/DockQuotePackagingExtendColumnHeader.vue` | 列头 |
+| `CRM.Web/src/components/list/DockQuotePackagingExtendCell.vue` | 单元格 |
+| `CRM.Web/src/views/RFQ/RFQItemList.vue` | 接入 |
+| `CRM.Web/src/tests/list-dock-quote-packaging-extend-column.test.ts` | 字段拾取单测 |
+
+---
+
+## 16. 修订记录
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
@@ -399,3 +436,5 @@ function onHeaderDragEnd(newWidth: number, _old: number, column: { property?: st
 | V1.1 | 2026-06-04 | 对齐已实现：三列并排、切换钮置左、子列/整体宽度持久化、出库试点、样式与接入清单 |
 | V1.1.1 | 2026-08-21 | §9.3：普通列用户列宽与扩展列存储分离；恢复默认不清扩展列偏好 |
 | V1.1.2 | 2026-08-21 | §6.5：整体拖宽走表头列界指引；`minWidth` 锁不得挡住往左收窄 |
+| V1.2 | 2026-09-16 | §3.1 / §13.1：出库明细列表已接入客户扩展列；新增 **§15** 需求明细「库存包装」扩展列 |
+
