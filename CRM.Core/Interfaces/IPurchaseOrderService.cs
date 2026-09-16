@@ -227,6 +227,8 @@ namespace CRM.Core.Interfaces
         public List<short>? Status { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
+        /// <summary>左栏业务快捷检索（码同 <see cref="CRM.Core.Constants.PurchaseOrderItemListQuickFilterCodes"/>）；与手动状态筛选互斥。</summary>
+        public string? QuickFilter { get; set; }
         public int Page { get; set; } = 1;
         public int PageSize { get; set; } = 20;
         public string? CurrentUserId { get; set; }

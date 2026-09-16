@@ -104,6 +104,7 @@ namespace CRM.API.Controllers
             [FromQuery] string? comment,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? quickFilter = null,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20,
             CancellationToken cancellationToken = default)
@@ -125,6 +126,7 @@ namespace CRM.API.Controllers
                     Status = QueryShortListParser.Parse(Request.Query["status"]),
                     StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                     EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                    QuickFilter = string.IsNullOrWhiteSpace(quickFilter) ? null : quickFilter.Trim(),
                     Page = page,
                     PageSize = pageSize,
                     CurrentUserId = userId
@@ -184,10 +186,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? comment,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, quickFilter, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsDashboardAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<SalesOrderListAnalyticsDashboardDto>.Ok(data));
         }
@@ -202,10 +205,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
             [FromQuery] string? groupBy,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, quickFilter, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsTrendsAsync(
                 request,
                 string.IsNullOrWhiteSpace(groupBy) ? "month" : groupBy.Trim(),
@@ -223,10 +227,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? comment,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, quickFilter, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsBreakdownsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<IReadOnlyList<SalesAnalyticsBreakdownGroupDto>>.Ok(data));
         }
@@ -240,10 +245,11 @@ namespace CRM.API.Controllers
             [FromQuery] string? comment,
             [FromQuery] string? startDate,
             [FromQuery] string? endDate,
+            [FromQuery] string? quickFilter = null,
             CancellationToken cancellationToken = default)
         {
             var (request, maskAmounts) = await BuildListAnalyticsQueryRequestAsync(
-                keyword, code, customer, salesUserName, comment, startDate, endDate, cancellationToken);
+                keyword, code, customer, salesUserName, comment, startDate, endDate, quickFilter, cancellationToken);
             var data = await _salesOrderListQuery.GetListAnalyticsRankingsAsync(request, maskAmounts, cancellationToken);
             return Ok(ApiResponse<SalesOrderListAnalyticsRankingsDto>.Ok(data));
         }
@@ -3047,6 +3053,7 @@ namespace CRM.API.Controllers
             string? comment,
             string? startDate,
             string? endDate,
+            string? quickFilter,
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -3068,6 +3075,7 @@ namespace CRM.API.Controllers
                 Status = QueryShortListParser.Parse(Request.Query["status"]),
                 StartDate = DateTime.TryParse(startDate, out var start) ? start : null,
                 EndDate = DateTime.TryParse(endDate, out var end) ? end : null,
+                QuickFilter = string.IsNullOrWhiteSpace(quickFilter) ? null : quickFilter.Trim(),
                 CurrentUserId = userId
             };
 

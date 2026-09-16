@@ -54,10 +54,17 @@
       </el-col>
     </el-row>
 
+    <div v-if="activePreset" class="search-preset-chip-row">
+      <span class="search-preset-chip">
+        {{ t(presetI18nKey(activePreset)) }}
+        <button type="button" class="search-preset-chip__clear" :title="t('purchaseOrderList.searchPanel.clearPreset')" @click="clearPresetChip">×</button>
+      </span>
+    </div>
     <!-- 搜索栏：状态 → 类型 → 采购订单号 → 供应商 → 采购员 → 货代单号 → 备注 → 创建日期 -->
     <div class="search-bar">
       <div class="search-left">
         <el-select
+          v-if="!presetActive"
           v-model="filterForm.status"
           :placeholder="t('purchaseOrderList.filters.allStatus')"
           multiple
@@ -203,6 +210,7 @@
           />
         </div>
         <el-date-picker
+          v-if="!presetActive"
           v-model="filterForm.createDateRange"
           type="daterange"
           :range-separator="t('purchaseOrderList.filters.createDateSep')"
@@ -238,6 +246,7 @@
         row-key="id"
         highlight-current-row
         :row-class-name="purchaseOrderListRowClassName"
+        @row-click="onPurchaseOrderRowClick"
         @row-dblclick="onPurchaseOrderRowDblClick"
         @header-dragend="onPurchaseOrderTableHeaderDragEnd"
       >
@@ -420,8 +429,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, watch, inject, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -448,16 +457,43 @@ import PurchaseOrderListBoard from './PurchaseOrderListBoard.vue'
 import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
 import {
   assignPurchaseOrderStatusesParam,
+  formatPurchaseOrderStatusesForRoute,
   normalizePurchaseOrderStatuses
 } from '@/utils/purchaseOrderStatusQuery'
+import {
+  buildPoListRouteQuery,
+  isPoListPresetId,
+  isPoListQuickFilterPresetId,
+  pickPoListKeywordQuery,
+  presetI18nKey,
+  type PoListPresetId
+} from '@/utils/purchaseOrderListPreset'
 import { useVendorExtendColumn, isVendorExtendTableColumn } from '@/composables/useVendorExtendColumn'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
-import { isCancelledOrderHeaderStatus, LIST_ROW_CANCELLED_CLASS } from '@/utils/listCancelledRow'
+import { isCancelledOrderHeaderStatus, LIST_ROW_CANCELLED_CLASS, joinRowClassNames } from '@/utils/listCancelledRow'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
+import { usePurchaseOrderOpsPanelStore } from '@/stores/purchaseOrderOpsPanel'
 
 const router = useRouter()
+const route = useRoute()
 const { t, locale } = useI18n()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const purchaseOrderOpsStore = usePurchaseOrderOpsPanelStore()
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'PurchaseOrderList',
+  hasSelectedRow: () => !!purchaseOrderOpsStore.row,
+  setRowOnly: row => purchaseOrderOpsStore.setRowOnly(row),
+  selectRow: row => purchaseOrderOpsStore.selectRow(row),
+  loadSelected: () => {
+    if (purchaseOrderOpsStore.row) void purchaseOrderOpsStore.selectRow(purchaseOrderOpsStore.row)
+  },
+  dataTabIds: ['r-ops']
+})
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 const {
   expanded: vendorExtendExpanded,
@@ -515,7 +551,12 @@ function toggleOpCol() {
 const poListMainStatus = normalizePurchaseOrderMainStatus
 
 function purchaseOrderListRowClassName({ row }: { row: Record<string, unknown> }) {
-  return isCancelledOrderHeaderStatus(poListMainStatus(row)) ? LIST_ROW_CANCELLED_CLASS : ''
+  const cancelled = isCancelledOrderHeaderStatus(poListMainStatus(row)) ? LIST_ROW_CANCELLED_CLASS : ''
+  const active =
+    purchaseOrderOpsStore.row && purchaseOrderOpsStore.rowKey(row) === purchaseOrderOpsStore.rowKey(purchaseOrderOpsStore.row)
+      ? 'so-item-row--active'
+      : ''
+  return joinRowClassNames(cancelled, active)
 }
 
 function purchaseOrderHeaderType(row: Record<string, unknown>): number {
@@ -635,6 +676,31 @@ const filterForm = ref({
   orderType: undefined as number | undefined
 })
 
+const activePreset = computed((): PoListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isPoListPresetId(p) ? p : null
+})
+const presetActive = computed(() => !!activePreset.value)
+
+function currentListKeywords(): Record<string, string> {
+  return pickPoListKeywordQuery({
+    code: filterForm.value.code,
+    vendor: canViewVendorInfo.value ? filterForm.value.vendor : '',
+    purchaseUserName: canViewPurchaseUser.value ? filterForm.value.purchaseUserName : '',
+    freightForwarderOrderNo: filterForm.value.freightForwarderOrderNo,
+    comment: filterForm.value.comment,
+    orderType:
+      filterForm.value.orderType !== undefined && filterForm.value.orderType !== null
+        ? String(filterForm.value.orderType)
+        : ''
+  })
+}
+
+function clearPresetChip() {
+  pageInfo.value.page = 1
+  router.replace({ name: 'PurchaseOrderList', query: {} })
+}
+
 const statusFilterOptions = computed(() => {
   void locale.value
   return [
@@ -667,10 +733,17 @@ const boardFilters = computed((): PurchaseOrderListAnalyticsQuery => {
   }
   const cm = filterForm.value.comment.trim()
   if (cm) q.comment = cm
-  const statuses = normalizePurchaseOrderStatuses(filterForm.value.status)
-  if (statuses.length) q.status = statuses
   if (filterForm.value.orderType !== undefined && filterForm.value.orderType !== null) {
     q.orderType = filterForm.value.orderType
+  }
+  const preset = activePreset.value
+  if (preset && isPoListQuickFilterPresetId(preset)) {
+    q.quickFilter = preset
+    return q
+  }
+  if (!preset) {
+    const statuses = normalizePurchaseOrderStatuses(filterForm.value.status)
+    if (statuses.length) q.status = statuses
   }
   if (filterForm.value.createDateRange?.[0]) q.startDate = filterForm.value.createDateRange[0]
   if (filterForm.value.createDateRange?.[1]) q.endDate = filterForm.value.createDateRange[1]
@@ -758,13 +831,18 @@ const loadData = async () => {
     const cm = filterForm.value.comment?.trim()
     if (c) params.code = c
     if (ff) params.freightForwarderOrderNo = ff
-    if (v) params.vendor = v
+    if (canViewVendorInfo.value && v) params.vendor = v
     if (canViewPurchaseUser.value && pu) params.purchaseUserName = pu
     if (cm) params.comment = cm
-    if (filterForm.value.createDateRange?.[0]) params.startDate = filterForm.value.createDateRange[0]
-    if (filterForm.value.createDateRange?.[1]) params.endDate = filterForm.value.createDateRange[1]
-    assignPurchaseOrderStatusesParam(params, 'status', filterForm.value.status)
     if (filterForm.value.orderType !== undefined) params.orderType = filterForm.value.orderType
+    const preset = activePreset.value
+    if (preset && isPoListQuickFilterPresetId(preset)) {
+      params.quickFilter = preset
+    } else {
+      if (!preset) assignPurchaseOrderStatusesParam(params, 'status', filterForm.value.status)
+      if (filterForm.value.createDateRange?.[0]) params.startDate = filterForm.value.createDateRange[0]
+      if (filterForm.value.createDateRange?.[1]) params.endDate = filterForm.value.createDateRange[1]
+    }
 
     const res = (await purchaseOrderApi.getList(params)) as {
       items?: unknown[]
@@ -806,12 +884,33 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
+  resetListRightPanelOnReload({
+    clear() {
+      purchaseOrderOpsStore.clear()
+    }
+  })
 }
 
-// 搜索和重置
+// 搜索和重置（与左侧检索面板共用 query）
 const handleSearch = () => {
   pageInfo.value.page = 1
-  void loadData()
+  const keywords = currentListKeywords()
+  if (activePreset.value) {
+    router.replace({
+      name: 'PurchaseOrderList',
+      query: buildPoListRouteQuery({ preset: activePreset.value, keywords })
+    })
+    return
+  }
+  const query = buildPoListRouteQuery({
+    keywords,
+    advanced: {
+      startDate: filterForm.value.createDateRange?.[0],
+      endDate: filterForm.value.createDateRange?.[1],
+      status: formatPurchaseOrderStatusesForRoute(filterForm.value.status) || undefined
+    }
+  })
+  router.replace({ name: 'PurchaseOrderList', query })
 }
 
 const handleReset = () => {
@@ -826,7 +925,7 @@ const handleReset = () => {
     orderType: undefined
   }
   pageInfo.value.page = 1
-  void loadData()
+  router.replace({ name: 'PurchaseOrderList', query: {} })
 }
 
 // 分页
@@ -856,6 +955,10 @@ const handleView = (row: any) => {
   router.push({ name: 'PurchaseOrderDetail', params: { id: row.id } })
 }
 
+function onPurchaseOrderRowClick(row: Record<string, unknown>) {
+  void onOpsPanelRowClick(row)
+}
+
 function onPurchaseOrderRowDblClick(row: { id?: string }, _column: unknown, event?: MouseEvent) {
   onCrmDetailListRowDblClick(row, _column, event, {
     canEdit: canWritePurchaseData.value,
@@ -863,6 +966,10 @@ function onPurchaseOrderRowDblClick(row: { id?: string }, _column: unknown, even
     onDefault: handleView,
   })
 }
+
+onBeforeUnmount(() => {
+  purchaseOrderOpsStore.clear()
+})
 
 const handlePrintOrder = (row: any) => {
   if (!purchaseOrderReportAllowed(poListMainStatus(row))) {
@@ -928,7 +1035,31 @@ const submitAudit = async (row: any) => {
   }
 }
 
-onMounted(loadData)
+function syncFiltersFromRoute() {
+  if (route.name !== 'PurchaseOrderList') return
+  const q = route.query
+  filterForm.value.code = typeof q.code === 'string' ? q.code : ''
+  filterForm.value.vendor = typeof q.vendor === 'string' ? q.vendor : ''
+  filterForm.value.purchaseUserName = typeof q.purchaseUserName === 'string' ? q.purchaseUserName : ''
+  filterForm.value.freightForwarderOrderNo =
+    typeof q.freightForwarderOrderNo === 'string' ? q.freightForwarderOrderNo : ''
+  filterForm.value.comment = typeof q.comment === 'string' ? q.comment : ''
+  const ot = typeof q.orderType === 'string' ? q.orderType.trim() : ''
+  filterForm.value.orderType = ot === '1' || ot === '2' || ot === '3' ? Number(ot) : undefined
+  const from = typeof q.startDate === 'string' ? q.startDate : ''
+  const to = typeof q.endDate === 'string' ? q.endDate : ''
+  filterForm.value.createDateRange = from && to ? [from, to] : null
+  filterForm.value.status = presetActive.value ? [] : normalizePurchaseOrderStatuses(q.status)
+}
+
+watch(
+  () => [route.name, route.query] as const,
+  async () => {
+    syncFiltersFromRoute()
+    if (route.name === 'PurchaseOrderList') await loadData()
+  },
+  { deep: true, immediate: true }
+)
 </script>
 
 <style scoped lang="scss">
@@ -1037,6 +1168,46 @@ onMounted(loadData)
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-muted;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .search-left {

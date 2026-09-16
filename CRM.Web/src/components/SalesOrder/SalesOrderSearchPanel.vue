@@ -1,62 +1,67 @@
 <script setup lang="ts">
-import { reactive, watch, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import {
+  SO_LIST_QUICK_FILTER_PRESET_IDS,
+  SO_LIST_TIME_PRESET_IDS,
+  type SoListPresetId,
+  buildSoListRouteQuery,
+  isSoListPresetId,
+  pickSoListKeywordQuery,
+  presetI18nKey
+} from '@/utils/salesOrderListPreset'
 
 const route = useRoute()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 
-const form = reactive({
-  code: '',
-  customer: '',
-  status: undefined as number | undefined
+const activePreset = computed(() => {
+  const p = route.query.preset
+  return typeof p === 'string' && isSoListPresetId(p) ? p : null
 })
 
-const statusOptions = computed(() => {
-  void locale.value
-  return [
-    { label: t('salesOrderList.status.new'), value: 1 },
-    { label: t('salesOrderList.status.pendingReview'), value: 2 },
-    { label: t('salesOrderList.status.approved'), value: 10 },
-    { label: t('salesOrderList.status.inProgress'), value: 20 },
-    { label: t('salesOrderList.status.completed'), value: 100 },
-    { label: t('salesOrderList.status.reviewFailed'), value: -1 },
-    { label: t('salesOrderList.status.cancelled'), value: -2 }
-  ]
-})
+const timePresets = SO_LIST_TIME_PRESET_IDS
+const todoPresets = [
+  'pending_submit_audit',
+  'pending_submit_purchase_req',
+  'pending_submit_stock_out_notify'
+] as const satisfies readonly SoListPresetId[]
 
-function syncFromRoute() {
-  if (route.name !== 'SalesOrderList') return
-  form.code = typeof route.query.code === 'string' ? route.query.code : ''
-  form.customer = typeof route.query.customer === 'string' ? route.query.customer : ''
-  const s = route.query.status
-  if (s === undefined || s === null || s === '') {
-    form.status = undefined
-    return
-  }
-  const n = Number(s)
-  form.status = Number.isNaN(n) ? undefined : n
-}
+const documentPresets = [
+  'has_sales_order_docs',
+  'no_sales_order_docs'
+] as const satisfies readonly SoListPresetId[]
 
-watch(
-  () => [route.name, route.query] as const,
-  () => syncFromRoute(),
-  { deep: true, immediate: true }
+const inventoryPresets = [
+  'in_stock_pending_out',
+  'used_stocking'
+] as const satisfies readonly SoListPresetId[]
+
+const receiptPresets = [
+  'stock_out_pending_receipt',
+  'receipt_partial',
+  'receipt_complete'
+] as const satisfies readonly SoListPresetId[]
+
+const businessPresets = SO_LIST_QUICK_FILTER_PRESET_IDS.filter(
+  (id) =>
+    !(todoPresets as readonly string[]).includes(id) &&
+    !(documentPresets as readonly string[]).includes(id) &&
+    !(inventoryPresets as readonly string[]).includes(id) &&
+    !(receiptPresets as readonly string[]).includes(id)
 )
 
-function handleReset() {
-  router.push({ name: 'SalesOrderList', query: {} })
-}
-
-function handleSearch() {
-  const query: Record<string, string> = {}
-  const code = form.code.trim()
-  if (code) query.code = code
-  const customer = form.customer.trim()
-  if (customer) query.customer = customer
-  if (form.status !== undefined && form.status !== null) query.status = String(form.status)
-  router.push({ name: 'SalesOrderList', query })
+function onPresetClick(id: SoListPresetId) {
+  if (activePreset.value === id) {
+    router.replace({ name: 'SalesOrderList', query: {} })
+    return
+  }
+  const keywords = pickSoListKeywordQuery(route.query as Record<string, unknown>)
+  router.replace({
+    name: 'SalesOrderList',
+    query: buildSoListRouteQuery({ preset: id, keywords })
+  })
 }
 </script>
 
@@ -64,51 +69,101 @@ function handleSearch() {
   <div class="so-search-panel">
     <div class="so-search-panel__head">{{ t('salesOrderList.searchPanel.title') }}</div>
 
-    <div class="so-search-panel__fields">
-      <div class="field-col">
-        <label class="field-label">{{ t('salesOrderList.filters.orderCode') }}</label>
-        <div class="field-control">
-          <input
-            v-model="form.code"
-            type="text"
-            class="field-input"
-            :placeholder="t('salesOrderList.searchPanel.codePlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
-      </div>
+    <section class="so-search-panel__group">
+      <h4 class="so-search-panel__group-title">{{ t('salesOrderList.searchPanel.groups.time') }}</h4>
+      <ul class="so-search-panel__list">
+        <li v-for="id in timePresets" :key="id">
+          <button
+            type="button"
+            class="so-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
 
-      <div class="field-col">
-        <label class="field-label">{{ t('salesOrderList.filters.customer') }}</label>
-        <div class="field-control">
-          <input
-            v-model="form.customer"
-            type="text"
-            class="field-input"
-            :placeholder="t('salesOrderList.filters.customerPlaceholder')"
-            @keyup.enter="handleSearch"
-          />
-        </div>
-      </div>
+    <section class="so-search-panel__group">
+      <h4 class="so-search-panel__group-title">{{ t('salesOrderList.searchPanel.groups.todo') }}</h4>
+      <ul class="so-search-panel__list">
+        <li v-for="id in todoPresets" :key="id">
+          <button
+            type="button"
+            class="so-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
 
-      <div class="field-col">
-        <label class="field-label">{{ t('salesOrderList.columns.status') }}</label>
-        <el-select
-          v-model="form.status"
-          :placeholder="t('salesOrderList.filters.allStatus')"
-          clearable
-          class="field-select"
-          :teleported="false"
-        >
-          <el-option v-for="opt in statusOptions" :key="String(opt.value)" :label="opt.label" :value="opt.value" />
-        </el-select>
-      </div>
-    </div>
+    <section class="so-search-panel__group">
+      <h4 class="so-search-panel__group-title">{{ t('salesOrderList.searchPanel.groups.docs') }}</h4>
+      <ul class="so-search-panel__list">
+        <li v-for="id in documentPresets" :key="id">
+          <button
+            type="button"
+            class="so-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
 
-    <div class="so-search-panel__actions">
-      <button type="button" class="btn-search" @click="handleSearch">{{ t('salesOrderList.filters.search') }}</button>
-      <button type="button" class="btn-reset" @click="handleReset">{{ t('salesOrderList.filters.reset') }}</button>
-    </div>
+    <section class="so-search-panel__group">
+      <h4 class="so-search-panel__group-title">{{ t('salesOrderList.searchPanel.groups.business') }}</h4>
+      <ul class="so-search-panel__list">
+        <li v-for="id in businessPresets" :key="id">
+          <button
+            type="button"
+            class="so-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="so-search-panel__group">
+      <h4 class="so-search-panel__group-title">{{ t('salesOrderList.searchPanel.groups.inventory') }}</h4>
+      <ul class="so-search-panel__list">
+        <li v-for="id in inventoryPresets" :key="id">
+          <button
+            type="button"
+            class="so-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
+
+    <section class="so-search-panel__group">
+      <h4 class="so-search-panel__group-title">{{ t('salesOrderList.searchPanel.groups.receipt') }}</h4>
+      <ul class="so-search-panel__list">
+        <li v-for="id in receiptPresets" :key="id">
+          <button
+            type="button"
+            class="so-search-panel__item"
+            :class="{ 'is-active': activePreset === id }"
+            @click="onPresetClick(id)"
+          >
+            {{ t(presetI18nKey(id)) }}
+          </button>
+        </li>
+      </ul>
+    </section>
   </div>
 </template>
 
@@ -128,92 +183,49 @@ function handleSearch() {
   font-size: 13px;
 }
 
-.so-search-panel__fields {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.so-search-panel__group {
+  margin-bottom: 14px;
 }
 
-.field-col {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.field-label {
+.so-search-panel__group-title {
+  margin: 0 0 6px;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   color: $text-muted;
 }
 
-.field-control {
-  width: 100%;
-}
-
-.field-input {
-  width: 100%;
-  box-sizing: border-box;
-  padding: 7px 10px;
-  font-size: 12px;
-  color: $text-primary;
-  background: $layer-3;
-  border: 1px solid $border-panel;
-  border-radius: 6px;
-  outline: none;
-
-  &::placeholder {
-    color: $text-placeholder;
-  }
-
-  &:focus {
-    border-color: var(--crm-accent-06);
-  }
-}
-
-.field-select {
-  width: 100%;
-}
-
-.so-search-panel__actions {
+.so-search-panel__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid $border-panel;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.btn-search {
-  flex: 1;
-  min-width: 72px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #fff;
-  background: linear-gradient(135deg, $blue-primary, $cyan-primary);
-  border: 1px solid var(--crm-action-primary-border);
-  border-radius: 6px;
-  cursor: pointer;
-  transition: box-shadow 0.15s, transform 0.12s;
-
-  &:hover {
-    box-shadow: var(--crm-shadow-glow);
-    transform: translateY(-1px);
-  }
-}
-
-.btn-reset {
-  padding: 8px 12px;
+.so-search-panel__item {
+  width: 100%;
+  text-align: left;
+  padding: 4px 10px;
   font-size: 12px;
   color: $text-secondary;
-  background: $layer-3;
-  border: 1px solid $border-panel;
+  background: transparent;
+  border: 1px solid transparent;
   border-radius: 6px;
   cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
 
   &:hover {
     background: var(--crm-accent-008);
     border-color: var(--crm-accent-018);
+    color: $text-primary;
+  }
+
+  &.is-active {
+    background: var(--crm-accent-012);
+    border-color: var(--crm-accent-04);
+    color: $text-primary;
+    font-weight: 500;
   }
 }
 </style>

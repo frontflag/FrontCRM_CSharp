@@ -12,6 +12,7 @@ export interface SalesOrderListAnalyticsQuery {
   status?: number[]
   startDate?: string
   endDate?: string
+  quickFilter?: string
   groupBy?: 'day' | 'week' | 'month'
 }
 
@@ -65,6 +66,7 @@ function buildQuery(q: SalesOrderListAnalyticsQuery): string {
   assignSalesOrderStatusesParam(p, 'status', q.status)
   if (q.startDate) p.startDate = q.startDate
   if (q.endDate) p.endDate = q.endDate
+  if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.groupBy) p.groupBy = q.groupBy
   return buildQueryString(p)
 }

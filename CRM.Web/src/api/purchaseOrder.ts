@@ -397,6 +397,8 @@ export const purchaseOrderApi = {
     status?: number | number[]
     startDate?: string
     endDate?: string
+    /** 左栏业务快捷检索（码同采购订单明细 quickFilter） */
+    quickFilter?: string
     page?: number
     pageSize?: number
   }) {

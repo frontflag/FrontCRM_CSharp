@@ -14,6 +14,8 @@ export interface PurchaseOrderListAnalyticsQuery {
   status?: number[]
   startDate?: string
   endDate?: string
+  /** 左栏业务快捷检索（码同采购订单明细 quickFilter） */
+  quickFilter?: string
   groupBy?: 'day' | 'week' | 'month'
 }
 
@@ -69,6 +71,7 @@ function buildQuery(q: PurchaseOrderListAnalyticsQuery): string {
   assignPurchaseOrderStatusesParam(p, 'status', q.status)
   if (q.startDate) p.startDate = q.startDate
   if (q.endDate) p.endDate = q.endDate
+  if (q.quickFilter) p.quickFilter = q.quickFilter
   if (q.groupBy) p.groupBy = q.groupBy
   return buildQueryString(p)
 }

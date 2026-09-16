@@ -1,6 +1,6 @@
 namespace CRM.Core.Constants;
 
-/// <summary>销售订单明细列表左栏快捷检索（<c>quickFilter</c> / URL <c>preset</c> 业务项）。时间类 preset 由前端展开为 <c>orderCreateStart/End</c>。</summary>
+/// <summary>销售订单明细列表左栏快捷检索（<c>quickFilter</c> / URL <c>preset</c> 业务项）。时间类 preset 由前端展开为日期。销售订单主表列表复用同一码，行级项为 EXISTS。</summary>
 public static class SellOrderItemListQuickFilterCodes
 {
     public const string PendingSubmitAudit = "pending_submit_audit";

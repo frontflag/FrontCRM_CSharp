@@ -389,9 +389,15 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
             }
         }
 
-        var statuses = PurchaseOrderStatusFilterHelper.Normalize(request.Status);
-        if (statuses.Count > 0)
-            q = q.Where(o => statuses.Contains(o.Status));
+        var hasQuickFilter = !string.IsNullOrWhiteSpace(request.QuickFilter)
+            && PurchaseOrderItemListQuickFilterCodes.IsKnown(request.QuickFilter);
+
+        if (!hasQuickFilter)
+        {
+            var statuses = PurchaseOrderStatusFilterHelper.Normalize(request.Status);
+            if (statuses.Count > 0)
+                q = q.Where(o => statuses.Contains(o.Status));
+        }
 
         if (request.OrderType.HasValue)
             q = q.Where(o => o.Type == request.OrderType.Value);
@@ -423,6 +429,9 @@ public sealed class PurchaseOrderListQuery : IPurchaseOrderListQuery
                 o.Comment != null &&
                 o.Comment.ToLower().Contains(c.ToLower()));
         }
+
+        if (hasQuickFilter)
+            q = PurchaseOrderListQuickFilter.Apply(_db, q, request.QuickFilter);
 
         return q;
     }

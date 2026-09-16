@@ -5785,8 +5785,54 @@ const enUS = {
       }
     },
     searchPanel: {
-      title: 'Sales order search',
-      codePlaceholder: 'Order no.'
+      title: 'Quick search',
+      clearPreset: 'Clear shortcut',
+      groups: {
+        time: 'Order date',
+        todo: 'To-do',
+        docs: 'Documents',
+        business: 'Progress',
+        inventory: 'Inventory',
+        receipt: 'Receipt'
+      },
+      presets: {
+        order_today: 'Today',
+        order_today_yesterday: 'Yesterday–today',
+        order_last_7_days: 'Last 7 days',
+        order_last_30_days: 'Last 30 days',
+        order_this_week: 'This week',
+        order_this_month: 'This month',
+        pending_submit_audit: 'Pending audit',
+        pending_submit_purchase_req: 'Pending purchase request',
+        pending_submit_stock_out_notify: 'Pending stock-out notify',
+        has_sales_order_docs: 'Has documents',
+        no_sales_order_docs: 'No documents',
+        applied_pending_po: 'Applied, pending PO',
+        purchased_pending_stock_in: 'Purchased, pending stock-in',
+        notify_pending_packing: 'Notified, pending packing',
+        packed_pending_stock_out: 'Packed, pending stock-out',
+        in_stock_pending_out: 'In stock, pending out',
+        used_stocking: 'Used stocking',
+        stock_out_pending_receipt: 'Receivable',
+        receipt_partial: 'Partial receipt',
+        receipt_complete: 'Receipt complete'
+      }
+    },
+    opsPanel: {
+      pickRow: 'Click a row to view the sales order and documents',
+      salesOrderTitle: 'Sales order',
+      salesOrderCode: 'Sales order no.',
+      salesOrderStatus: 'Status',
+      docsTitle: 'Documents',
+      docsNone: '(none)',
+      docsEmptyExpanded: 'No documents uploaded yet',
+      docsLoading: 'Loading…',
+      docsExpand: 'Expand',
+      docsCollapse: 'Collapse',
+      docsCannotPreview: 'Cannot preview online. Download instead?',
+      docsCannotPreviewTitle: 'Cannot preview',
+      docsDownload: 'Download',
+      docsDownloadFailed: 'Download failed'
     },
     columns: {
       orderCode: 'Order Code',
@@ -6405,6 +6451,56 @@ const enUS = {
       reset: 'Reset',
       boardView: 'Board',
       listView: 'List'
+    },
+    searchPanel: {
+      title: 'Quick search',
+      clearPreset: 'Clear quick search',
+      groups: {
+        time: 'Time',
+        todo: 'To-do',
+        docs: 'Documents',
+        payment: 'Payment',
+        stockIn: 'Stock-in'
+      },
+      presets: {
+        order_today: 'Orders today',
+        order_today_yesterday: 'Today & yesterday',
+        order_last_7_days: 'Last 7 days',
+        order_last_30_days: 'Last 30 days',
+        order_this_week: 'This week',
+        order_this_month: 'This month',
+        pending_submit_audit: 'Pending audit submit',
+        pending_vendor_confirm: 'Pending vendor confirm',
+        pending_submit_payment_request: 'Pending payment request',
+        pending_submit_arrival_notify: 'Pending arrival notice',
+        has_purchase_order_docs: 'Has documents',
+        no_purchase_order_docs: 'No documents',
+        pay_later: 'Pay-later orders',
+        confirmed_unpaid: 'Confirmed, unpaid',
+        stocked_in_unpaid: 'Stocked in, unpaid',
+        payment_partial: 'Partial payment',
+        payment_complete: 'Payment complete',
+        confirmed_pending_stock_in: 'Confirmed, not stocked in',
+        paid_pending_stock_in: 'Paid, pending stock-in',
+        stocked_in: 'Stocked in'
+      }
+    },
+    opsPanel: {
+      pickRow: 'Click a row to view the purchase order and documents',
+      purchaseOrderTitle: 'Purchase order',
+      purchaseOrderCode: 'Purchase order no.',
+      purchaseOrderStatus: 'Status',
+      purchaseOrderStatusAwaitingVendorHint: '(waiting for vendor confirmation)',
+      docsTitle: 'Documents',
+      docsNone: '(none)',
+      docsEmptyExpanded: 'No documents uploaded yet',
+      docsLoading: 'Loading…',
+      docsExpand: 'Expand',
+      docsCollapse: 'Collapse',
+      docsCannotPreview: 'Cannot preview online. Download instead?',
+      docsCannotPreviewTitle: 'Cannot preview',
+      docsDownload: 'Download',
+      docsDownloadFailed: 'Download failed'
     },
     board: {
       hint: 'Stats match current filters; approved orders are status ≥ approved.',

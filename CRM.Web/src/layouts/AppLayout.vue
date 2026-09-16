@@ -1417,6 +1417,7 @@
           <ArrivalNoticeSearchPanel v-else-if="showArrivalNoticeSearchPanel" />
           <StockInSearchPanel v-else-if="showStockInSearchPanel" />
           <StockOutSearchPanel v-else-if="showStockOutSearchPanel" />
+          <PurchaseOrderSearchPanel v-else-if="showPurchaseOrderSearchPanel" />
           <PurchaseOrderFavoritePanel v-else-if="showPurchaseOrderFavoritePanel" />
           <PurchaseOrderRecentHistoryPanel v-else-if="showPurchaseOrderRecentHistoryPanel" />
           <PurchaseOrderItemSearchPanel v-else-if="showPurchaseOrderItemSearchPanel" />
@@ -1623,6 +1624,18 @@
           </div>
         </div>
         <div class="aux-panel-body">
+          <SalesOrderOpsPanel
+            v-if="showSalesOrderOpsPanel"
+            :row="salesOrderOpsStore.row"
+            :mask-sensitive="maskSaleSensitiveFields"
+            class="aux-panel-tab-body"
+          />
+          <PurchaseOrderOpsPanel
+            v-if="showPurchaseOrderOpsPanel"
+            :row="purchaseOrderOpsStore.row"
+            :mask-sensitive="maskPurchaseSensitiveFields"
+            class="aux-panel-tab-body"
+          />
           <SalesOrderItemOpsPanel
             v-show="showSalesOrderItemOpsPanel"
             embedded
@@ -1920,6 +1933,7 @@ import RFQRecentHistoryPanel from '@/components/RFQ/RFQRecentHistoryPanel.vue'
 import SalesOrderSearchPanel from '@/components/SalesOrder/SalesOrderSearchPanel.vue'
 import SalesOrderItemSearchPanel from '@/components/RFQ/SalesOrderItemSearchPanel.vue'
 import PurchaseOrderItemSearchPanel from '@/components/RFQ/PurchaseOrderItemSearchPanel.vue'
+import PurchaseOrderSearchPanel from '@/components/purchaseOrder/PurchaseOrderSearchPanel.vue'
 import ArrivalNoticeSearchPanel from '@/components/Logistics/ArrivalNoticeSearchPanel.vue'
 import QcSearchPanel from '@/components/Logistics/QcSearchPanel.vue'
 import { canAccessCustomsModule } from '@/utils/departmentModuleGate'
@@ -1966,6 +1980,8 @@ import { sysUserNoticesApi } from '@/api/sysUserNotices'
 import { useSystemAnnouncementUi } from '@/composables/useSystemAnnouncementUi'
 import { useImageBrowserStore } from '@/stores/imageBrowser'
 import SalesOrderItemOpsPanel from '@/components/RFQ/SalesOrderItemOpsPanel.vue'
+import SalesOrderOpsPanel from '@/components/SalesOrder/SalesOrderOpsPanel.vue'
+import PurchaseOrderOpsPanel from '@/components/purchaseOrder/PurchaseOrderOpsPanel.vue'
 import SalesOrderItemFlowPanel from '@/components/RFQ/SalesOrderItemFlowPanel.vue'
 import PackingItemFlowPanel from '@/components/Inventory/PackingItemFlowPanel.vue'
 import PackingListFlowPanel from '@/components/Inventory/PackingListFlowPanel.vue'
@@ -1992,6 +2008,8 @@ import StockInFlowPanel from '@/components/Inventory/StockInFlowPanel.vue'
 import UserLevelChangeLogPanel from '@/components/System/UserLevelChangeLogPanel.vue'
 import StockOutNotifyCustomsTabPanel from '@/components/Inventory/StockOutNotifyCustomsTabPanel.vue'
 import { useSalesOrderItemOpsPanelStore } from '@/stores/salesOrderItemOpsPanel'
+import { useSalesOrderOpsPanelStore } from '@/stores/salesOrderOpsPanel'
+import { usePurchaseOrderOpsPanelStore } from '@/stores/purchaseOrderOpsPanel'
 import { usePackingDetailFlowPanelStore } from '@/stores/packingDetailFlowPanel'
 import { useCustomsPendlistFlowPanelStore } from '@/stores/customsPendlistFlowPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
@@ -2047,6 +2065,8 @@ const simulationTopBarStyle = computed(() => {
 const { isDark, toggleTheme } = useUiTheme()
 const { t, locale } = useI18n()
 const salesOrderItemOpsStore = useSalesOrderItemOpsPanelStore()
+const salesOrderOpsStore = useSalesOrderOpsPanelStore()
+const purchaseOrderOpsStore = usePurchaseOrderOpsPanelStore()
 const packingDetailFlowStore = usePackingDetailFlowPanelStore()
 const customsPendlistFlowStore = useCustomsPendlistFlowPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
@@ -2266,7 +2286,7 @@ const showRfqItemRecentHistoryPanel = computed(
   () => leftActiveTabId.value === 'l3' && isRfqItemListLeftAuxRoute.value
 )
 
-/** 销售订单列表/详情/新建/明细列表：左栏「检索 / 收藏 / 历史」（明细列表无检索面板内容） */
+/** 销售订单列表/详情/新建/明细列表：左栏「检索 / 收藏 / 历史」 */
 const isSalesOrderLeftAuxRoute = computed(() => {
   const n = route.name
   return (
@@ -2338,7 +2358,7 @@ const showStockOutSearchPanel = computed(
   () => leftActiveTabId.value === 'l1' && isStockOutLeftAuxRoute.value
 )
 
-/** 采购订单列表/详情/新建/编辑/明细/报表：左栏「收藏 / 历史」 */
+/** 采购订单列表/详情/新建/编辑/明细/报表：左栏「检索 / 收藏 / 历史」 */
 const isPurchaseOrderLeftAuxRoute = computed(() => {
   const n = route.name
   return (
@@ -2357,6 +2377,13 @@ const showPurchaseOrderFavoritePanel = computed(
 
 const showPurchaseOrderRecentHistoryPanel = computed(
   () => leftActiveTabId.value === 'l3' && isPurchaseOrderLeftAuxRoute.value
+)
+
+const showPurchaseOrderSearchPanel = computed(
+  () =>
+    leftActiveTabId.value === 'l1' &&
+    isPurchaseOrderLeftAuxRoute.value &&
+    route.name !== 'PurchaseOrderItemList'
 )
 
 const showPurchaseOrderItemSearchPanel = computed(
@@ -2438,6 +2465,14 @@ const isStockInListRoute = computed(() => route.name === 'StockInList')
 const isInventoryStockItemListRoute = computed(() => route.name === 'InventoryStockItemList')
 const isStockOutNotifyListRoute = computed(
   () => route.name === 'InventoryStockOutNotifyList' || route.name === 'StockOutNotifyList'
+)
+
+const showSalesOrderOpsPanel = computed(
+  () => rightActiveTabId.value === 'r-ops' && route.name === 'SalesOrderList'
+)
+
+const showPurchaseOrderOpsPanel = computed(
+  () => rightActiveTabId.value === 'r-ops' && route.name === 'PurchaseOrderList'
 )
 
 const showSalesOrderItemOpsPanel = computed(
@@ -2699,6 +2734,8 @@ watch(
   (name, oldName) => {
     if (oldName != null && oldName !== name) rememberAuxTabsForRoute(oldName)
 
+    if (name !== 'SalesOrderList') salesOrderOpsStore.clear()
+    if (name !== 'PurchaseOrderList') purchaseOrderOpsStore.clear()
     if (name !== 'StockOutList') stockOutOpsStore.clear()
     if (name !== 'UserLevelList') userLevelLogStore.clear()
     if (name !== 'InventoryStockOutNotifyList' && name !== 'StockOutNotifyList') {
@@ -2885,6 +2922,7 @@ watch(
 
     if (name === 'SalesOrderList') {
       rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r-customer', labelKey: 'layout.auxTabs.customer' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
@@ -2902,7 +2940,9 @@ watch(
       customerIntelLookupStore.clearBound()
       vendorIntelLookupStore.clearBound()
       customerWorkspacePanelStore.clear()
-      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
+      // 本页旧默认是「帮助」；已记住客户则保留，记住帮助则改到操作
+      if (rightActiveTabId.value === 'r4') rightActiveTabId.value = 'r-ops'
       return
     }
     if (name === 'SalesOrderItemList') {
@@ -2961,6 +3001,28 @@ watch(
       stockOutNotifyCustomsPanelStore.clear()
       materialIntelLookupStore.clearBound()
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r4' })
+      return
+    }
+    if (name === 'PurchaseOrderList') {
+      rightTabs.value = [
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      customsDeclarationFlowStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-ops' })
+      if (rightActiveTabId.value === 'r4') rightActiveTabId.value = 'r-ops'
       return
     }
     if (name === 'PurchaseOrderItemList') {

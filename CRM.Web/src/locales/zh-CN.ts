@@ -5776,8 +5776,54 @@ const zhCN = {
       }
     },
     searchPanel: {
-      title: '销售订单检索',
-      codePlaceholder: '订单编号'
+      title: '快捷检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        time: '下单时间',
+        todo: '待办',
+        docs: '文档',
+        business: '业务进度',
+        inventory: '库存',
+        receipt: '收款'
+      },
+      presets: {
+        order_today: '今日订单',
+        order_today_yesterday: '今昨订单',
+        order_last_7_days: '近 7 日订单',
+        order_last_30_days: '近 30 日订单',
+        order_this_week: '本周订单',
+        order_this_month: '本月订单',
+        pending_submit_audit: '待提交审核',
+        pending_submit_purchase_req: '待申请采购',
+        pending_submit_stock_out_notify: '待申请出库',
+        has_sales_order_docs: '有上传文档',
+        no_sales_order_docs: '未上传文档',
+        applied_pending_po: '已申请待采购',
+        purchased_pending_stock_in: '已采购待入库',
+        notify_pending_packing: '已通知待装箱',
+        packed_pending_stock_out: '已装箱待出库',
+        in_stock_pending_out: '在库待出',
+        used_stocking: '使用备货',
+        stock_out_pending_receipt: '应收款',
+        receipt_partial: '部分收款',
+        receipt_complete: '收款完成'
+      }
+    },
+    opsPanel: {
+      pickRow: '单击列表行查看销售订单与文档',
+      salesOrderTitle: '销售订单',
+      salesOrderCode: '销售订单编号',
+      salesOrderStatus: '状态',
+      docsTitle: '文档',
+      docsNone: '（无上传）',
+      docsEmptyExpanded: '目前暂未有上传文档',
+      docsLoading: '加载中…',
+      docsExpand: '展开',
+      docsCollapse: '收起',
+      docsCannotPreview: '无法在线查看，是否下载？',
+      docsCannotPreviewTitle: '无法预览',
+      docsDownload: '下载',
+      docsDownloadFailed: '下载失败'
     },
     columns: {
       orderCode: '订单号',
@@ -6387,6 +6433,56 @@ const zhCN = {
       reset: '重置',
       boardView: '看板',
       listView: '列表'
+    },
+    searchPanel: {
+      title: '快捷检索',
+      clearPreset: '清除快捷检索',
+      groups: {
+        time: '时间',
+        todo: '待办',
+        docs: '文档',
+        payment: '付款',
+        stockIn: '入库'
+      },
+      presets: {
+        order_today: '今日订单',
+        order_today_yesterday: '今昨订单',
+        order_last_7_days: '近 7 日订单',
+        order_last_30_days: '近 30 日订单',
+        order_this_week: '本周订单',
+        order_this_month: '本月订单',
+        pending_submit_audit: '待提交审核',
+        pending_vendor_confirm: '待供应商确认',
+        pending_submit_payment_request: '待提交付款申请',
+        pending_submit_arrival_notify: '待提交到货通知',
+        has_purchase_order_docs: '有上传文档',
+        no_purchase_order_docs: '未上传文档',
+        pay_later: '后付款订单',
+        confirmed_unpaid: '已确认，未付款',
+        stocked_in_unpaid: '已入库，未付款',
+        payment_partial: '部分付款',
+        payment_complete: '付款完成',
+        confirmed_pending_stock_in: '已确认，未入库',
+        paid_pending_stock_in: '已付款，待入库',
+        stocked_in: '已入库'
+      }
+    },
+    opsPanel: {
+      pickRow: '单击列表行查看采购订单与文档',
+      purchaseOrderTitle: '采购订单',
+      purchaseOrderCode: '采购订单编号',
+      purchaseOrderStatus: '状态',
+      purchaseOrderStatusAwaitingVendorHint: '（等待供应商确认）',
+      docsTitle: '文档',
+      docsNone: '（无上传）',
+      docsEmptyExpanded: '目前暂未有上传文档',
+      docsLoading: '加载中…',
+      docsExpand: '展开',
+      docsCollapse: '收起',
+      docsCannotPreview: '无法在线查看，是否下载？',
+      docsCannotPreviewTitle: '无法预览',
+      docsDownload: '下载',
+      docsDownloadFailed: '下载失败'
     },
     board: {
       hint: '统计范围与当前筛选条件一致；成单口径为审核通过及以上。',

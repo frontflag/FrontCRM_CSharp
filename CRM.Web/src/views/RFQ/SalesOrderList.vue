@@ -17,10 +17,17 @@
       </div>
     </div>
 
+    <div v-if="activePreset" class="search-preset-chip-row">
+      <span class="search-preset-chip">
+        {{ t(presetI18nKey(activePreset)) }}
+        <button type="button" class="search-preset-chip__clear" :title="t('salesOrderList.searchPanel.clearPreset')" @click="clearPresetChip">×</button>
+      </span>
+    </div>
     <!-- 搜索栏：状态 → 订单号 → 客户 → 业务员 → 备注 → 创建日期 -->
     <div class="search-bar">
       <div class="search-left">
         <el-select
+          v-if="!presetActive"
           v-model="filterForm.status"
           :placeholder="t('salesOrderList.filters.allStatus')"
           multiple
@@ -92,6 +99,7 @@
           />
         </div>
         <el-date-picker
+          v-if="!presetActive"
           v-model="filterForm.createDateRange"
           type="daterange"
           :range-separator="t('salesOrderList.filters.createDateSep')"
@@ -311,12 +319,13 @@ import { useCustomerExtendColumn, isCustomerExtendTableColumn } from '@/composab
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
-import { cancelledOrderListRowClass } from '@/utils/listCancelledRow'
+import { cancelledOrderListRowClass, joinRowClassNames } from '@/utils/listCancelledRow'
 import { useListBoardHelpOverride } from '@/composables/useHelpDocOverride'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { useCustomerWorkspacePanelStore } from '@/stores/customerWorkspacePanel'
+import { useSalesOrderOpsPanelStore } from '@/stores/salesOrderOpsPanel'
 import SalesOrderListBoard from './SalesOrderListBoard.vue'
 import type { SalesOrderListAnalyticsQuery } from '@/api/salesOrderAnalytics'
 import ProgressMultiSelectOption from '@/components/Common/ProgressMultiSelectOption.vue'
@@ -325,6 +334,14 @@ import {
   formatSalesOrderStatusesForRoute,
   normalizeSalesOrderStatuses
 } from '@/utils/salesOrderStatusQuery'
+import {
+  buildSoListRouteQuery,
+  isSoListPresetId,
+  isSoListQuickFilterPresetId,
+  pickSoListKeywordQuery,
+  presetI18nKey,
+  type SoListPresetId
+} from '@/utils/salesOrderListPreset'
 
 const router = useRouter()
 const route = useRoute()
@@ -332,7 +349,19 @@ const { t, locale } = useI18n()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const customerWorkspacePanelStore = useCustomerWorkspacePanelStore()
 customerWorkspacePanelStore.setSource('sellOrder')
+const salesOrderOpsStore = useSalesOrderOpsPanelStore()
 const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'SalesOrderList',
+  hasSelectedRow: () => !!salesOrderOpsStore.row,
+  setRowOnly: row => salesOrderOpsStore.setRowOnly(row),
+  selectRow: row => salesOrderOpsStore.selectRow(row),
+  loadSelected: () => {
+    if (salesOrderOpsStore.row) void salesOrderOpsStore.selectRow(salesOrderOpsStore.row)
+  },
+  dataTabIds: ['r-ops']
+})
+const { onOpsPanelRowClick: onCustomerPanelRowClick } = useListRightOpsPanelInteraction({
   workspaceLayout,
   isActiveRoute: () => route.name === 'SalesOrderList',
   hasSelectedRow: () => !!customerWorkspacePanelStore.boundId,
@@ -392,6 +421,26 @@ const filterForm = ref({
   createDateRange: null as [string, string] | null,
   status: [] as number[]
 })
+
+const activePreset = computed((): SoListPresetId | null => {
+  const p = route.query.preset
+  return typeof p === 'string' && isSoListPresetId(p) ? p : null
+})
+const presetActive = computed(() => !!activePreset.value)
+
+function currentListKeywords(): Record<string, string> {
+  return pickSoListKeywordQuery({
+    code: filterForm.value.code,
+    customer: filterForm.value.customer,
+    salesUserName: filterForm.value.salesUserName,
+    comment: filterForm.value.comment
+  })
+}
+
+function clearPresetChip() {
+  pageInfo.value.page = 1
+  router.replace({ name: 'SalesOrderList', query: {} })
+}
 
 // 分页信息
 const pageInfo = ref({
@@ -503,8 +552,15 @@ const boardFilters = computed((): SalesOrderListAnalyticsQuery => {
   }
   const cm = filterForm.value.comment.trim()
   if (cm) q.comment = cm
-  const statuses = normalizeSalesOrderStatuses(filterForm.value.status)
-  if (statuses.length) q.status = statuses
+  const preset = activePreset.value
+  if (preset && isSoListQuickFilterPresetId(preset)) {
+    q.quickFilter = preset
+    return q
+  }
+  if (!preset) {
+    const statuses = normalizeSalesOrderStatuses(filterForm.value.status)
+    if (statuses.length) q.status = statuses
+  }
   if (filterForm.value.createDateRange?.[0]) q.startDate = filterForm.value.createDateRange[0]
   if (filterForm.value.createDateRange?.[1]) q.endDate = filterForm.value.createDateRange[1]
   return q
@@ -559,15 +615,20 @@ const loadData = async () => {
       const customer = filterForm.value.customer.trim()
       if (customer) params.customer = customer
     }
-    assignSalesOrderStatusesParam(params, 'status', filterForm.value.status)
     if (!maskSaleSensitiveFields.value) {
       const salesUser = filterForm.value.salesUserName.trim()
       if (salesUser) params.salesUserName = salesUser
     }
     const cm = filterForm.value.comment.trim()
     if (cm) params.comment = cm
-    if (filterForm.value.createDateRange?.[0]) params.startDate = filterForm.value.createDateRange[0]
-    if (filterForm.value.createDateRange?.[1]) params.endDate = filterForm.value.createDateRange[1]
+    const preset = activePreset.value
+    if (preset && isSoListQuickFilterPresetId(preset)) {
+      params.quickFilter = preset
+    } else {
+      if (!preset) assignSalesOrderStatusesParam(params, 'status', filterForm.value.status)
+      if (filterForm.value.createDateRange?.[0]) params.startDate = filterForm.value.createDateRange[0]
+      if (filterForm.value.createDateRange?.[1]) params.endDate = filterForm.value.createDateRange[1]
+    }
 
     const res = (await salesOrderApi.getList(params)) as {
       items?: any[]
@@ -592,7 +653,12 @@ const loadData = async () => {
   } finally {
     loading.value = false
   }
-  resetListRightPanelOnReload(customerWorkspacePanelStore)
+  resetListRightPanelOnReload({
+    clear() {
+      salesOrderOpsStore.clear()
+      customerWorkspacePanelStore.clear()
+    }
+  })
 }
 
 function syncFiltersFromRoute() {
@@ -605,7 +671,7 @@ function syncFiltersFromRoute() {
   const from = typeof q.startDate === 'string' ? q.startDate : ''
   const to = typeof q.endDate === 'string' ? q.endDate : ''
   filterForm.value.createDateRange = from && to ? [from, to] : null
-  filterForm.value.status = normalizeSalesOrderStatuses(q.status)
+  filterForm.value.status = presetActive.value ? [] : normalizeSalesOrderStatuses(q.status)
 }
 
 watch(
@@ -619,20 +685,23 @@ watch(
 
 // 搜索和重置（与左侧检索面板共用 query）
 const handleSearch = () => {
-  const query: Record<string, string> = {}
-  const code = filterForm.value.code.trim()
-  if (code) query.code = code
-  const customer = filterForm.value.customer.trim()
-  if (customer) query.customer = customer
-  const salesUser = filterForm.value.salesUserName.trim()
-  if (salesUser) query.salesUserName = salesUser
-  const cm = filterForm.value.comment.trim()
-  if (cm) query.comment = cm
-  if (filterForm.value.createDateRange?.[0]) query.startDate = filterForm.value.createDateRange[0]
-  if (filterForm.value.createDateRange?.[1]) query.endDate = filterForm.value.createDateRange[1]
-  const statusQ = formatSalesOrderStatusesForRoute(filterForm.value.status)
-  if (statusQ) query.status = statusQ
   pageInfo.value.page = 1
+  const keywords = currentListKeywords()
+  if (activePreset.value) {
+    router.replace({
+      name: 'SalesOrderList',
+      query: buildSoListRouteQuery({ preset: activePreset.value, keywords })
+    })
+    return
+  }
+  const query = buildSoListRouteQuery({
+    keywords,
+    advanced: {
+      startDate: filterForm.value.createDateRange?.[0],
+      endDate: filterForm.value.createDateRange?.[1],
+      status: formatSalesOrderStatusesForRoute(filterForm.value.status) || undefined
+    }
+  })
   router.replace({ name: 'SalesOrderList', query })
 }
 
@@ -682,10 +751,16 @@ const handleView = (row: any) => {
 
 function onSalesOrderRowClick(row: Record<string, unknown>) {
   void onOpsPanelRowClick(row)
+  void onCustomerPanelRowClick(row)
 }
 
 function salesOrderListRowClassName({ row }: { row: Record<string, unknown> }) {
-  return cancelledOrderListRowClass(row, 'status')
+  const cancelled = cancelledOrderListRowClass(row, 'status')
+  const active =
+    salesOrderOpsStore.row && salesOrderOpsStore.rowKey(row) === salesOrderOpsStore.rowKey(salesOrderOpsStore.row)
+      ? 'so-item-row--active'
+      : ''
+  return joinRowClassNames(cancelled, active)
 }
 
 function onSalesOrderRowDblClick(row: { id?: string }, _column: unknown, event?: MouseEvent) {
@@ -697,6 +772,7 @@ function onSalesOrderRowDblClick(row: { id?: string }, _column: unknown, event?:
 }
 
 onBeforeUnmount(() => {
+  salesOrderOpsStore.clear()
   customerWorkspacePanelStore.clear()
 })
 
@@ -811,6 +887,46 @@ const submitForAudit = async (row: any) => {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 12px;
+}
+
+.search-preset-chip-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.search-preset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 10px;
+  font-size: 12px;
+  color: $text-primary;
+  background: rgba(0, 212, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.35);
+  border-radius: 20px;
+}
+
+.search-preset-chip__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: $text-muted;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  &:hover {
+    color: $text-primary;
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 
 .search-left {

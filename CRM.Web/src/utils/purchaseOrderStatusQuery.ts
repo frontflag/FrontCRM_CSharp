@@ -20,6 +20,12 @@ export function normalizePurchaseOrderStatuses(values: unknown): number[] {
   return [...new Set(out)].sort((a, b) => a - b)
 }
 
+/** 路由 query：逗号拼接；空数组不写。 */
+export function formatPurchaseOrderStatusesForRoute(values: number[] | undefined | null): string | undefined {
+  const n = normalizePurchaseOrderStatuses(values ?? [])
+  return n.length ? n.join(',') : undefined
+}
+
 /**
  * 写入 API/axios 参数：同名重复 key（ASP.NET `List&lt;short&gt;`）。
  * 空数组不写。

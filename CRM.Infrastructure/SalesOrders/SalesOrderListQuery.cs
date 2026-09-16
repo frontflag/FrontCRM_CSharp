@@ -102,12 +102,18 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
             }
         }
 
-        var statuses = SellOrderStatusFilterHelper.Normalize(request.Status);
-        if (statuses.Count > 0)
+        var hasQuickFilter = !string.IsNullOrWhiteSpace(request.QuickFilter)
+            && SellOrderItemListQuickFilterCodes.IsKnown(request.QuickFilter);
+
+        if (!hasQuickFilter)
         {
-            // 用枚举 Contains，确保 EF 译为 SQL IN（OR）
-            var statusEnums = statuses.Select(s => (SellOrderMainStatus)s).ToList();
-            q = q.Where(o => statusEnums.Contains(o.Status));
+            var statuses = SellOrderStatusFilterHelper.Normalize(request.Status);
+            if (statuses.Count > 0)
+            {
+                // 用枚举 Contains，确保 EF 译为 SQL IN（OR）
+                var statusEnums = statuses.Select(s => (SellOrderMainStatus)s).ToList();
+                q = q.Where(o => statusEnums.Contains(o.Status));
+            }
         }
 
         if (request.StartDate.HasValue)
@@ -137,6 +143,9 @@ public sealed class SalesOrderListQuery : ISalesOrderListQuery
                 o.Comment != null &&
                 o.Comment.ToLower().Contains(c.ToLower()));
         }
+
+        if (hasQuickFilter)
+            q = SalesOrderListQuickFilter.Apply(_db, q, request.QuickFilter);
 
         return q;
     }

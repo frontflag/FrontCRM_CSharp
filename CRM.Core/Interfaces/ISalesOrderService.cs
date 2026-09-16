@@ -407,6 +407,13 @@ namespace CRM.Core.Interfaces
 
         /// <summary>主状态多选（空/null 表示不限）。取值见 <see cref="Models.Sales.SellOrderMainStatus"/>。</summary>
         public List<short>? Status { get; set; }
+
+        /// <summary>
+        /// 左栏业务快捷检索（码同 <see cref="CRM.Core.Constants.SellOrderItemListQuickFilterCodes"/>）。
+        /// 行级项为该单至少一行命中；与手动状态筛选互斥。
+        /// </summary>
+        public string? QuickFilter { get; set; }
+
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
         public int Page { get; set; } = 1;
