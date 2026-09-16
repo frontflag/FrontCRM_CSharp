@@ -148,13 +148,13 @@ function onPresetClick(id: RfqItemListPresetId) {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .rfq-item-search-panel__item {
   width: 100%;
   text-align: left;
-  padding: 7px 10px;
+  padding: 4px 10px;
   font-size: 12px;
   color: $text-secondary;
   background: transparent;
