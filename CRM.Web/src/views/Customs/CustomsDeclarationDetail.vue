@@ -276,6 +276,7 @@ import {
 import { useAuthStore } from '@/stores/auth'
 import { formatVendorNameReadonly } from '@/utils/vendorDisplayName'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
@@ -405,9 +406,10 @@ function clearanceLabel(v: number) {
   return m[v] ?? String(v)
 }
 
-function formatDate(iso: string | undefined) {
+function formatDate(iso: string | undefined | null) {
   if (!iso) return '—'
-  return iso.includes('T') ? iso.slice(0, 10) : iso.slice(0, 10)
+  const s = formatDisplayDate(iso)
+  return !s || s === '--' ? '—' : s
 }
 
 function moneyText(n: number | null | undefined): string {

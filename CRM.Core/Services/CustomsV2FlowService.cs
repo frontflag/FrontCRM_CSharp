@@ -243,7 +243,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             DeclarationType = CustomsDeclarationType.Import,
             InternalStatus = CustomsDeclarationInternalStatus.Processing,
             CustomsClearanceStatus = CustomsClearanceStatusCodes.None,
-            DeclareDate = now.Date,
+            DeclareDate = now.Date, // 库列非空占位；界面申报日期取报关出库完成时的实际出库日期
             ExchangeRate = fx.UsdToCny > 0m ? fx.UsdToCny : 0m,
             BrokerAgencyRate = broker.AgencyRate > 0m ? broker.AgencyRate : 1m,
             TotalTaxAmount = 0m,

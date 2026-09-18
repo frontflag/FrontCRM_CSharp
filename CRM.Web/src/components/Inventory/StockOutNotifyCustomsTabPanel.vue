@@ -68,6 +68,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CustomsDeclarationDetailDto } from '@/api/customs'
 import type { StockOutRequestDto } from '@/api/stockOut'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 
 const props = defineProps<{
   notifyRow?: StockOutRequestDto | null
@@ -103,8 +104,8 @@ const brokerDisplay = computed(() => {
 const declareDateText = computed(() => {
   const raw = props.detail?.declareDate
   if (!raw) return '—'
-  const s = String(raw)
-  return s.includes('T') ? s.slice(0, 10) : s.slice(0, 10)
+  const s = formatDisplayDate(String(raw))
+  return !s || s === '--' ? '—' : s
 })
 
 const warehouseRoute = computed(() => {

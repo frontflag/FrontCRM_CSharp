@@ -2,6 +2,7 @@ using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
+using CRM.Infrastructure.Customs;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -142,7 +143,7 @@ public class CustomsDeclarationItemsController : ControllerBase
                 where string.IsNullOrEmpty(custQ)
                       || (i.CustomerId != null && i.CustomerId == custQ)
                       || (c != null && c.OfficialName != null && EF.Functions.ILike(c.OfficialName, $"%{custQ}%"))
-                orderby d.DeclareDate descending, i.LineNo, i.CreateTime descending
+                orderby d.CreateTime descending, i.LineNo, i.CreateTime descending
                 select new { i, d, c, u };
 
             var rows = await query.Take(n).ToListAsync();
@@ -170,6 +171,9 @@ public class CustomsDeclarationItemsController : ControllerBase
             var packingByDec = await CustomsDeclarationPackingLookup.LoadByDeclarationsAsync(
                 _db,
                 rows.Select(x => (x.d.Id, x.d.PackingId)).ToList());
+            var dateByPacking = await CustomsDeclarationDeclareDateLookup.LoadByPackingIdsAsync(
+                _db,
+                packingByDec.Values.Select(p => p.Id).ToList());
 
             var list = rows.Select(x =>
             {
@@ -203,7 +207,11 @@ public class CustomsDeclarationItemsController : ControllerBase
                     PackingCode = packingByDec.TryGetValue(x.d.Id.Trim(), out var packCode)
                         ? packCode.Code
                         : null,
-                    DeclareDate = x.d.DeclareDate,
+                    DeclareDate = CustomsDeclarationDeclareDateLookup.ForPacking(
+                        packingByDec.TryGetValue(x.d.Id.Trim(), out var packDate)
+                            ? packDate.Id
+                            : x.d.PackingId,
+                        dateByPacking),
                     LineNo = x.i.LineNo,
                     StockOutRequestId = x.i.StockOutRequestId,
                     CustomerId = x.i.CustomerId,

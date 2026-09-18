@@ -108,6 +108,10 @@ public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
 
     public short CustomsClearanceStatus { get; set; } = CustomsClearanceStatusCodes.None;
 
+    /// <summary>
+    /// 生成报关单时写入的占位日期（库列非空）。界面「申报日期」不以本列为准，
+    /// 而取报关装箱对应报关出库单状态为出库完成时的实际出库日期。
+    /// </summary>
     public DateTime DeclareDate { get; set; } = DateTime.UtcNow.Date;
 
     [Column(TypeName = "numeric(18,6)")]

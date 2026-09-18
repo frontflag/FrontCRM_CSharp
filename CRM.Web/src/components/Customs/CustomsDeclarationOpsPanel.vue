@@ -131,6 +131,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck } from '@element-plus/icons-vue'
 import type { CustomsDeclarationDetailDto } from '@/api/customs'
+import { formatDisplayDate } from '@/utils/displayDateTime'
 import {
   buildCustomsArrivalDisabledHintContent,
   isCustomsArrivalOpsCompleted
@@ -170,8 +171,8 @@ const brokerDisplay = computed(() => {
 const declareDateText = computed(() => {
   const raw = props.detail?.declareDate ?? props.row?.declareDate
   if (!raw) return '—'
-  const s = String(raw)
-  return s.includes('T') ? s.slice(0, 10) : s.slice(0, 10)
+  const s = formatDisplayDate(String(raw))
+  return !s || s === '--' ? '—' : s
 })
 
 const warehouseRoute = computed(() => {

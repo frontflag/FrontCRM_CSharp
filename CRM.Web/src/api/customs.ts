@@ -114,7 +114,7 @@ export interface CustomsDeclarationListItemDto {
   declarationType: number
   internalStatus: number
   customsClearanceStatus: number
-  declareDate: string
+  declareDate?: string | null
   totalTaxAmount: number
   remark?: string | null
   createTime: string
@@ -128,7 +128,7 @@ export interface CustomsDeclarationItemListItemDto {
   declarationCode: string
   packingId?: string | null
   packingCode?: string | null
-  declareDate: string
+  declareDate?: string | null
   lineNo: number
   stockOutRequestId: string
   customerId?: string | null
@@ -232,7 +232,7 @@ export interface CustomsDeclarationDetailDto {
   declarationType: number
   internalStatus: number
   customsClearanceStatus: number
-  declareDate: string
+  declareDate?: string | null
   exchangeRate: number
   brokerAgencyRate?: number
   agencyRateManual?: boolean

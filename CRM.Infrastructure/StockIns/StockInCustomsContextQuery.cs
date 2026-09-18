@@ -2,6 +2,7 @@ using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
+using CRM.Infrastructure.Customs;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -87,6 +88,8 @@ public sealed class StockInCustomsContextQuery : IStockInCustomsContextQuery
             ? new List<Packing>()
             : await _db.Packings.AsNoTracking().Where(p => packingIds.Contains(p.Id)).ToListAsync(cancellationToken);
         var packingById = packings.ToDictionary(p => p.Id.Trim(), p => p, StringComparer.OrdinalIgnoreCase);
+        var dateByPacking = await CustomsDeclarationDeclareDateLookup.LoadByPackingIdsAsync(
+            _db, packingById.Keys.ToList(), cancellationToken);
 
         var whIds = decList
             .SelectMany(d => new[] { d.FromWarehouseId, d.ToWarehouseId })
@@ -264,11 +267,12 @@ public sealed class StockInCustomsContextQuery : IStockInCustomsContextQuery
                 OtherFee = cdi.OtherFee > 0m ? cdi.OtherFee : null,
                 InspectionFee = cdi.InspectionFee > 0m ? cdi.InspectionFee : null,
                 TotalValueTax = cdi.TotalValueTax > 0m ? cdi.TotalValueTax : null,
-                DeclareDate = dec.DeclareDate,
+                DeclareDate = CustomsDeclarationDeclareDateLookup.ForPacking(dec.PackingId, dateByPacking),
                 DeclarationTotalTaxAmount = dec.TotalTaxAmount > 0m ? dec.TotalTaxAmount : null,
                 ExchangeRate = dec.ExchangeRate > 0m ? dec.ExchangeRate : null,
                 Timeline = StockInCustomsTimelineBuilder.Build(
-                    stockIn, cdi, dec, notify, salesSor, customsSor, pendlist, packing, transfer, itemQc)
+                    stockIn, cdi, dec, notify, salesSor, customsSor, pendlist, packing, transfer, itemQc,
+                    CustomsDeclarationDeclareDateLookup.ForPacking(dec.PackingId, dateByPacking))
             });
         }
 

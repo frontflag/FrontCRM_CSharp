@@ -15,7 +15,8 @@ public sealed class CustomsDeclarationListItemDto
     public short DeclarationType { get; set; }
     public short InternalStatus { get; set; }
     public short CustomsClearanceStatus { get; set; }
-    public DateTime DeclareDate { get; set; }
+    /// <summary>报关出库单出库完成时的实际出库日期；未完成时为空。</summary>
+    public DateTime? DeclareDate { get; set; }
     public decimal TotalTaxAmount { get; set; }
     public string? Remark { get; set; }
     public DateTime CreateTime { get; set; }
@@ -30,7 +31,8 @@ public sealed class CustomsDeclarationItemListItemDto
     public string DeclarationCode { get; set; } = string.Empty;
     public string? PackingId { get; set; }
     public string? PackingCode { get; set; }
-    public DateTime DeclareDate { get; set; }
+    /// <summary>报关出库单出库完成时的实际出库日期；未完成时为空。</summary>
+    public DateTime? DeclareDate { get; set; }
     public int LineNo { get; set; }
     public string StockOutRequestId { get; set; } = string.Empty;
     public string? CustomerId { get; set; }
@@ -78,7 +80,8 @@ public sealed class CustomsDeclarationDetailViewDto
     public short DeclarationType { get; set; }
     public short InternalStatus { get; set; }
     public short CustomsClearanceStatus { get; set; }
-    public DateTime DeclareDate { get; set; }
+    /// <summary>报关出库单出库完成时的实际出库日期；未完成时为空。</summary>
+    public DateTime? DeclareDate { get; set; }
     public decimal ExchangeRate { get; set; }
     public decimal BrokerAgencyRate { get; set; } = 1m;
     public bool AgencyRateManual { get; set; }

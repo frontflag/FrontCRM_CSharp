@@ -4,6 +4,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Utilities;
+using CRM.Infrastructure.Customs;
 using CRM.Infrastructure.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -94,25 +95,25 @@ public class CustomsDeclarationsController : ControllerBase
                 dq = dq.Where(d => d.CustomsClearanceStatus == customsClearanceStatus.Value);
             if (declarationType.HasValue)
                 dq = dq.Where(d => d.DeclarationType == declarationType.Value);
-            if (declareDateFrom.HasValue)
+            if (declareDateFrom.HasValue || declareDateTo.HasValue)
             {
-                var from = declareDateFrom.Value.Date;
-                dq = dq.Where(d => d.DeclareDate >= from);
+                var from = declareDateFrom.HasValue
+                    ? SalesAnalyticsDateFilter.ToUtcDateStart(declareDateFrom.Value)
+                    : (DateTime?)null;
+                var toExclusive = declareDateTo.HasValue
+                    ? SalesAnalyticsDateFilter.ToUtcDateEndExclusive(declareDateTo.Value)
+                    : (DateTime?)null;
+                dq = CustomsDeclarationDeclareDateLookup.WhereDeclareDateRange(dq, _db, from, toExclusive);
             }
 
-            if (declareDateTo.HasValue)
-            {
-                var toExclusive = declareDateTo.Value.Date.AddDays(1);
-                dq = dq.Where(d => d.DeclareDate < toExclusive);
-            }
-
+            var dated = CustomsDeclarationDeclareDateLookup.WithDeclareDate(dq, _db);
             var query =
-                from d in dq
-                join b in _db.CustomsBrokers.AsNoTracking().IgnoreQueryFilters() on d.CustomsBrokerId equals b.Id
-                join u in _db.Users.AsNoTracking() on d.CreateByUserId equals u.Id into uj
+                from x in dated
+                join b in _db.CustomsBrokers.AsNoTracking().IgnoreQueryFilters() on x.Declaration.CustomsBrokerId equals b.Id
+                join u in _db.Users.AsNoTracking() on x.Declaration.CreateByUserId equals u.Id into uj
                 from u in uj.DefaultIfEmpty()
-                orderby d.DeclareDate descending, d.CreateTime descending
-                select new { d, b, u };
+                orderby x.DeclareDate != null descending, x.DeclareDate descending, x.Declaration.CreateTime descending
+                select new { d = x.Declaration, b, u, x.DeclareDate };
 
             var rows = await query.Take(n).ToListAsync();
             var decIds = rows.Select(x => x.d.Id).ToList();
@@ -159,7 +160,7 @@ public class CustomsDeclarationsController : ControllerBase
                 DeclarationType = x.d.DeclarationType,
                 InternalStatus = x.d.InternalStatus,
                 CustomsClearanceStatus = x.d.CustomsClearanceStatus,
-                DeclareDate = x.d.DeclareDate,
+                DeclareDate = x.DeclareDate,
                 TotalTaxAmount = x.d.TotalTaxAmount,
                 Remark = x.d.Remark,
                 CreateTime = x.d.CreateTime,
@@ -197,6 +198,14 @@ public class CustomsDeclarationsController : ControllerBase
         Packing? packing = null;
         if (!string.IsNullOrWhiteSpace(row.PackingId))
             packing = await _db.Packings.AsNoTracking().FirstOrDefaultAsync(p => p.Id == row.PackingId!.Trim());
+        if (packing == null)
+        {
+            packing = await _db.Packings.AsNoTracking()
+                .FirstOrDefaultAsync(p =>
+                    !p.IsDeleted
+                    && p.CustomsDeclarationId != null
+                    && p.CustomsDeclarationId == row.Id);
+        }
 
         var whIds = new[] { row.FromWarehouseId, row.ToWarehouseId }
             .Where(s => !string.IsNullOrWhiteSpace(s))
@@ -221,6 +230,16 @@ public class CustomsDeclarationsController : ControllerBase
             : await _db.Customers.AsNoTracking().Where(c => customerIds.Contains(c.Id)).ToListAsync();
         var venById = vendors.ToDictionary(v => v.Id.Trim(), v => v, StringComparer.OrdinalIgnoreCase);
         var custById = customers.ToDictionary(c => c.Id.Trim(), c => c, StringComparer.OrdinalIgnoreCase);
+
+        DateTime? declareDate = null;
+        if (!string.IsNullOrWhiteSpace(row.PackingId) || packing != null)
+        {
+            var packingId = packing?.Id ?? row.PackingId;
+            var dateByPacking = await CustomsDeclarationDeclareDateLookup.LoadByPackingIdsAsync(
+                _db,
+                string.IsNullOrWhiteSpace(packingId) ? Array.Empty<string>() : [packingId.Trim()]);
+            declareDate = CustomsDeclarationDeclareDateLookup.ForPacking(packingId, dateByPacking);
+        }
 
         var firstSor = items.FirstOrDefault()?.StockOutRequestId;
         string? firstSorCode = null;
@@ -252,7 +271,7 @@ public class CustomsDeclarationsController : ControllerBase
         {
             Id = row.Id,
             DeclarationCode = row.DeclarationCode,
-            PackingId = row.PackingId,
+            PackingId = packing?.Id ?? row.PackingId,
             PackingCode = packing?.Code,
             StockOutRequestId = string.IsNullOrWhiteSpace(firstSor) ? null : firstSor.Trim(),
             StockOutRequestCode = firstSorCode,
@@ -262,7 +281,7 @@ public class CustomsDeclarationsController : ControllerBase
             DeclarationType = row.DeclarationType,
             InternalStatus = row.InternalStatus,
             CustomsClearanceStatus = row.CustomsClearanceStatus,
-            DeclareDate = row.DeclareDate,
+            DeclareDate = declareDate,
             ExchangeRate = row.ExchangeRate,
             BrokerAgencyRate = row.BrokerAgencyRate,
             AgencyRateManual = row.AgencyRateManual,

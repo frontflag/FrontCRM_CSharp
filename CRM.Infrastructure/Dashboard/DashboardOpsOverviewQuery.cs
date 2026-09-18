@@ -1,6 +1,7 @@
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Dashboard;
 using CRM.Core.Utilities;
+using CRM.Infrastructure.Customs;
 using CRM.Infrastructure.Data;
 using CRM.Infrastructure.StockIns;
 using CRM.Infrastructure.StockOuts;
@@ -154,8 +155,8 @@ public sealed class DashboardOpsOverviewQuery : IDashboardOpsOverviewQuery
 
         return await (
             from i in _db.CustomsDeclarationItems.AsNoTracking()
-            join d in decls on i.DeclarationId equals d.Id
-            where d.DeclareDate >= fromUtc && d.DeclareDate < endUtc
+            join d in CustomsDeclarationDeclareDateLookup.WhereDeclareDateRange(
+                decls, _db, fromUtc, endUtc) on i.DeclarationId equals d.Id
             select i.Id).CountAsync(cancellationToken);
     }
 

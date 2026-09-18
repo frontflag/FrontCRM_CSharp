@@ -18,7 +18,8 @@ internal static class StockInCustomsTimelineBuilder
         CustomsPendlist? pendlist,
         Packing? packing,
         StockTransfer? transfer,
-        QCInfo? qc)
+        QCInfo? qc,
+        DateTime? declareDate = null)
     {
         var steps = new List<StockInCustomsTimelineStepDto>(9);
 
@@ -38,7 +39,7 @@ internal static class StockInCustomsTimelineBuilder
             packing?.ModifyTime ?? packing?.CreateTime);
 
         AddStep(steps, "declaration", 5, dec.Id, dec.DeclarationCode, dec.InternalStatus,
-            dec.DeclareDate != default ? dec.DeclareDate : dec.CreateTime);
+            declareDate);
 
         AddStep(steps, "stockTransfer", 6, transfer?.Id, transfer?.TransferCode, transfer?.Status,
             transfer?.ConfirmedTime ?? transfer?.CreateTime);
