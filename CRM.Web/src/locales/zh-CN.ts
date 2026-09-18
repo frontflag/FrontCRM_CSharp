@@ -10498,13 +10498,15 @@ const zhCN = {
       purchaseProfitTipTitle: '采购利润计算过程',
       purchaseProfitTipAria: '查看采购利润计算公式',
       purchaseProfitTipFormula:
-        '采购利润(USD) = (销售单价 − 采购单价) × 采购数量 = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
-      purchaseProfitTipNoCost: '无关联销售/采购单价，无法按（销售单价 − 采购单价）× 采购数量计算。',
+        '采购利润(USD) = (销售单价折算USD − 采购单价折算USD) × 采购数量 = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
+      purchaseProfitTipNoCost:
+        '无关联销售/采购单价折算USD，无法按（销售单价折算USD − 采购单价折算USD）× 采购数量计算。',
       purchaseProfitRateTipTitle: '采购利润率计算过程',
       purchaseProfitRateTipAria: '查看采购利润率计算公式',
       purchaseProfitRateTipFormula:
-        '采购利润率 = 销售单价 ÷ 采购单价 = {sellUnitPrice} ÷ {purchaseUnitPrice} = {result}',
-      purchaseProfitRateTipNoCost: '无关联销售/采购单价，无法按 销售单价 ÷ 采购单价 计算。',
+        '采购利润率 = 销售单价折算USD ÷ 采购单价折算USD = {sellUnitPrice} ÷ {purchaseUnitPrice} = {result}',
+      purchaseProfitRateTipNoCost:
+        '无关联销售/采购单价折算USD，无法按 销售单价折算USD ÷ 采购单价折算USD 计算。',
       emptyOrder: '缺少订单编号，无法加载',
       emptyItems: '暂无订单明细'
     }

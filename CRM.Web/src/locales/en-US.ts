@@ -10519,15 +10519,15 @@ const enUS = {
       purchaseProfitTipTitle: 'Purchase profit calculation',
       purchaseProfitTipAria: 'View purchase profit formula',
       purchaseProfitTipFormula:
-        'Purchase profit (USD) = (Sell unit price − Purchase unit price) × Qty = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
+        'Purchase profit (USD) = (Sell unit price converted to USD − Purchase unit price converted to USD) × Qty = ({sellUnitPrice} − {purchaseUnitPrice}) × {qty} = {result}',
       purchaseProfitTipNoCost:
-        'Missing linked sell/purchase unit price; cannot compute (sell − purchase) × qty.',
+        'Missing linked sell/purchase unit price converted to USD; cannot compute (sell unit price converted to USD − purchase unit price converted to USD) × qty.',
       purchaseProfitRateTipTitle: 'Purchase profit rate calculation',
       purchaseProfitRateTipAria: 'View purchase profit rate formula',
       purchaseProfitRateTipFormula:
-        'Purchase profit rate = Sell unit price ÷ Purchase unit price = {sellUnitPrice} ÷ {purchaseUnitPrice} = {result}',
+        'Purchase profit rate = Sell unit price converted to USD ÷ Purchase unit price converted to USD = {sellUnitPrice} ÷ {purchaseUnitPrice} = {result}',
       purchaseProfitRateTipNoCost:
-        'Missing linked sell/purchase unit price; cannot compute sell unit price ÷ purchase unit price.',
+        'Missing linked sell/purchase unit price converted to USD; cannot compute sell unit price converted to USD ÷ purchase unit price converted to USD.',
       emptyOrder: 'Missing order id; cannot load',
       emptyItems: 'No order lines'
     }

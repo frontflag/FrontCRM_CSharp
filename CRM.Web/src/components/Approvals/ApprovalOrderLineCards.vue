@@ -216,6 +216,10 @@ import { salesOrderApi, type SellOrderLineProfit } from '@/api/salesOrder'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
 import { formatTotalAmountNumber, formatUnitPriceNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
 import { formatUsdProfitAmount, formatProfitRateMultiplierDisplay } from '@/utils/sellOrderLineProfitDisplay'
+import {
+  computePurchaseOrderItemPurchaseProfitRate,
+  computePurchaseOrderItemPurchaseProfitUsd
+} from '@/utils/purchaseOrderItemPurchaseProfit'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -336,23 +340,17 @@ function resolvePurchaseProfitInputs(
 ): { sellUnit: number; purchaseUnit: number; qty: number } | null {
   if (!lp) return null
   const sellUnit = Number(lp.convertPrice)
-  if (!Number.isFinite(sellUnit)) return null
-
   const poLine = (lp.poCostLines ?? []).find(
     (x) => String(x.purchaseOrderItemId ?? '').trim() === opts.purchaseOrderItemId
   )
-  const purchaseUnit = Number(
-    opts.purchaseConvertPrice ?? poLine?.convertPriceUsd ?? lp.avgPoCostUsd ?? 0
-  )
-  const qty = Number(
-    Number.isFinite(opts.purchaseQty) && opts.purchaseQty > 0
-      ? opts.purchaseQty
-      : poLine?.qty ?? lp.poQtyTotal ?? 0
-  )
+  const fromThisLine = Number(opts.purchaseConvertPrice)
+  const fromPoCost = Number(poLine?.convertPriceUsd)
+  const purchaseUnit = fromThisLine > 0 ? fromThisLine : fromPoCost
+  const qty = Number.isFinite(opts.purchaseQty) ? Number(opts.purchaseQty) : Number(poLine?.qty)
   return { sellUnit, purchaseUnit, qty }
 }
 
-/** 审批右栏 Tip：采购利润 = (销售单价 − 采购单价) × 采购数量 */
+/** 审批桌面 Tip：采购利润 = (销售单价折算USD − 采购单价折算USD) × 采购数量 */
 function buildPurchaseProfitTip(
   lp: SellOrderLineProfit | null | undefined,
   opts: PurchaseProfitOpts
@@ -360,7 +358,8 @@ function buildPurchaseProfitTip(
   const inputs = resolvePurchaseProfitInputs(lp, opts)
   if (!inputs) return []
   const { sellUnit, purchaseUnit, qty } = inputs
-  if (!(purchaseUnit > 0) || !(qty > 0)) {
+  const profitUsd = computePurchaseOrderItemPurchaseProfitUsd(sellUnit, purchaseUnit, qty)
+  if (profitUsd == null) {
     return [t('approvalDesktop.orderRef.purchaseProfitTipNoCost')]
   }
   return [
@@ -368,12 +367,12 @@ function buildPurchaseProfitTip(
       sellUnitPrice: fmtTipUnitPrice(sellUnit),
       purchaseUnitPrice: fmtTipUnitPrice(purchaseUnit),
       qty: fmtTipQty(qty),
-      result: formatUsdProfitAmount(lp?.purchaseProfitExpected)
+      result: formatUsdProfitAmount(profitUsd)
     })
   ]
 }
 
-/** 审批桌面 Tip：采购利润率 = 销售单价 ÷ 采购单价 */
+/** 审批桌面 Tip：采购利润率 = 销售单价折算USD ÷ 采购单价折算USD */
 function buildPurchaseProfitRateTip(
   lp: SellOrderLineProfit | null | undefined,
   opts: PurchaseProfitOpts
@@ -381,15 +380,16 @@ function buildPurchaseProfitRateTip(
   const inputs = resolvePurchaseProfitInputs(lp, opts)
   if (!inputs) return []
   const { sellUnit, purchaseUnit } = inputs
-  if (!(purchaseUnit > 0)) {
+  const rate = computePurchaseOrderItemPurchaseProfitRate(sellUnit, purchaseUnit)
+  const profitUsd = computePurchaseOrderItemPurchaseProfitUsd(sellUnit, purchaseUnit, inputs.qty)
+  if (rate == null) {
     return [t('approvalDesktop.orderRef.purchaseProfitRateTipNoCost')]
   }
-  const rate = sellUnit / purchaseUnit
   return [
     t('approvalDesktop.orderRef.purchaseProfitRateTipFormula', {
       sellUnitPrice: fmtTipUnitPrice(sellUnit),
       purchaseUnitPrice: fmtTipUnitPrice(purchaseUnit),
-      result: formatProfitRateMultiplierDisplay(lp?.purchaseProfitExpected, rate, 2)
+      result: formatProfitRateMultiplierDisplay(profitUsd, rate, 2)
     })
   ]
 }
@@ -676,16 +676,20 @@ async function loadPanel() {
                 ? purchaseConvertPrice
                 : undefined
             }
-            profitText = formatUsdProfitAmount(lp?.purchaseProfitExpected)
-            profitFormulaLines = buildPurchaseProfitTip(lp, opts)
             const inputs = resolvePurchaseProfitInputs(lp, opts)
-            const rate =
-              inputs && inputs.purchaseUnit > 0 ? inputs.sellUnit / inputs.purchaseUnit : null
-            profitRateText = formatProfitRateMultiplierDisplay(
-              lp?.purchaseProfitExpected,
-              rate,
-              2
-            )
+            const profitUsd = inputs
+              ? computePurchaseOrderItemPurchaseProfitUsd(
+                  inputs.sellUnit,
+                  inputs.purchaseUnit,
+                  inputs.qty
+                )
+              : null
+            const rate = inputs
+              ? computePurchaseOrderItemPurchaseProfitRate(inputs.sellUnit, inputs.purchaseUnit)
+              : null
+            profitText = formatUsdProfitAmount(profitUsd)
+            profitFormulaLines = buildPurchaseProfitTip(lp, opts)
+            profitRateText = formatProfitRateMultiplierDisplay(profitUsd, rate, 2)
             profitRateFormulaLines = buildPurchaseProfitRateTip(lp, opts)
           } catch {
             profitText = '—'
