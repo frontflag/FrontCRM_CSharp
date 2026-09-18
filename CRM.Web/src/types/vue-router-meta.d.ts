@@ -10,6 +10,8 @@ declare module 'vue-router' {
     inventoryOpsCheckAccess?: boolean
     /** 需求参考：销售/采购身份（另需 rfq.read） */
     rfqItemReferenceAccess?: boolean
+    /** 提成池：管理员看全部；业务员/采购员只看本人行 */
+    commissionPoolAccess?: boolean
     /** 提成列表：预计 / 正式 */
     commissionMode?: 'estimated' | 'official'
     /** 提成列表：1 业务员 / 2 采购员 */

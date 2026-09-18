@@ -185,12 +185,13 @@ public sealed class CommissionResultService : ICommissionResultService
                 StockOutItemId = x.StockOutItemId,
                 StockOutId = x.StockOutId,
                 StockOutCode = x.StockOutCode,
+                StockOutItemCode = x.StockOutItemCode,
                 StockOutDate = x.StockOutDate,
                 UserId = x.UserId,
                 UserName = x.UserName,
                 UserLevel = x.UserLevel,
                 ReceiptWriteOffDone = true,
-                ReceiptProgressStatus = 2,
+                ReceiptProgressStatus = FinanceVerificationStatusCode.Complete,
                 ReceiptDate = x.ReceiptDate,
                 DaysSinceReceipt = null,
                 InCommission = true,
@@ -201,8 +202,10 @@ public sealed class CommissionResultService : ICommissionResultService
                 EntryKind = x.EntryKind,
                 SellOrderId = x.SellOrderId,
                 SellOrderCode = x.SellOrderCode,
+                SellOrderItemCode = x.SellOrderItemCode,
                 PurchaseOrderId = x.PurchaseOrderId,
                 PurchaseOrderCode = x.PurchaseOrderCode,
+                PurchaseOrderItemCode = x.PurchaseOrderItemCode,
                 Term = x.Term
             })
             .ToList();
@@ -211,15 +214,20 @@ public sealed class CommissionResultService : ICommissionResultService
         {
             var kw = query.Keyword.Trim();
             lines = lines
-                .Where(x => x.StockOutCode.Contains(kw, StringComparison.OrdinalIgnoreCase)
-                            || (x.SellOrderCode != null && x.SellOrderCode.Contains(kw, StringComparison.OrdinalIgnoreCase))
-                            || (x.PurchaseOrderCode != null && x.PurchaseOrderCode.Contains(kw, StringComparison.OrdinalIgnoreCase)))
+                .Where(x => CommissionPoolListRules.ContainsKeyword(
+                    kw,
+                    x.StockOutCode,
+                    x.StockOutItemCode,
+                    x.SellOrderCode,
+                    x.SellOrderItemCode,
+                    x.PurchaseOrderCode,
+                    x.PurchaseOrderItemCode))
                 .ToList();
         }
 
         lines = lines
             .OrderByDescending(x => x.StockOutDate)
-            .ThenByDescending(x => x.StockOutCode)
+            .ThenByDescending(x => CommissionPoolListRules.DisplayDocCode(x.StockOutItemCode, x.StockOutCode))
             .ToList();
 
         var paged = Page(lines, page, size);
@@ -419,7 +427,9 @@ public sealed class CommissionResultService : ICommissionResultService
         var q = _db.CommissionDynamics.AsNoTracking().Where(x => x.RoleType == query.RoleType);
         q = ApplyCommon(q, query);
         var rows = await q.ToListAsync(cancellationToken);
-        return rows.Select(ToDto).ToList();
+        var lines = rows.Select(ToDto).ToList();
+        await AttachItemCodesAsync(lines, cancellationToken);
+        return lines;
     }
 
     async Task<List<CommissionLineDto>> QueryLockedAsync(CommissionResultQuery query, CancellationToken cancellationToken)
@@ -440,10 +450,12 @@ public sealed class CommissionResultService : ICommissionResultService
             q = q.Where(x => x.Term == term);
         q = ApplyCommon(q, query);
         var rows = await q.ToListAsync(cancellationToken);
-        return rows.Select(x => ToDto(x)).ToList();
+        var lines = rows.Select(x => ToDto(x)).ToList();
+        await AttachItemCodesAsync(lines, cancellationToken);
+        return lines;
     }
 
-    static IQueryable<T> ApplyCommon<T>(IQueryable<T> q, CommissionResultQuery query)
+    IQueryable<T> ApplyCommon<T>(IQueryable<T> q, CommissionResultQuery query)
         where T : class
     {
         if (q is IQueryable<CommissionDynamic> dyn)
@@ -462,7 +474,16 @@ public sealed class CommissionResultService : ICommissionResultService
                     x.UserName.Contains(kw)
                     || x.StockOutCode.Contains(kw)
                     || (x.SellOrderCode != null && x.SellOrderCode.Contains(kw))
-                    || (x.PurchaseOrderCode != null && x.PurchaseOrderCode.Contains(kw)));
+                    || (x.SellOrderItemCode != null && x.SellOrderItemCode.Contains(kw))
+                    || (x.PurchaseOrderCode != null && x.PurchaseOrderCode.Contains(kw))
+                    || _db.StockOutItems.IgnoreQueryFilters().Any(i =>
+                        i.Id == x.StockOutItemId
+                        && i.StockOutItemCode != null
+                        && i.StockOutItemCode.Contains(kw))
+                    || _db.CommissionPools.Any(p =>
+                        p.StockOutItemId == x.StockOutItemId
+                        && p.PurchaseOrderItemCode != null
+                        && p.PurchaseOrderItemCode.Contains(kw)));
             }
 
             return (IQueryable<T>)d;
@@ -484,13 +505,56 @@ public sealed class CommissionResultService : ICommissionResultService
                     x.UserName.Contains(kw)
                     || x.StockOutCode.Contains(kw)
                     || (x.SellOrderCode != null && x.SellOrderCode.Contains(kw))
-                    || (x.PurchaseOrderCode != null && x.PurchaseOrderCode.Contains(kw)));
+                    || (x.SellOrderItemCode != null && x.SellOrderItemCode.Contains(kw))
+                    || (x.PurchaseOrderCode != null && x.PurchaseOrderCode.Contains(kw))
+                    || _db.StockOutItems.IgnoreQueryFilters().Any(i =>
+                        i.Id == x.StockOutItemId
+                        && i.StockOutItemCode != null
+                        && i.StockOutItemCode.Contains(kw))
+                    || _db.CommissionPools.Any(p =>
+                        p.StockOutItemId == x.StockOutItemId
+                        && p.PurchaseOrderItemCode != null
+                        && p.PurchaseOrderItemCode.Contains(kw)));
             }
 
             return (IQueryable<T>)d;
         }
 
         return q;
+    }
+
+    async Task AttachItemCodesAsync(List<CommissionLineDto> lines, CancellationToken cancellationToken)
+    {
+        var ids = lines
+            .Select(x => x.StockOutItemId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (ids.Count == 0)
+            return;
+
+        var stockCodes = await _db.StockOutItems.AsNoTracking().IgnoreQueryFilters()
+            .Where(i => ids.Contains(i.Id))
+            .Select(i => new { i.Id, i.StockOutItemCode })
+            .ToListAsync(cancellationToken);
+        var stockById = stockCodes.ToDictionary(x => x.Id, x => x.StockOutItemCode, StringComparer.OrdinalIgnoreCase);
+
+        var poolCodes = await _db.CommissionPools.AsNoTracking()
+            .Where(p => ids.Contains(p.StockOutItemId))
+            .Select(p => new { p.StockOutItemId, p.PurchaseOrderItemCode })
+            .ToListAsync(cancellationToken);
+        var poolById = poolCodes.ToDictionary(
+            x => x.StockOutItemId,
+            x => x.PurchaseOrderItemCode,
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var line in lines)
+        {
+            stockById.TryGetValue(line.StockOutItemId, out var itemCode);
+            line.StockOutItemCode = CommissionPoolListRules.FirstNonEmpty(itemCode, line.StockOutCode);
+            poolById.TryGetValue(line.StockOutItemId, out var purchaseItemCode);
+            line.PurchaseOrderItemCode = CommissionPoolListRules.FirstNonEmpty(purchaseItemCode, line.PurchaseOrderCode);
+        }
     }
 
     static CommissionLineDto ToDto(CommissionDynamic x) => new()

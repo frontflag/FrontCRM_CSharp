@@ -1390,6 +1390,16 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '供应商明细滚存', permission: 'finance-accumulated.read' }
       },
       {
+        path: 'commission/pool',
+        name: 'CommissionPool',
+        component: () => import('@/views/Commission/CommissionPoolList.vue'),
+        meta: {
+          requiresAuth: true,
+          title: '提成池',
+          commissionPoolAccess: true
+        }
+      },
+      {
         path: 'commission/estimated/sales',
         name: 'CommissionEstimatedSales',
         component: () => import('@/views/Commission/CommissionResultList.vue'),

@@ -142,6 +142,7 @@ public static class TelemetryCatalog
             ["CommissionParamsSettings"] = "提成参数-生效版本",
             ["CommissionParamsSales"] = "提成参数-业务员系数",
             ["CommissionParamsPurchase"] = "提成参数-采购员系数",
+            ["CommissionPool"] = "提成池",
             ["CommissionEstimatedSales"] = "业务预计提成",
             ["CommissionEstimatedPurchase"] = "采购预计提成",
             ["CommissionOfficialSales"] = "业务正式提成",

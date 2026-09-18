@@ -55,35 +55,35 @@
         highlight-current-row
         @row-dblclick="onRowDblclick"
       >
-        <template #col-stockOutCode="{ row }">
+        <template #col-stockOutItemCode="{ row }">
           <router-link
             v-if="canOpenStockOut && row.stockOutId"
             class="link-text"
             :to="`/inventory/stock-out/${row.stockOutId}`"
           >
-            {{ row.stockOutCode }}
+            {{ formatCommissionDocCode(row.stockOutItemCode, row.stockOutCode) }}
           </router-link>
-          <span v-else>{{ row.stockOutCode || '—' }}</span>
+          <span v-else>{{ formatCommissionDocCode(row.stockOutItemCode, row.stockOutCode) || '—' }}</span>
         </template>
-        <template #col-sellOrderCode="{ row }">
+        <template #col-sellOrderItemCode="{ row }">
           <router-link
             v-if="canOpenSales && row.sellOrderId"
             class="link-text"
             :to="`/sales-orders/${row.sellOrderId}`"
           >
-            {{ row.sellOrderCode }}
+            {{ formatCommissionDocCode(row.sellOrderItemCode, row.sellOrderCode) }}
           </router-link>
-          <span v-else>{{ row.sellOrderCode || '—' }}</span>
+          <span v-else>{{ formatCommissionDocCode(row.sellOrderItemCode, row.sellOrderCode) || '—' }}</span>
         </template>
-        <template #col-purchaseOrderCode="{ row }">
+        <template #col-purchaseOrderItemCode="{ row }">
           <router-link
             v-if="canOpenPurchase && row.purchaseOrderId"
             class="link-text"
             :to="`/purchase-orders/${row.purchaseOrderId}`"
           >
-            {{ row.purchaseOrderCode }}
+            {{ formatCommissionDocCode(row.purchaseOrderItemCode, row.purchaseOrderCode) }}
           </router-link>
-          <span v-else>{{ row.purchaseOrderCode || '—' }}</span>
+          <span v-else>{{ formatCommissionDocCode(row.purchaseOrderItemCode, row.purchaseOrderCode) || '—' }}</span>
         </template>
         <template #col-stockOutDate="{ row }">
           {{ formatCommissionListDate(row.stockOutDate) }}
@@ -146,6 +146,7 @@ import { useAuthStore } from '@/stores'
 import {
   COMMISSION_ROLE_PURCHASE,
   commissionApi,
+  formatCommissionDocCode,
   formatCommissionListDate,
   formatCommissionPoints
 } from '@/api/commission'
@@ -157,6 +158,7 @@ type PersonTableRow = {
   stockOutItemId?: string
   stockOutId: string
   stockOutCode: string
+  stockOutItemCode?: string | null
   stockOutDate?: string | null
   userName: string
   userLevel: number
@@ -168,8 +170,10 @@ type PersonTableRow = {
   entryKind?: number
   sellOrderId?: string | null
   sellOrderCode?: string | null
+  sellOrderItemCode?: string | null
   purchaseOrderId?: string | null
   purchaseOrderCode?: string | null
+  purchaseOrderItemCode?: string | null
   term?: string | null
 }
 
@@ -210,7 +214,7 @@ const personLabel = computed(() => {
 })
 
 const columnKey = computed(
-  () => `commission-person-${official.value ? 'official' : 'estimated'}-${roleType.value}-v4`
+  () => `commission-person-${official.value ? 'official' : 'estimated'}-${roleType.value}-v5`
 )
 
 const loading = ref(false)
@@ -235,7 +239,7 @@ function entryKindText(kind?: number) {
 
 const tableColumns = computed<CrmTableColumnDef[]>(() => {
   const outDate = t('commissionResult.stockOutDateFull')
-  const outCode = t('commissionResult.stockOut')
+  const outCode = t('commissionResult.stockOutItem')
   const gp = t('commissionResult.gpShort')
   const points = t('commissionResult.pointsFull')
   const amount = t('commissionResult.commissionAmount')
@@ -243,19 +247,19 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
   const kind = t('commissionResult.entryKind')
   const cols: CrmTableColumnDef[] = [
     { key: 'stockOutDate', label: outDate, width: Math.max(112, headerMin(outDate)), align: 'center' },
-    { key: 'stockOutCode', label: outCode, minWidth: Math.max(140, headerMin(outCode)), showOverflowTooltip: true },
+    { key: 'stockOutItemCode', label: outCode, minWidth: Math.max(140, headerMin(outCode)), showOverflowTooltip: true },
     {
-      key: 'sellOrderCode',
-      label: t('commissionResult.sellOrder'),
-      minWidth: Math.max(140, headerMin(t('commissionResult.sellOrder'))),
+      key: 'sellOrderItemCode',
+      label: t('commissionResult.sellOrderItem'),
+      minWidth: Math.max(140, headerMin(t('commissionResult.sellOrderItem'))),
       showOverflowTooltip: true
     }
   ]
   if (isPurchase.value) {
     cols.push({
-      key: 'purchaseOrderCode',
-      label: t('commissionResult.purchaseOrder'),
-      minWidth: Math.max(140, headerMin(t('commissionResult.purchaseOrder'))),
+      key: 'purchaseOrderItemCode',
+      label: t('commissionResult.purchaseOrderItem'),
+      minWidth: Math.max(140, headerMin(t('commissionResult.purchaseOrderItem'))),
       showOverflowTooltip: true
     })
   }

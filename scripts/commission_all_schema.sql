@@ -1,6 +1,32 @@
 -- FrontCRM 提成：表 + 种子 + 权限（幂等）
--- 顺序：版本/系数 -> 计算参数 -> 动态/锁定/水位 -> 数据池 -> 权限
+-- 顺序：用户等级主数据 -> 版本/系数 -> 计算参数 -> 动态/锁定/水位 -> 数据池 -> 权限
 -- API 启动不改库，请手工执行后重启。
+
+-- 0. 用户等级主数据（用户等级页 / 提成系数共用）
+CREATE TABLE IF NOT EXISTS public.user_level_def (
+  "UserLevelDefId" character varying(36) NOT NULL,
+  "UserLevel" smallint NOT NULL,
+  "Description" character varying(200) NULL,
+  "CreateTime" timestamp with time zone NOT NULL DEFAULT NOW(),
+  "ModifyTime" timestamp with time zone NULL,
+  CONSTRAINT "PK_user_level_def" PRIMARY KEY ("UserLevelDefId")
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "IX_user_level_def_UserLevel"
+  ON public.user_level_def ("UserLevel");
+
+COMMENT ON TABLE public.user_level_def IS '用户等级主数据（1～20 固定行，仅维护说明）';
+COMMENT ON COLUMN public.user_level_def."UserLevel" IS '等级 1～20';
+COMMENT ON COLUMN public.user_level_def."Description" IS '等级说明，可空，最长 200';
+
+INSERT INTO public.user_level_def ("UserLevelDefId", "UserLevel", "Description", "CreateTime")
+SELECT
+  'ul000000-0000-4000-8000-00000000' || lpad(n::text, 4, '0'),
+  n::smallint,
+  NULL,
+  NOW()
+FROM generate_series(1, 20) AS n
+ON CONFLICT ("UserLevel") DO NOTHING;
 
 -- 1. 系数版本头
 CREATE TABLE IF NOT EXISTS public.commission_rate_version (

@@ -243,7 +243,7 @@ public sealed class CommissionDynamicCalculator : ICommissionDynamicCalculator
             : row.PurchaseCommissionStatus;
         if (flag is CommissionOfficialFlag.Locked or CommissionOfficialFlag.NotApplicable)
             return;
-        if (row.ReceiptProgressStatus != 2 || !row.ReceiptDate.HasValue)
+        if (row.ReceiptProgressStatus != FinanceVerificationStatusCode.Complete || !row.ReceiptDate.HasValue)
             return;
 
         var kind = CommissionBaseOtherRules.Classify(row.StockOutDate, row.ReceiptDate, lockDate);

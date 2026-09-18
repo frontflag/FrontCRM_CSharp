@@ -5,6 +5,7 @@ import { canAccessPurchaseOrderCreatePage } from '@/utils/purchaseOrderCreateGat
 import { canAccessStockingPurchaseList } from '@/utils/stockingPurchaseListAccess'
 import { canAccessRfqItemReference } from '@/utils/rfqItemReferenceAccess'
 import { canAccessInventoryOpsCheck } from '@/utils/inventoryOpsCheckAccess'
+import { canAccessCommissionPool } from '@/utils/commissionPoolAccess'
 import {
   canAccessCustomsModule,
   isCustomerEditOrDetailRoute,
@@ -80,6 +81,8 @@ router.beforeEach((to, _from, next) => {
   } else if (to.meta.requiresAuth && to.meta.sysAdminOnly === true && authStore.user?.isSysAdmin !== true) {
     next(to.meta.denyAs404 === true ? { name: 'NotFound', replace: true } : '/dashboard')
   } else if (to.meta.requiresAuth && to.meta.adminOrManagerOnly === true && !authStore.canForceDelete()) {
+    next('/dashboard')
+  } else if (to.meta.requiresAuth && to.meta.commissionPoolAccess === true && !canAccessCommissionPool(authStore.user)) {
     next('/dashboard')
   } else if (to.meta.requiresAuth && to.meta.inventoryOpsCheckAccess === true && !canAccessInventoryOpsCheck(authStore.user)) {
     next('/dashboard')

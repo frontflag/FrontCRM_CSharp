@@ -940,6 +940,22 @@
         <!-- 提成：财务组之下；预计=动态表、正式=锁定表（列表页后续落地） -->
         <div class="menu-section-label" v-if="!isCollapsed && showCommissionMenus">{{ t('layout.sections.commission') }}</div>
         <div v-if="showCommissionMenus" class="sidebar-nav-inline-group">
+          <SidebarMenuTooltipWrap
+            v-if="showCommissionPool"
+            :collapsed="isCollapsed"
+            :tooltip="t('layout.menu.commissionPool')"
+          >
+            <router-link to="/commission/pool" class="menu-item" active-class="active">
+              <span class="menu-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <ellipse cx="12" cy="6" rx="8" ry="3"/>
+                  <path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/>
+                  <path d="M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"/>
+                </svg>
+              </span>
+              <span class="menu-label" v-if="!isCollapsed">{{ t('layout.menu.commissionPool') }}</span>
+            </router-link>
+          </SidebarMenuTooltipWrap>
           <SidebarMenuGroupFlyout
             v-if="showCommissionEstimated"
             :collapsed="isCollapsed"
@@ -1942,6 +1958,7 @@ import { canAccessStockingPurchaseList } from '@/utils/stockingPurchaseListAcces
 import { canAccessPurchaseOpsPaymentMenus } from '@/utils/purchaseOpsFinanceAccess'
 import { canAccessCommerceAssistantReceiptMenus } from '@/utils/commerceAssistantFinanceAccess'
 import { canAccessRfqItemReference } from '@/utils/rfqItemReferenceAccess'
+import { canAccessCommissionPool } from '@/utils/commissionPoolAccess'
 import {
   collapsedSidebarMenuGroups,
   defaultSidebarMenuGroups,
@@ -3867,6 +3884,7 @@ const pageTitleMap: Record<string, string> = {
   '/finance/customer-accumulated/items': 'layout.menu.customerAccumulated',
   '/finance/vendor-accumulated': 'layout.menu.vendorAccumulated',
   '/finance/vendor-accumulated/items': 'layout.menu.vendorAccumulated',
+  '/commission/pool': 'layout.menu.commissionPool',
   '/commission/estimated/sales': 'layout.menu.commissionEstimatedSales',
   '/commission/estimated/purchase': 'layout.menu.commissionEstimatedPurchase',
   '/commission/official/sales': 'layout.menu.commissionOfficialSales',
@@ -3997,6 +4015,7 @@ const routeMetaTitleKeyMap: Record<string, string> = {
   '进项发票详情': 'rfqItemList.actions.detail',
   '销项发票': 'layout.menu.sellInvoices',
   '销项发票详情': 'rfqItemList.actions.detail',
+  '提成池': 'layout.menu.commissionPool',
   '业务预计提成': 'layout.menu.commissionEstimatedSales',
   '业务预计提成月份': 'commissionResult.monthListSales',
   '业务预计提成明细': 'commissionResult.personDetailSales',
@@ -4128,9 +4147,12 @@ const showLogisticsMenus = computed(() => {
 })
 
 const canSeeCommissionMenus = computed(() => authStore.canForceDelete())
+const showCommissionPool = computed(() => canAccessCommissionPool(authStore.user))
 const showCommissionEstimated = computed(() => canSeeCommissionMenus.value)
 const showCommissionOfficial = computed(() => canSeeCommissionMenus.value)
-const showCommissionMenus = computed(() => canSeeCommissionMenus.value)
+const showCommissionMenus = computed(
+  () => showCommissionPool.value || showCommissionEstimated.value || showCommissionOfficial.value
+)
 
 /** 付款管理/收款管理：主部门 FinanceDataScope=4 时整组隐藏；采购运营仍可见付款侧、商务助理仍可见收款侧 */
 const showFinanceMenus = computed(() => {

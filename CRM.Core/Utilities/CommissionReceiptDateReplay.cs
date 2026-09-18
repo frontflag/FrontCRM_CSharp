@@ -5,7 +5,7 @@ public readonly record struct CommissionWriteOffStep(
     DateOnly EventDate,
     DateTime CreateTimeUtc);
 
-/// <summary>回放销售明细核销，得到收款核销日期（上海日）。</summary>
+/// <summary>回放单条应收核销，得到收款核销日期（上海日）。</summary>
 public static class CommissionReceiptDateReplay
 {
     public static DateOnly? Resolve(

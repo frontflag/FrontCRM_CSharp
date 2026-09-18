@@ -37,6 +37,7 @@ public class CommissionPool : BaseGuidEntity
     [Column("gp_usd", TypeName = "numeric(18,2)")]
     public decimal GpUsd { get; set; }
 
+    /// <summary>该出库行对应应收核销状态：0 待核销 / 1 部分核销 / 2 核销完成（列名历史遗留）。</summary>
     [Column("receipt_progress_status")]
     public short ReceiptProgressStatus { get; set; }
 

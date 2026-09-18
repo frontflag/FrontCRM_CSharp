@@ -91,8 +91,10 @@ public sealed class CommissionLineDto
     public string? SellOrderItemCode { get; init; }
     public string? PurchaseOrderId { get; init; }
     public string? PurchaseOrderCode { get; init; }
+    public string? PurchaseOrderItemCode { get; set; }
     public string StockOutId { get; init; } = string.Empty;
     public string StockOutCode { get; init; } = string.Empty;
+    public string? StockOutItemCode { get; set; }
     public DateOnly? StockOutDate { get; init; }
     public DateOnly ReceiptDate { get; init; }
     public DateOnly PoolDate { get; init; }
@@ -106,6 +108,7 @@ public sealed class CommissionPersonLineDto
     public string StockOutItemId { get; init; } = string.Empty;
     public string StockOutId { get; init; } = string.Empty;
     public string StockOutCode { get; init; } = string.Empty;
+    public string? StockOutItemCode { get; init; }
     public DateOnly? StockOutDate { get; init; }
     public string UserId { get; init; } = string.Empty;
     public string UserName { get; init; } = string.Empty;
@@ -122,8 +125,10 @@ public sealed class CommissionPersonLineDto
     public short EntryKind { get; init; }
     public string? SellOrderId { get; init; }
     public string? SellOrderCode { get; init; }
+    public string? SellOrderItemCode { get; init; }
     public string? PurchaseOrderId { get; init; }
     public string? PurchaseOrderCode { get; init; }
+    public string? PurchaseOrderItemCode { get; init; }
     public string? Term { get; init; }
 }
 

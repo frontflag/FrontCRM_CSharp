@@ -18,13 +18,23 @@ import {
   listAmountCurrencyDockClass,
   listAmountCurrencyIso,
   listTotalAmountHasValue,
-  splitListMoneyParts
+  splitListMoneyParts,
+  splitUnitPriceDockParts
 } from '@/utils/moneyFormat'
 
 const props = withDefaults(
-  defineProps<{ amount?: number | null; currency: number; masked?: boolean; showCurrency?: boolean }>(),
-  { masked: false, showCurrency: true }
+  defineProps<{
+    amount?: number | null
+    currency: number
+    masked?: boolean
+    showCurrency?: boolean
+    /** 单价用 2–6 位小数；总额仍为两位。 */
+    unitPrice?: boolean
+  }>(),
+  { masked: false, showCurrency: true, unitPrice: false }
 )
 
-const parts = computed(() => splitListMoneyParts(Number(props.amount)))
+const parts = computed(() =>
+  props.unitPrice ? splitUnitPriceDockParts(Number(props.amount)) : splitListMoneyParts(Number(props.amount))
+)
 </script>

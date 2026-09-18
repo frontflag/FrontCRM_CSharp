@@ -70,8 +70,10 @@ export interface CommissionLineRow {
   sellOrderItemCode?: string | null
   purchaseOrderId?: string | null
   purchaseOrderCode?: string | null
+  purchaseOrderItemCode?: string | null
   stockOutId: string
   stockOutCode: string
+  stockOutItemCode?: string | null
   stockOutDate?: string | null
   receiptDate: string
   poolDate: string
@@ -84,6 +86,7 @@ export interface CommissionPersonLineRow {
   stockOutItemId: string
   stockOutId: string
   stockOutCode: string
+  stockOutItemCode?: string | null
   stockOutDate?: string | null
   userId: string
   userName: string
@@ -100,8 +103,10 @@ export interface CommissionPersonLineRow {
   entryKind: number
   sellOrderId?: string | null
   sellOrderCode?: string | null
+  sellOrderItemCode?: string | null
   purchaseOrderId?: string | null
   purchaseOrderCode?: string | null
+  purchaseOrderItemCode?: string | null
   term?: string | null
 }
 
@@ -126,6 +131,39 @@ export interface CommissionCalcRunResult {
   calcDate: string
   salesCount: number
   purchaseCount: number
+}
+
+export interface CommissionPoolRow {
+  id: string
+  stockOutItemId: string
+  stockOutId: string
+  stockOutCode: string
+  stockOutItemCode?: string | null
+  stockOutDate?: string | null
+  salesUserId?: string | null
+  salesUserName?: string | null
+  purchaseUserId?: string | null
+  purchaseUserName?: string | null
+  purchasePn?: string | null
+  purchaseBrand?: string | null
+  purchasePrice?: number | null
+  purchaseCurrency?: number | null
+  purchasePriceUsd?: number | null
+  salesPrice?: number | null
+  salesCurrency?: number | null
+  salesPriceUsd?: number | null
+  qtyStockOut?: number | null
+  gpUsd: number
+  receiptProgressStatus: number
+  receiptDate?: string | null
+  sellOrderId?: string | null
+  sellOrderCode?: string | null
+  sellOrderItemCode?: string | null
+  purchaseOrderId?: string | null
+  purchaseOrderCode?: string | null
+  purchaseOrderItemCode?: string | null
+  salesCommissionStatus: number
+  purchaseCommissionStatus: number
 }
 
 export interface CommissionLockRunResult {
@@ -181,6 +219,9 @@ export const commissionApi = {
   officialLines(params: Record<string, unknown>) {
     return apiClient.get<CommissionPaged<CommissionLineRow>>('/api/v1/commission/official', { params })
   },
+  pool(params: Record<string, unknown>) {
+    return apiClient.get<CommissionPaged<CommissionPoolRow>>('/api/v1/commission/pool', { params })
+  },
   lockOfficial(lockDate?: string) {
     return apiClient.post<CommissionLockRunResult>(
       '/api/v1/commission/official/lock',
@@ -188,6 +229,16 @@ export const commissionApi = {
       longTimeout
     )
   }
+}
+
+export function formatCommissionDocCode(
+  itemCode?: string | null,
+  headerCode?: string | null
+): string {
+  const item = itemCode?.trim()
+  if (item) return item
+  const header = headerCode?.trim()
+  return header || ''
 }
 
 export function formatCommissionMoney(value: number | null | undefined): string {

@@ -76,8 +76,7 @@ public sealed class CommissionPoolQuery
                 ext.ProfitOutBizUsd,
                 ext.QtyStockOut > 0 ? ext.QtyStockOut : item.Quantity,
                 ext.SalesPriceUsd,
-                ext.PurchasePriceUsd,
-                soie.ReceiptProgressStatus)
+                ext.PurchasePriceUsd)
         ).ToListAsync(cancellationToken);
 
         if (raw.Count == 0)
@@ -90,7 +89,7 @@ public sealed class CommissionPoolQuery
 
         var sellItems = await db.SellOrderItems.AsNoTracking()
             .Where(x => sellItemIds.Contains(x.Id))
-            .Select(x => new { x.Id, x.SellOrderId, x.ConvertPrice })
+            .Select(x => new { x.Id, x.SellOrderId, x.ConvertPrice, x.Price })
             .ToListAsync(cancellationToken);
         var sellOrderIds = sellItems.Select(x => x.SellOrderId).Distinct().ToList();
         var sellOrders = await db.SellOrders.AsNoTracking()
@@ -128,30 +127,37 @@ public sealed class CommissionPoolQuery
 
         var sellItemToOrder = sellItems.ToDictionary(x => x.Id, x => x.SellOrderId);
         var sellConvertMap = sellItems.ToDictionary(x => x.Id, x => (decimal?)x.ConvertPrice);
+        var sellPriceMap = sellItems.ToDictionary(x => x.Id, x => x.Price);
         var sellOrderMap = sellOrders.ToDictionary(x => x.Id);
         var poItemMap = poItems.ToDictionary(x => x.Id);
         var poMap = purchaseOrders.ToDictionary(x => x.Id);
         var stockMap = stockItems.ToDictionary(x => x.Id);
         var packingMap = packings.ToDictionary(x => x.Id);
 
-        var receiptDates = await LoadReceiptDatesAsync(db, sellItemIds!, cancellationToken);
+        var receivableFacts = await LoadReceivableFactsAsync(
+            db,
+            raw.Select(x => x.StockOutId).Distinct().ToList(),
+            cancellationToken);
 
         var result = new List<CommissionPoolCandidate>(raw.Count);
         foreach (var row in raw)
         {
             if (string.IsNullOrWhiteSpace(row.SellOrderItemId))
                 continue;
-            DateOnly? receiptDate = null;
-            if (row.ReceiptProgressStatus == 2)
+            var stockOutDate = row.StockOutDate.HasValue
+                ? CommissionShanghai.ToDate(row.StockOutDate.Value)
+                : (DateOnly?)null;
+            var (receiptStatus, receiptDate) = ResolveReceipt(
+                row,
+                sellPriceMap,
+                receivableFacts,
+                stockOutDate);
+            if (receiptStatus == FinanceVerificationStatusCode.Complete && !receiptDate.HasValue)
             {
-                if (!receiptDates.TryGetValue(row.SellOrderItemId, out var completed))
-                {
-                    _logger.LogWarning(
-                        "提成入池：销售明细 {SellOrderItemId} 收款进度已完成但无法回放核销日",
-                        row.SellOrderItemId);
-                }
-                else
-                    receiptDate = completed;
+                _logger.LogWarning(
+                    "提成入池：出库 {StockOutId} 销售明细 {SellOrderItemId} 应收已核销完成但无法回放核销日",
+                    row.StockOutId,
+                    row.SellOrderItemId);
             }
 
             sellItemToOrder.TryGetValue(row.SellOrderItemId, out var sellOrderId);
@@ -189,7 +195,7 @@ public sealed class CommissionPoolQuery
                 PurchaseOrderItemCode = row.PurchaseOrderItemCode,
                 GpUsd = ResolveLineGp(row, sellConvertMap.GetValueOrDefault(row.SellOrderItemId)),
                 ReceiptDate = receiptDate,
-                ReceiptProgressStatus = row.ReceiptProgressStatus,
+                ReceiptProgressStatus = receiptStatus,
                 SalesUserId = FirstNonEmpty(sellOrder?.SalesUserId, packing?.SalesId, stock?.SalespersonId),
                 PurchaseUserId = purchaseUserId
             });
@@ -291,8 +297,7 @@ public sealed class CommissionPoolQuery
                 ext.ProfitOutBizUsd,
                 ext.QtyStockOut > 0 ? ext.QtyStockOut : item.Quantity,
                 ext.SalesPriceUsd,
-                ext.PurchasePriceUsd,
-                0)
+                ext.PurchasePriceUsd)
         ).ToListAsync(cancellationToken);
 
         if (raw.Count == 0)
@@ -312,7 +317,7 @@ public sealed class CommissionPoolQuery
             ? []
             : await db.SellOrderItems.AsNoTracking()
                 .Where(x => allSellItemIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.SellOrderId, x.ConvertPrice })
+                .Select(x => new { x.Id, x.SellOrderId, x.ConvertPrice, x.Price })
                 .ToListAsync(cancellationToken);
         var sellOrderIdsForMap = sellItems.Select(x => x.SellOrderId).Distinct().ToList();
         var sellOrders = sellOrderIdsForMap.Count == 0
@@ -352,23 +357,17 @@ public sealed class CommissionPoolQuery
 
         var sellItemToOrder = sellItems.ToDictionary(x => x.Id, x => x.SellOrderId);
         var sellConvertMap = sellItems.ToDictionary(x => x.Id, x => (decimal?)x.ConvertPrice);
+        var sellPriceMap = sellItems.ToDictionary(x => x.Id, x => x.Price);
         var sellOrderMap = sellOrders.ToDictionary(x => x.Id);
         var poItemMap = poItems.ToDictionary(x => x.Id);
         var poMap = purchaseOrders.ToDictionary(x => x.Id);
         var stockMap = stockItems.ToDictionary(x => x.Id);
         var packingMap = packings.ToDictionary(x => x.Id);
 
-        var receiptDates = allSellItemIds.Count == 0
-            ? new Dictionary<string, DateOnly>()
-            : await LoadReceiptDatesAsync(db, allSellItemIds, cancellationToken);
-
-        var progresses = allSellItemIds.Count == 0
-            ? []
-            : await db.SellOrderItemExtends.AsNoTracking()
-                .Where(x => allSellItemIds.Contains(x.Id))
-                .Select(x => new { x.Id, x.ReceiptProgressStatus })
-                .ToListAsync(cancellationToken);
-        var progressMap = progresses.ToDictionary(x => x.Id, x => x.ReceiptProgressStatus, StringComparer.OrdinalIgnoreCase);
+        var receivableFacts = await LoadReceivableFactsAsync(
+            db,
+            raw.Select(x => x.StockOutId).Distinct().ToList(),
+            cancellationToken);
 
         var result = new List<CommissionPersonStockOutRow>(raw.Count);
         foreach (var row in raw)
@@ -391,28 +390,17 @@ public sealed class CommissionPoolQuery
             if (!string.Equals(ownerId, userId, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            DateOnly? receiptDate = null;
-            if (!string.IsNullOrWhiteSpace(row.SellOrderItemId)
-                && receiptDates.TryGetValue(row.SellOrderItemId, out var replayed))
-            {
-                receiptDate = replayed;
-            }
-
-            short status = 0;
-            if (!string.IsNullOrWhiteSpace(row.SellOrderItemId)
-                && progressMap.TryGetValue(row.SellOrderItemId, out var p))
-            {
-                status = p;
-            }
+            var stockOutDate = row.StockOutDate.HasValue
+                ? CommissionShanghai.ToDate(row.StockOutDate.Value)
+                : (DateOnly?)null;
+            var (status, receiptDate) = ResolveReceipt(row, sellPriceMap, receivableFacts, stockOutDate);
 
             result.Add(new CommissionPersonStockOutRow
             {
                 StockOutItemId = row.StockOutItemId,
                 StockOutId = row.StockOutId,
                 StockOutCode = row.StockOutCode,
-                StockOutDate = row.StockOutDate.HasValue
-                    ? CommissionShanghai.ToDate(row.StockOutDate.Value)
-                    : null,
+                StockOutDate = stockOutDate,
                 ReceiptProgressStatus = status,
                 ReceiptDate = receiptDate,
                 GpUsd = ResolveLineGp(
@@ -426,17 +414,20 @@ public sealed class CommissionPoolQuery
         return result;
     }
 
-    async Task<Dictionary<string, DateOnly>> LoadReceiptDatesAsync(
+    async Task<Dictionary<string, List<CommissionStockOutReceivableFact>>> LoadReceivableFactsAsync(
         ApplicationDbContext db,
-        List<string> sellItemIds,
+        List<string> stockOutIds,
         CancellationToken cancellationToken)
     {
+        if (stockOutIds.Count == 0)
+            return new Dictionary<string, List<CommissionStockOutReceivableFact>>(StringComparer.Ordinal);
+
         var receivables = await db.FinanceReceivables.AsNoTracking()
-            .Where(x => sellItemIds.Contains(x.SellOrderItemId))
-            .Select(x => new { x.Id, x.SellOrderItemId, x.Amount })
+            .Where(x => stockOutIds.Contains(x.StockOutId))
+            .Select(x => new { x.Id, x.StockOutId, x.SellOrderItemId, x.Amount, x.VerificationStatus })
             .ToListAsync(cancellationToken);
         if (receivables.Count == 0)
-            return [];
+            return new Dictionary<string, List<CommissionStockOutReceivableFact>>(StringComparer.Ordinal);
 
         var receivableIds = receivables.Select(x => x.Id).ToList();
         var writeOffs = await db.FinanceReceivableWriteOffs.AsNoTracking()
@@ -456,21 +447,16 @@ public sealed class CommissionPoolQuery
                 .Select(x => new { x.Id, x.ReceiptDate })
                 .ToListAsync(cancellationToken);
         var receiptMap = receipts.ToDictionary(x => x.Id);
-
-        var recvByItem = receivables.GroupBy(x => x.SellOrderItemId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-        var woByRecv = writeOffs.GroupBy(x => x.FinanceReceivableId)
+        var woByRecv = writeOffs
+            .GroupBy(x => x.FinanceReceivableId)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        var result = new Dictionary<string, DateOnly>();
-        foreach (var (itemId, recvs) in recvByItem)
+        var result = new Dictionary<string, List<CommissionStockOutReceivableFact>>(StringComparer.Ordinal);
+        foreach (var recv in receivables)
         {
-            var total = recvs.Sum(x => x.Amount);
             var steps = new List<CommissionWriteOffStep>();
-            foreach (var recv in recvs)
+            if (woByRecv.TryGetValue(recv.Id, out var wos))
             {
-                if (!woByRecv.TryGetValue(recv.Id, out var wos))
-                    continue;
                 foreach (var wo in wos)
                 {
                     DateOnly eventDate;
@@ -489,13 +475,38 @@ public sealed class CommissionPoolQuery
                 }
             }
 
-            var date = CommissionReceiptDateReplay.Resolve(total, steps);
-            if (date.HasValue)
-                result[itemId] = date.Value;
+            var key = ReceivableKey(recv.StockOutId, recv.SellOrderItemId);
+            if (!result.TryGetValue(key, out var list))
+            {
+                list = [];
+                result[key] = list;
+            }
+
+            list.Add(new CommissionStockOutReceivableFact(recv.VerificationStatus, recv.Amount, steps));
         }
 
         return result;
     }
+
+    static (short Status, DateOnly? ReceiptDate) ResolveReceipt(
+        RawRow row,
+        Dictionary<string, decimal> sellPriceMap,
+        Dictionary<string, List<CommissionStockOutReceivableFact>> receivableFacts,
+        DateOnly? stockOutDate)
+    {
+        receivableFacts.TryGetValue(ReceivableKey(row.StockOutId, row.SellOrderItemId), out var facts);
+        var lineAmount = 0m;
+        if (!string.IsNullOrWhiteSpace(row.SellOrderItemId)
+            && sellPriceMap.TryGetValue(row.SellOrderItemId, out var price))
+        {
+            lineAmount = Math.Round(row.Qty * price, 2, MidpointRounding.AwayFromZero);
+        }
+
+        return CommissionStockOutReceivableProgress.Resolve(facts, stockOutDate, lineAmount);
+    }
+
+    static string ReceivableKey(string? stockOutId, string? sellItemId) =>
+        $"{(stockOutId ?? "").Trim().ToLowerInvariant()}\u001f{(sellItemId ?? "").Trim().ToLowerInvariant()}";
 
     static string? FirstNonEmpty(params string?[] values)
     {
@@ -533,6 +544,5 @@ public sealed class CommissionPoolQuery
         decimal GpUsd,
         int Qty,
         decimal? SalesPriceUsd,
-        decimal PurchasePriceUsd,
-        short ReceiptProgressStatus);
+        decimal PurchasePriceUsd);
 }

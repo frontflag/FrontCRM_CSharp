@@ -143,6 +143,11 @@
   &--narrow {
     width: 160px;
   }
+
+  &--pn {
+    width: 180px;
+    padding-left: 12px;
+  }
 }
 
 .crm-biz-list-page .status-select {
@@ -163,6 +168,11 @@
 
 .crm-biz-list-page .status-select--wide {
   width: 180px;
+}
+
+.crm-biz-list-page .status-select--sales,
+.crm-biz-list-page .status-select--purchaser {
+  width: 150px;
 }
 
 .crm-biz-list-page .filter-date-range {
@@ -334,4 +344,17 @@
 .crm-biz-list-page .crm-items-table--density-compact .crm-quote-create-time {
   flex-wrap: nowrap;
   white-space: nowrap;
+}
+
+/* 列表跳单号：默认同正文，悬停才变蓝+下划线（列表跳单号链接样式规范） */
+.crm-biz-list-page .link-text {
+  color: inherit;
+  text-decoration: none;
+  cursor: default;
+
+  &:hover {
+    color: var(--el-color-primary);
+    text-decoration: underline;
+    cursor: pointer;
+  }
 }
