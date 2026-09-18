@@ -2480,6 +2480,12 @@ namespace CRM.API.Controllers
                     stockingAvailableQty = r.StockingAvailableQty,
                     cost = costOut,
                     lineTotal,
+                    purchaseProfitUsd = canViewPurchaseAmount
+                        ? PurchaseOrderItemPurchaseProfitCalc.Compute(
+                            r.SellConvertUsdUnitPrice,
+                            r.PurchaseConvertUsdUnitPrice,
+                            r.Qty)
+                        : null,
                     paymentRequestedAmount = canViewPurchaseAmount ? r.PaymentAmountRequested : 0m,
                     qtyStockInNotifyExpectSum = r.QtyStockInNotifyExpectSum,
                     qtyStockInNotifyNot = r.QtyStockInNotifyNot,

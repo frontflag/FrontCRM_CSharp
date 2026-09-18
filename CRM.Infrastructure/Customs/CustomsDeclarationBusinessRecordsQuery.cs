@@ -3,6 +3,7 @@ using CRM.Core.Interfaces;
 using CRM.Core.Models.Customs;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Sales;
+using CRM.Core.Utilities;
 using CRM.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -598,6 +599,10 @@ public sealed class CustomsDeclarationBusinessRecordsQuery : ICustomsDeclaration
                 Qty = r.Qty,
                 Cost = r.Cost,
                 LineTotal = Math.Round(r.Qty * r.Cost, 2, MidpointRounding.AwayFromZero),
+                PurchaseProfitUsd = PurchaseOrderItemPurchaseProfitCalc.Compute(
+                    r.SellConvertUsdUnitPrice,
+                    r.PurchaseConvertUsdUnitPrice,
+                    r.Qty),
                 Currency = r.Currency
             });
         }

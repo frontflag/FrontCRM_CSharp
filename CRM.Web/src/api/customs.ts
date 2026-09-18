@@ -608,6 +608,12 @@ function normalizePurchaseOrderItemListLine(raw: unknown): PurchaseOrderItemList
     qty: Number.isFinite(qty) ? qty : undefined,
     cost: costRaw != null && costRaw !== '' ? Number(costRaw) : undefined,
     lineTotal,
+    purchaseProfitUsd: (() => {
+      const raw = r.purchaseProfitUsd ?? r.PurchaseProfitUsd
+      if (raw == null || raw === '') return null
+      const n = Number(raw)
+      return Number.isFinite(n) ? n : null
+    })(),
     currency: (r.currency ?? r.Currency) as number | undefined
   }
 }

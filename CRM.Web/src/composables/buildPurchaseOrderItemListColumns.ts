@@ -122,7 +122,14 @@ export function buildPurchaseOrderItemListColumns(
   if (p.canViewAmount) {
     cols.push(
       { key: 'cost', label: costLabel, prop: 'cost', width: 160, align: 'right' },
-      { key: 'lineTotal', label: p.t('purchaseOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' }
+      { key: 'lineTotal', label: p.t('purchaseOrderItemList.columns.lineTotal'), prop: 'lineTotal', width: 160, align: 'right' },
+      {
+        key: 'purchaseProfitUsd',
+        label: p.t('purchaseOrderItemList.columns.purchaseProfitUsd'),
+        prop: 'purchaseProfitUsd',
+        width: 150,
+        align: 'right'
+      }
     )
   }
 

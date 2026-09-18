@@ -7045,6 +7045,7 @@ const enUS = {
       invoiceProgressStatus: 'Invoice',
       cost: 'Unit price',
       lineTotal: 'Line total',
+      purchaseProfitUsd: 'Purchase profit',
       createTime: 'Created at',
       createUser: 'Created by',
       actions: 'Actions'

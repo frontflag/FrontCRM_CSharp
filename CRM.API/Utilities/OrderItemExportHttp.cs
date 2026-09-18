@@ -82,7 +82,7 @@ public static class OrderItemExportHttp
             headers.Add("可用库存数量");
         headers.AddRange(
         [
-            includeStockingAvailableQty ? "采购单价" : "单价", "单价币别", "行金额", "行金额币别",
+            includeStockingAvailableQty ? "采购单价" : "单价", "单价币别", "行金额", "行金额币别", "采购利润(USD)",
             "创建日期", "创建人",
             "请款进度", "付款进度", "采购进度", "入库进度", "发票进度"
         ]);
@@ -110,6 +110,7 @@ public static class OrderItemExportHttp
                 CurrencyCell(hideAmount, r.Currency),
                 AmountCell(hideAmount, r.LineTotal),
                 CurrencyCell(hideAmount, r.Currency),
+                AmountCell(hideAmount, r.PurchaseProfitUsd),
                 InventoryExportHttp.CsvCell(InventoryExportHttp.FormatDateTime(r.OrderCreateTime)),
                 InventoryExportHttp.CsvCell(r.CreateUserName),
                 InventoryExportHttp.CsvCell(r.PaymentRequestProgressStatus >= 1 ? "已申请" : "待申请"),
@@ -169,6 +170,12 @@ public static class OrderItemExportHttp
             StockingAvailableQty = r.StockingAvailableQty,
             Cost = canViewAmount ? r.Cost : 0m,
             LineTotal = canViewAmount ? r.Qty * r.Cost : 0m,
+            PurchaseProfitUsd = canViewAmount
+                ? PurchaseOrderItemPurchaseProfitCalc.Compute(
+                    r.SellConvertUsdUnitPrice,
+                    r.PurchaseConvertUsdUnitPrice,
+                    r.Qty)
+                : null,
             Currency = r.Currency
         };
     }

@@ -47,6 +47,7 @@ public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQ
 
         if (request.StockingPurchaseSharedList)
             await StockingAvailableQtyLookup.ApplyAsync(_db, slice, cancellationToken);
+        await ApplySellConvertUsdAsync(slice, cancellationToken);
 
         return new PagedResult<PurchaseOrderItemListLineRaw>
         {
@@ -85,7 +86,7 @@ public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQ
                 cancellationToken);
         }
 
-        return await (
+        var rows = await (
             from item in _db.PurchaseOrderItems.AsNoTracking()
             where idList.Contains(item.Id)
             join po in poQuery on item.PurchaseOrderId equals po.Id
@@ -94,6 +95,37 @@ public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQ
             from ext in extGroup.DefaultIfEmpty()
             select MapLineRaw(new PurchaseOrderItemLineJoin { Item = item, Po = po, Ext = ext })
         ).ToListAsync(cancellationToken);
+
+        await ApplySellConvertUsdAsync(rows, cancellationToken);
+        return rows;
+    }
+
+    private async Task ApplySellConvertUsdAsync(
+        List<PurchaseOrderItemListLineRaw> rows,
+        CancellationToken cancellationToken)
+    {
+        var sellIds = rows
+            .Select(x => x.SellOrderItemId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (sellIds.Count == 0)
+            return;
+
+        var map = await _db.SellOrderItems.AsNoTracking()
+            .Where(s => sellIds.Contains(s.Id))
+            .Select(s => new { s.Id, s.ConvertPrice })
+            .ToDictionaryAsync(x => x.Id, x => x.ConvertPrice, StringComparer.OrdinalIgnoreCase, cancellationToken);
+
+        foreach (var row in rows)
+        {
+            var key = row.SellOrderItemId?.Trim();
+            if (string.IsNullOrEmpty(key))
+                continue;
+            if (map.TryGetValue(key, out var usd))
+                row.SellConvertUsdUnitPrice = usd;
+        }
     }
 
     private static PurchaseOrderItemListLineRaw MapLineRaw(PurchaseOrderItemLineJoin x) =>
@@ -129,6 +161,8 @@ public sealed partial class PurchaseOrderItemListQuery : IPurchaseOrderItemListQ
             Qty = x.Item.Qty,
             Cost = x.Item.Cost,
             Currency = x.Item.Currency,
+            SellOrderItemId = x.Item.SellOrderItemId,
+            PurchaseConvertUsdUnitPrice = x.Item.ConvertPrice,
             DeliveryDate = x.Item.DeliveryDate
         };
 }

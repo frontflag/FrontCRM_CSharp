@@ -307,6 +307,7 @@ export interface PurchaseOrderItemListLineRow {
   qtyStockInNotifyNot?: number
   cost?: number
   lineTotal?: number
+  purchaseProfitUsd?: number | null
   currency?: number
 }
 

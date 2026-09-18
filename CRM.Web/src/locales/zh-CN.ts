@@ -7025,6 +7025,7 @@ const zhCN = {
       invoiceProgressStatus: '开票状态',
       cost: '单价',
       lineTotal: '明细总额',
+      purchaseProfitUsd: '采购利润',
       createTime: '创建时间',
       createUser: '创建人',
       actions: '操作'

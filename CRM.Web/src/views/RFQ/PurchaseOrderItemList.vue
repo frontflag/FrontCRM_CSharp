@@ -420,6 +420,13 @@
           </span>
         </span>
       </template>
+      <template #col-purchaseProfitUsd="{ row }">
+        <span v-if="row.purchaseProfitUsd != null" class="amount-with-code">
+          <span>{{ Number(row.purchaseProfitUsd).toFixed(2) }}</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </span>
+        <span v-else>—</span>
+      </template>
       <template #col-createTime="{ row }">{{ formatDt(row.createTime || row.orderCreateTime) }}</template>
       <template #col-createUser="{ row }">{{ row.createUserName || row.createdBy || '—' }}</template>
       <template #col-actions-header>

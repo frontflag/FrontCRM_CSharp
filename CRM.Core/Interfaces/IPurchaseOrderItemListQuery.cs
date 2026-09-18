@@ -144,6 +144,12 @@ public sealed class PurchaseOrderItemListLineRaw
     public decimal Qty { get; set; }
     public decimal Cost { get; set; }
     public short Currency { get; set; }
+    /// <summary>关联销售订单明细；备货/样品可空。</summary>
+    public string? SellOrderItemId { get; set; }
+    /// <summary>本行采购折算美金单价（<c>purchaseorderitem.convert_price</c>）。</summary>
+    public decimal PurchaseConvertUsdUnitPrice { get; set; }
+    /// <summary>关联销售明细折算美金单价；无关联时为 null。</summary>
+    public decimal? SellConvertUsdUnitPrice { get; set; }
     public DateTime? DeliveryDate { get; set; }
     /// <summary>同 PN+品牌备货库存可用量合计（仅备货采购清单填充）。</summary>
     public int StockingAvailableQty { get; set; }
@@ -176,6 +182,8 @@ public sealed class PurchaseOrderItemListLineDto
     public decimal Qty { get; set; }
     public decimal Cost { get; set; }
     public decimal LineTotal { get; set; }
+    /// <summary>采购利润 USD；（销售折算美金单价 − 采购折算美金单价）× 采购数量；无法计算时为 null。</summary>
+    public decimal? PurchaseProfitUsd { get; set; }
     public short Currency { get; set; }
     public int StockingAvailableQty { get; set; }
 }
