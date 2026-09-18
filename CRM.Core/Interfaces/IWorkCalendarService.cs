@@ -53,6 +53,29 @@ public interface IWorkCalendarService
 
     Task<IReadOnlyList<WorkTaskAssigneeOptionDto>> ListAssigneesAsync(
         CancellationToken cancellationToken = default);
+
+    Task<CustomerWorkTaskMonthDto> GetCustomerMonthAsync(
+        string userId,
+        string customerId,
+        int year,
+        int month,
+        bool includeCancelled,
+        CancellationToken cancellationToken = default);
+
+    Task<PagedCustomerWorkTasksDto> ListCustomerTasksAsync(
+        string userId,
+        string customerId,
+        int page,
+        int pageSize,
+        DateOnly? startDate,
+        bool includeCancelled,
+        CancellationToken cancellationToken = default);
+
+    Task<CustomerWorkTaskItemDto> GetCustomerTaskAsync(
+        string userId,
+        string customerId,
+        string taskId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class WorkCalendarMonthDto
@@ -96,7 +119,7 @@ public class WorkTaskListItemDto
     public string ObjectId { get; set; } = string.Empty;
 }
 
-public sealed class WorkTaskDetailDto : WorkTaskListItemDto
+public class WorkTaskDetailDto : WorkTaskListItemDto
 {
     public string ObjectType { get; set; } = string.Empty;
     public string? Content { get; set; }
@@ -104,6 +127,32 @@ public sealed class WorkTaskDetailDto : WorkTaskListItemDto
     public string? AssigneeUserName { get; set; }
     public string CreateByUserId { get; set; } = string.Empty;
     public string? ContactHistoryId { get; set; }
+}
+
+public sealed class CustomerWorkTaskItemDto : WorkTaskDetailDto
+{
+    public bool CanWrite { get; set; }
+}
+
+public sealed class CustomerWorkTaskMonthDto
+{
+    public int Year { get; set; }
+    public int Month { get; set; }
+    public List<CustomerWorkTaskDayCountDto> Days { get; set; } = new();
+}
+
+public sealed class CustomerWorkTaskDayCountDto
+{
+    public string Date { get; set; } = string.Empty;
+    public int TaskCount { get; set; }
+}
+
+public sealed class PagedCustomerWorkTasksDto
+{
+    public List<CustomerWorkTaskItemDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
 }
 
 public sealed class WorkTaskCreateRequest

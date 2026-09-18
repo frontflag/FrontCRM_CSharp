@@ -188,6 +188,103 @@ public sealed class WorkCalendarService : IWorkCalendarService
         return await ToDetailAsync(task, cancellationToken);
     }
 
+    public async Task<CustomerWorkTaskMonthDto> GetCustomerMonthAsync(
+        string userId,
+        string customerId,
+        int year,
+        int month,
+        bool includeCancelled,
+        CancellationToken cancellationToken = default)
+    {
+        if (year < 2000 || year > 2100 || month is < 1 or > 12)
+            throw new ArgumentException("年月无效。");
+        var uid = userId.Trim();
+        var customer = await RequireVisibleCustomerAsync(uid, customerId);
+        var monthStart = new DateOnly(year, month, 1);
+        var monthEnd = monthStart.AddMonths(1);
+        var grouped = await CustomerTaskQuery(customer.Id, includeCancelled)
+            .Where(t => t.StartDate >= monthStart && t.StartDate < monthEnd)
+            .GroupBy(t => t.StartDate)
+            .Select(g => new { Date = g.Key, TaskCount = g.Count() })
+            .ToListAsync(cancellationToken);
+
+        return new CustomerWorkTaskMonthDto
+        {
+            Year = year,
+            Month = month,
+            Days = grouped
+                .OrderBy(x => x.Date)
+                .Select(x => new CustomerWorkTaskDayCountDto
+                {
+                    Date = x.Date.ToString("yyyy-MM-dd"),
+                    TaskCount = x.TaskCount
+                })
+                .ToList()
+        };
+    }
+
+    public async Task<PagedCustomerWorkTasksDto> ListCustomerTasksAsync(
+        string userId,
+        string customerId,
+        int page,
+        int pageSize,
+        DateOnly? startDate,
+        bool includeCancelled,
+        CancellationToken cancellationToken = default)
+    {
+        var uid = userId.Trim();
+        var customer = await RequireVisibleCustomerAsync(uid, customerId);
+        page = WorkTaskCustomerScopeRules.ClampPage(page);
+        pageSize = WorkTaskCustomerScopeRules.ClampPageSize(pageSize);
+
+        var query = CustomerTaskQuery(customer.Id, includeCancelled);
+        if (startDate != null)
+            query = query.Where(t => t.StartDate == startDate.Value);
+
+        var total = await query.CountAsync(cancellationToken);
+        var rows = await query
+            .OrderByDescending(t => t.StartDate)
+            .ThenByDescending(t => t.CreateTime)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        var perms = await _rbac.GetUserPermissionSummaryAsync(uid);
+        var hasWrite = HasApiPermission(perms, WorkTaskPermissionCodes.Write);
+        return new PagedCustomerWorkTasksDto
+        {
+            Items = await MapCustomerItemsAsync(rows, uid, hasWrite, cancellationToken),
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<CustomerWorkTaskItemDto> GetCustomerTaskAsync(
+        string userId,
+        string customerId,
+        string taskId,
+        CancellationToken cancellationToken = default)
+    {
+        var uid = userId.Trim();
+        var customer = await RequireVisibleCustomerAsync(uid, customerId);
+        var id = (taskId ?? string.Empty).Trim();
+        if (id.Length == 0)
+            throw new KeyNotFoundException("任务不存在。");
+
+        var task = await _db.WorkTasks.AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Id == id && !t.IsDeleted, cancellationToken)
+            ?? throw new KeyNotFoundException("任务不存在。");
+        if (!string.Equals(task.ObjectType, WorkTaskObjectTypes.Customer, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(task.ObjectId, customer.Id, StringComparison.OrdinalIgnoreCase))
+            throw new KeyNotFoundException("任务不存在。");
+
+        var perms = await _rbac.GetUserPermissionSummaryAsync(uid);
+        var hasWrite = HasApiPermission(perms, WorkTaskPermissionCodes.Write);
+        var items = await MapCustomerItemsAsync(new[] { task }, uid, hasWrite, cancellationToken);
+        return items[0];
+    }
+
     public async Task<WorkTaskDetailDto> PatchTaskAsync(
         string userId,
         string taskId,
@@ -444,6 +541,67 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 c => (c.OfficialName ?? string.Empty).Trim(),
                 StringComparer.OrdinalIgnoreCase,
                 cancellationToken);
+    }
+
+    private IQueryable<WorkTask> CustomerTaskQuery(string customerId, bool includeCancelled)
+    {
+        var q = _db.WorkTasks.AsNoTracking()
+            .Where(t => !t.IsDeleted
+                && t.ObjectType == WorkTaskObjectTypes.Customer
+                && t.ObjectId == customerId);
+        if (!includeCancelled)
+            q = q.Where(t => t.Status != WorkTaskStatuses.Cancelled);
+        return q;
+    }
+
+    private async Task<List<CustomerWorkTaskItemDto>> MapCustomerItemsAsync(
+        IReadOnlyList<WorkTask> tasks,
+        string uid,
+        bool hasWrite,
+        CancellationToken cancellationToken)
+    {
+        var names = await LoadCustomerNamesAsync(tasks.Select(t => t.ObjectId).ToList(), cancellationToken);
+        var userIds = tasks
+            .Select(t => t.AssigneeUserId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var userMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (userIds.Count > 0)
+        {
+            var users = await _db.Users.AsNoTracking()
+                .Where(u => userIds.Contains(u.Id))
+                .Select(u => new { u.Id, u.UserName, u.RealName })
+                .ToListAsync(cancellationToken);
+            foreach (var u in users)
+            {
+                userMap[u.Id] = string.IsNullOrWhiteSpace(u.RealName) ? u.UserName : u.RealName!;
+            }
+        }
+
+        return tasks.Select(task =>
+        {
+            var item = ToListItem(task, names);
+            return new CustomerWorkTaskItemDto
+            {
+                Id = item.Id,
+                Title = item.Title,
+                Status = item.Status,
+                Priority = item.Priority,
+                StartDate = item.StartDate,
+                CustomerName = item.CustomerName,
+                ObjectId = item.ObjectId,
+                ObjectType = task.ObjectType,
+                Content = task.Content,
+                AssigneeUserId = task.AssigneeUserId,
+                AssigneeUserName = LookupName(userMap, task.AssigneeUserId),
+                CreateByUserId = task.CreateByUserId,
+                ContactHistoryId = task.ContactHistoryId,
+                CanWrite = WorkTaskCustomerScopeRules.CanWrite(
+                    uid, task.CreateByUserId, task.AssigneeUserId, hasWrite)
+            };
+        }).ToList();
     }
 
     private async Task<WorkTaskDetailDto> ToDetailAsync(WorkTask task, CancellationToken cancellationToken)

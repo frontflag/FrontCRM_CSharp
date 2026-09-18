@@ -27,12 +27,13 @@ describe('parseCustomerDetailPrimaryTab', () => {
     expect(parseCustomerDetailPrimaryTab(['followUp', 'news'])).toBe('followUp')
   })
 
-  it('excludes profile, statement, portrait and news from placeholders', () => {
+  it('excludes profile, statement, portrait, news and followUp from placeholders', () => {
     expect(CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS).not.toContain('profile')
     expect(CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS).not.toContain('statement')
     expect(CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS).not.toContain('portrait')
     expect(CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS).not.toContain('news')
-    expect(CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS).toHaveLength(3)
+    expect(CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS).not.toContain('followUp')
+    expect(CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS).toHaveLength(2)
   })
 })
 

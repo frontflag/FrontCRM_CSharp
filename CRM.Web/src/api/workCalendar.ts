@@ -45,12 +45,37 @@ export interface WorkTaskDetail extends WorkTaskListItem {
   contactHistoryId?: string | null
 }
 
+export interface CustomerWorkTaskItem extends WorkTaskDetail {
+  canWrite: boolean
+}
+
+export interface CustomerWorkTaskMonth {
+  year: number
+  month: number
+  days: { date: string; taskCount: number }[]
+}
+
+export interface PagedCustomerWorkTasks {
+  items: CustomerWorkTaskItem[]
+  totalCount: number
+  page: number
+  pageSize: number
+}
+
 export interface WorkTaskCreateBody {
   objectId: string
   title: string
   content?: string
   startDate: string
   priority: number
+  assigneeUserId?: string
+}
+
+export interface WorkTaskPatchBody {
+  title?: string
+  content?: string
+  startDate?: string
+  priority?: number
   assigneeUserId?: string
 }
 
@@ -73,6 +98,9 @@ export const workCalendarApi = {
   create(body: WorkTaskCreateBody) {
     return apiClient.post<WorkTaskDetail>('/api/v1/work-tasks', body)
   },
+  patch(id: string, body: WorkTaskPatchBody) {
+    return apiClient.patch<WorkTaskDetail>(`/api/v1/work-tasks/${encodeURIComponent(id)}`, body)
+  },
   start(id: string) {
     return apiClient.post<WorkTaskDetail>(`/api/v1/work-tasks/${encodeURIComponent(id)}/start`)
   },
@@ -81,5 +109,25 @@ export const workCalendarApi = {
   },
   cancel(id: string) {
     return apiClient.post<WorkTaskDetail>(`/api/v1/work-tasks/${encodeURIComponent(id)}/cancel`)
+  },
+  customerMonth(customerId: string, year: number, month: number, includeCancelled: boolean) {
+    return apiClient.get<CustomerWorkTaskMonth>(
+      `/api/v1/customers/${encodeURIComponent(customerId)}/work-tasks/month`,
+      { params: { year, month, includeCancelled } }
+    )
+  },
+  customerList(
+    customerId: string,
+    params: { page: number; pageSize?: number; startDate?: string; includeCancelled?: boolean }
+  ) {
+    return apiClient.get<PagedCustomerWorkTasks>(
+      `/api/v1/customers/${encodeURIComponent(customerId)}/work-tasks`,
+      { params }
+    )
+  },
+  customerGet(customerId: string, taskId: string) {
+    return apiClient.get<CustomerWorkTaskItem>(
+      `/api/v1/customers/${encodeURIComponent(customerId)}/work-tasks/${encodeURIComponent(taskId)}`
+    )
   }
 }

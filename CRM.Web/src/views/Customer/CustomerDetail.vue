@@ -746,6 +746,15 @@
           />
         </div>
 
+        <div v-show="primaryTab === 'followUp'" class="customer-follow-tab">
+          <CustomerFollowUpPanel
+            v-if="followUpTabReady"
+            :customer-id="customerId"
+            :customer-name="customer.customerName || ''"
+            :active="primaryTab === 'followUp'"
+          />
+        </div>
+
         <div
           v-for="tab in customerDetailPlaceholderTabs"
           :key="tab"
@@ -906,6 +915,7 @@ import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue';
 import FinanceReceivableStatementLedgerPanel from '@/components/Finance/FinanceReceivableStatementLedgerPanel.vue';
 import CustomerPortraitAnalyticsPanel from '@/components/Customer/CustomerPortraitAnalyticsPanel.vue';
 import CustomerNewsMonitorPanel from '@/components/Customer/CustomerNewsMonitorPanel.vue';
+import CustomerFollowUpPanel from '@/components/Customer/CustomerFollowUpPanel.vue';
 import { documentApi } from '@/api/document';
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime';
 import { formatTotalAmountNumber, listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat';
@@ -1085,6 +1095,7 @@ const customerDetailPlaceholderTabs = CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS;
 const statementTabReady = ref(primaryTab.value === 'statement');
 const portraitTabReady = ref(primaryTab.value === 'portrait');
 const newsTabReady = ref(primaryTab.value === 'news' && !maskSaleSensitiveFields.value);
+const followUpTabReady = ref(primaryTab.value === 'followUp');
 const activeTab = ref('contacts');
 /** 《列表操作列规范》：联系人/地址/银行子表共用列头切换（同页仅一张 v-show 表可见） */
 const customerDetailSubOpColExpanded = ref(false);
@@ -1107,9 +1118,15 @@ function selectPrimaryTab(key: CustomerDetailPrimaryTab) {
   if (key === 'statement') statementTabReady.value = true;
   if (key === 'portrait') portraitTabReady.value = true;
   if (key === 'news') newsTabReady.value = true;
+  if (key === 'followUp') followUpTabReady.value = true;
   if (String(route.query.tab ?? '') === key) return;
   const nextQuery: LocationQuery = { ...route.query, tab: key };
   if (key !== 'news') delete nextQuery.newsId;
+  if (key !== 'followUp') {
+    delete nextQuery.taskId;
+    delete nextQuery.followDate;
+    delete nextQuery.followIncludeCancelled;
+  }
   void router.replace({ query: nextQuery });
 }
 
@@ -1121,6 +1138,7 @@ watch(
     if (parsed === 'statement') statementTabReady.value = true;
     if (parsed === 'portrait') portraitTabReady.value = true;
     if (parsed === 'news') newsTabReady.value = true;
+    if (parsed === 'followUp') followUpTabReady.value = true;
     if (primaryTab.value !== parsed) primaryTab.value = parsed;
   }
 );
@@ -1894,6 +1912,10 @@ onMounted(() => {
 }
 
 .customer-news-tab {
+  min-height: 240px;
+}
+
+.customer-follow-tab {
   min-height: 240px;
 }
 

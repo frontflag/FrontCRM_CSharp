@@ -18,7 +18,8 @@ export const CUSTOMER_DETAIL_PRIMARY_TAB_PLACEHOLDERS: readonly CustomerDetailPr
       k !== CUSTOMER_DETAIL_PRIMARY_TAB_DEFAULT &&
       k !== 'statement' &&
       k !== 'portrait' &&
-      k !== 'news'
+      k !== 'news' &&
+      k !== 'followUp'
   )
 
 export const CUSTOMER_PORTRAIT_SUB_TAB_KEYS = ['rfq', 'order'] as const

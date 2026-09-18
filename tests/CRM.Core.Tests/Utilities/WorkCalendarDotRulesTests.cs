@@ -54,6 +54,40 @@ public class WorkTaskStatusRulesTests
     }
 }
 
+public class WorkTaskCustomerScopeRulesTests
+{
+    [Theory]
+    [InlineData(false, (short)10, false, true)]
+    [InlineData(false, (short)20, false, true)]
+    [InlineData(false, (short)30, false, true)]
+    [InlineData(false, (short)90, false, false)]
+    [InlineData(false, (short)90, true, true)]
+    [InlineData(true, (short)10, true, false)]
+    public void List_Hides_Soft_Delete_And_Cancelled_Unless_Asked(
+        bool isDeleted, short status, bool includeCancelled, bool expected)
+    {
+        Assert.Equal(expected, WorkTaskCustomerScopeRules.IncludeInCustomerList(isDeleted, status, includeCancelled));
+    }
+
+    [Fact]
+    public void Write_Needs_Permission_And_Owner()
+    {
+        Assert.False(WorkTaskCustomerScopeRules.CanWrite("a", "a", "a", false));
+        Assert.True(WorkTaskCustomerScopeRules.CanWrite("a", "a", "b", true));
+        Assert.True(WorkTaskCustomerScopeRules.CanWrite("b", "a", "b", true));
+        Assert.False(WorkTaskCustomerScopeRules.CanWrite("c", "a", "b", true));
+    }
+
+    [Fact]
+    public void Page_Size_Caps_At_Fifty()
+    {
+        Assert.Equal(1, WorkTaskCustomerScopeRules.ClampPage(0));
+        Assert.Equal(50, WorkTaskCustomerScopeRules.ClampPageSize(0));
+        Assert.Equal(50, WorkTaskCustomerScopeRules.ClampPageSize(200));
+        Assert.Equal(20, WorkTaskCustomerScopeRules.ClampPageSize(20));
+    }
+}
+
 public class CompanyCalendarDateTests
 {
     [Fact]

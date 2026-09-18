@@ -47,6 +47,7 @@ declare module 'vue' {
     CustomerExtendCell: typeof import('./src/components/list/CustomerExtendCell.vue')['default']
     CustomerExtendColumnHeader: typeof import('./src/components/list/CustomerExtendColumnHeader.vue')['default']
     CustomerFavoritePanel: typeof import('./src/components/Customer/CustomerFavoritePanel.vue')['default']
+    CustomerFollowUpPanel: typeof import('./src/components/Customer/CustomerFollowUpPanel.vue')['default']
     CustomerImportDialog: typeof import('./src/components/Customer/CustomerImportDialog.vue')['default']
     CustomerIntelCrmContextBar: typeof import('./src/components/Customer/CustomerIntelCrmContextBar.vue')['default']
     CustomerIntelPanel: typeof import('./src/components/Customer/CustomerIntelPanel.vue')['default']
