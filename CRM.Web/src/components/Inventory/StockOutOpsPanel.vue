@@ -60,6 +60,12 @@
         </div>
       </section>
 
+      <StockOutOpsDocumentsCard
+        v-if="stockOutId"
+        :biz-id="stockOutId"
+        :can-write="!!canWriteLogistics"
+      />
+
       <section class="ops-card">
         <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('stockOutList.opsPanel.shipmentTitle') }}</h3>
@@ -459,6 +465,7 @@ import { StockOutTypeCode } from '@/constants/stockOutType'
 import { useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import CustomerNameReadonlyText from '@/components/Customer/CustomerNameReadonlyText.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
+import StockOutOpsDocumentsCard from '@/components/Inventory/StockOutOpsDocumentsCard.vue'
 
 const OPS_GROUP_LIMIT = 8
 

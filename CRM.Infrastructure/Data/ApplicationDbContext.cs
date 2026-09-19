@@ -1857,6 +1857,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.StoredFileName).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.RelativePath).IsRequired().HasMaxLength(500);
                 entity.Property(e => e.Remark).HasMaxLength(256);
+                entity.Property(e => e.DocCategory).IsRequired().HasMaxLength(32).HasDefaultValue("OTHER");
                 entity.Property(e => e.ThumbnailRelativePath).HasMaxLength(500);
                 entity.Property(e => e.DeleteUserId).HasMaxLength(36);
                 entity.Property(e => e.UploadUserId).HasMaxLength(36);

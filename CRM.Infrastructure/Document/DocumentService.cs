@@ -37,7 +37,7 @@ namespace CRM.Infrastructure.Document
 
             var maxFiles = SysUserNoticeDocumentBizType.Is(request.BizType)
                 ? SysUserNoticeLimits.MaxImageCount
-                : 5;
+                : 20;
             if (request.Files.Count > maxFiles)
                 throw new ArgumentException($"单次最多上传 {maxFiles} 个文件");
 
@@ -71,6 +71,7 @@ namespace CRM.Infrastructure.Document
                     MimeType = result.MimeType,
                     ThumbnailRelativePath = result.ThumbnailRelativePath,
                     Remark = request.Remark,
+                    DocCategory = UploadDocumentCategory.Normalize(request.DocCategory),
                     UploadUserId = request.UploadUserId,
                     CreateTime = DateTime.UtcNow
                 };

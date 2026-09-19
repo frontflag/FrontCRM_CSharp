@@ -1176,6 +1176,13 @@ namespace CRM.Infrastructure.Data.Migrations
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)");
 
+                    b.Property<string>("DocCategory")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasDefaultValue("OTHER");
+
                     b.Property<string>("FileExtension")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");

@@ -1,17 +1,34 @@
 <template>
   <div
     class="document-upload-panel"
-    :class="{ 'document-upload-panel--dragging': dragging }"
+    :class="{
+      'document-upload-panel--dragging': dragging,
+      'document-upload-panel--compact': compact
+    }"
     @drop.prevent.stop="onDrop"
     @dragover.prevent.stop="onDragOver"
     @dragleave.stop="onDragLeave"
   >
     <div class="upload-toolbar">
+      <el-select
+        v-if="showCategorySelect"
+        v-model="categoryModel"
+        class="category-select"
+        :size="compact ? 'small' : 'default'"
+        :teleported="false"
+      >
+        <el-option
+          v-for="code in UPLOAD_DOC_CATEGORY_ORDER"
+          :key="code"
+          :label="t(uploadDocCategoryI18nKey(code))"
+          :value="code"
+        />
+      </el-select>
       <div class="upload-area">
         <input ref="fileInput" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.zip" @change="onSelect" />
         <div class="upload-placeholder">
           <p class="upload-line">
-            <span>拖拽文件到此处，或</span>
+            <span v-if="!compact">拖拽文件到此处，或</span>
             <button type="button" class="link-btn" @click="fileInput?.click()">点击选择</button>
             <span class="hint">单次最多 {{ maxFiles }} 个，单文件不超过 {{ maxSizeMb }}MB</span>
           </p>
@@ -45,9 +62,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
+import {
+  UPLOAD_DOC_CATEGORY,
+  UPLOAD_DOC_CATEGORY_ORDER,
+  normalizeUploadDocCategory,
+  uploadDocCategoryI18nKey,
+  type UploadDocCategory
+} from '@/constants/uploadDocumentCategory'
 
 const props = withDefaults(
   defineProps<{
@@ -56,11 +81,22 @@ const props = withDefaults(
     maxFiles?: number
     maxSizeMb?: number
     remarkAllowed?: boolean
+    showCategorySelect?: boolean
+    docCategory?: string
+    compact?: boolean
   }>(),
-  { maxFiles: 5, maxSizeMb: 50, remarkAllowed: true }
+  {
+    maxFiles: 5,
+    maxSizeMb: 50,
+    remarkAllowed: true,
+    showCategorySelect: false,
+    docCategory: UPLOAD_DOC_CATEGORY.Other,
+    compact: false
+  }
 )
 
 const emit = defineEmits<{ uploaded: [documents: UploadDocumentDto[]] }>()
+const { t } = useI18n()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const dragging = ref(false)
@@ -68,6 +104,14 @@ const dragDepth = ref(0)
 const remark = ref('')
 const selectedFiles = ref<File[]>([])
 const uploading = ref(false)
+const categoryModel = ref<UploadDocCategory>(normalizeUploadDocCategory(props.docCategory))
+
+watch(
+  () => props.docCategory,
+  (v) => {
+    categoryModel.value = normalizeUploadDocCategory(v)
+  }
+)
 
 const maxBytes = computed(() => props.maxSizeMb * 1024 * 1024)
 
@@ -144,7 +188,9 @@ async function submit() {
       props.bizType,
       props.bizId,
       selectedFiles.value,
-      remark.value || undefined
+      remark.value || undefined,
+      undefined,
+      categoryModel.value
     )
     ElMessage.success('上传成功')
     emit('uploaded', list)
@@ -179,12 +225,36 @@ defineExpose({
     display: flex;
     align-items: center;
     gap: 12px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     min-height: 52px;
 
     > * {
       align-self: center;
     }
+  }
+
+  .category-select {
+    width: 140px;
+    flex: 0 0 auto;
+    font-family: 'Noto Sans SC', sans-serif;
+
+    :deep(.el-select__wrapper),
+    :deep(.el-select__selected-item),
+    :deep(.el-select__placeholder),
+    :deep(.el-select__input),
+    :deep(.el-select__input-wrapper input) {
+      font-family: 'Noto Sans SC', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+  }
+
+  :deep(.el-select-dropdown__item) {
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
   }
 
   .upload-area {
@@ -210,6 +280,40 @@ defineExpose({
       }
       .link-btn { background: none; border: none; color: $cyan-primary; cursor: pointer; text-decoration: underline; font-size: 13px; }
       .hint { font-size: 13px; color: $text-muted; }
+    }
+  }
+
+  &--compact {
+    padding: 0;
+    border: none;
+
+    .upload-toolbar {
+      min-height: 0;
+      flex-wrap: nowrap;
+      gap: 8px;
+    }
+
+    .category-select {
+      width: 128px;
+    }
+
+    .upload-area {
+      min-height: 0;
+      padding: 0;
+    }
+
+    .hint {
+      display: none;
+    }
+
+    .file-list {
+      margin-top: 8px;
+    }
+
+    .btn-primary,
+    .btn-ghost {
+      padding: 4px 12px;
+      font-size: 13px;
     }
   }
   .file-list {

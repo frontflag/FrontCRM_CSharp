@@ -1,5 +1,11 @@
 <template>
-  <div class="document-list-panel" :class="{ 'document-list-panel--compact': hideToolbar }">
+  <div
+    class="document-list-panel"
+    :class="{
+      'document-list-panel--compact': hideToolbar || compact,
+      'document-list-panel--tagged': showCategoryTag
+    }"
+  >
     <div v-if="!hideToolbar" class="toolbar">
       <span class="title">关联文档</span>
       <button type="button" class="btn-ghost btn-sm" @click="fetchList" :disabled="loading">刷新</button>
@@ -10,17 +16,32 @@
       <div v-for="doc in list" :key="doc.id" class="doc-card" :class="{ 'doc-card--list': isListView }">
         <template v-if="isListView">
           <div class="doc-main-row">
-            <button
-              type="button"
+            <el-tag
+              v-if="showCategoryTag"
+              class="doc-cat-tag"
+              size="small"
+              effect="plain"
+              :type="categoryTagType(doc)"
+            >
+              {{ categoryLabel(doc) }}
+            </el-tag>
+            <span
               class="doc-name doc-name--link"
+              role="link"
+              tabindex="0"
               :title="doc.originalFileName"
               @click="preview(doc)"
+              @keydown.enter.prevent="preview(doc)"
+              @keydown.space.prevent="preview(doc)"
             >
               {{ doc.originalFileName }}
-            </button>
-            <div class="doc-date">{{ formatDate(doc.createTime) }}</div>
-            <div class="doc-bytes">{{ formatFileBytes(doc.fileSize) }}</div>
-            <div class="actions">
+            </span>
+            <div v-if="!compact" class="doc-date">{{ formatDate(doc.createTime) }}</div>
+            <div v-if="!compact" class="doc-bytes">{{ formatFileBytes(doc.fileSize) }}</div>
+            <div
+              class="actions"
+              :class="{ 'doc-row-toolbar': compact && showCategoryTag }"
+            >
               <button type="button" class="link" @click="preview(doc)">预览</button>
               <button type="button" class="link" @click="download(doc)">下载</button>
               <button v-if="!readonly" type="button" class="link danger" @click="remove(doc)">删除</button>
@@ -34,6 +55,15 @@
             <span v-else class="file-icon">{{ fileIcon(doc) }}</span>
           </div>
           <div class="info">
+            <el-tag
+              v-if="showCategoryTag"
+              class="doc-cat-tag"
+              size="small"
+              effect="plain"
+              :type="categoryTagType(doc)"
+            >
+              {{ categoryLabel(doc) }}
+            </el-tag>
             <button
               type="button"
               class="name name--link"
@@ -59,10 +89,16 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { documentApi, type UploadDocumentDto } from '@/api/document'
 import DocumentPreviewDialog from './DocumentPreviewDialog.vue'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
+import {
+  UPLOAD_DOC_CATEGORY,
+  normalizeUploadDocCategory,
+  uploadDocCategoryI18nKey
+} from '@/constants/uploadDocumentCategory'
 
 const props = withDefaults(
   defineProps<{
@@ -75,11 +111,16 @@ const props = withDefaults(
     hideToolbar?: boolean
     /** 无文档时文案 */
     emptyText?: string
+    /** 行首显示类型标签（出货照片 / 签收单 / 其他） */
+    showCategoryTag?: boolean
+    compact?: boolean
   }>(),
-  { readonly: false, hideToolbar: false, emptyText: '暂无文档' }
+  { readonly: false, hideToolbar: false, emptyText: '暂无文档', showCategoryTag: false, compact: false }
 )
 
-/** 非 grid 时按列表行展示（横向：文件名、日期、字节、操作） */
+const { t } = useI18n()
+
+const emit = defineEmits<{ updated: [count: number] }>()
 const isListView = computed(() => props.viewMode !== 'grid')
 
 const loading = ref(false)
@@ -93,13 +134,30 @@ function fetchList() {
   loading.value = true
   documentApi
     .getDocuments(props.bizType, props.bizId)
-    .then((res) => (list.value = res))
-    .catch(() => (list.value = []))
+    .then((res) => {
+      list.value = res
+      emit('updated', res.length)
+    })
+    .catch(() => {
+      list.value = []
+      emit('updated', 0)
+    })
     .finally(() => (loading.value = false))
 }
 
 watch(() => [props.bizType, props.bizId], fetchList, { immediate: false })
 onMounted(fetchList)
+
+function categoryLabel(doc: UploadDocumentDto) {
+  return t(uploadDocCategoryI18nKey(normalizeUploadDocCategory(doc.docCategory)))
+}
+
+function categoryTagType(doc: UploadDocumentDto): 'warning' | 'success' | 'info' {
+  const code = normalizeUploadDocCategory(doc.docCategory)
+  if (code === UPLOAD_DOC_CATEGORY.ShipPhoto) return 'warning'
+  if (code === UPLOAD_DOC_CATEGORY.Pod) return 'success'
+  return 'info'
+}
 
 function isImage(doc: UploadDocumentDto) {
   const t = (doc.mimeType || '').toLowerCase()
@@ -192,7 +250,10 @@ defineExpose({ refresh: fetchList })
   &--compact {
     .loading,
     .empty {
-      padding: 12px 8px;
+      margin: 0;
+      padding: 8px 0 4px;
+      font-size: 13px;
+      text-align: center;
     }
   }
   .list {
@@ -224,6 +285,9 @@ defineExpose({ refresh: fetchList })
       .file-icon { font-size: 32px; }
     }
     .info {
+      .doc-cat-tag {
+        margin-bottom: 2px;
+      }
       .name {
         font-size: 12px;
         overflow: hidden;
@@ -270,24 +334,32 @@ defineExpose({ refresh: fetchList })
     min-width: 0;
   }
 
-  .doc-name {
+  .doc-name,
+  button.doc-name {
     flex: 0 1 auto;
     max-width: 200px;
     min-width: 0;
+    font-family: 'Noto Sans SC', sans-serif;
     font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .doc-name--link {
+  .doc-name--link,
+  button.doc-name--link {
     padding: 0;
     border: none;
     background: none;
     text-align: left;
     color: $cyan-primary;
     cursor: pointer;
-    font: inherit;
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
     &:hover { text-decoration: underline; }
   }
 
@@ -306,6 +378,127 @@ defineExpose({ refresh: fetchList })
     max-width: 360px;
     line-height: 1.35;
     word-break: break-word;
+  }
+
+  .doc-cat-tag {
+    flex: 0 0 auto;
+  }
+
+  &--tagged {
+    .list:not(.grid) {
+      flex-direction: column;
+      flex-wrap: nowrap;
+      width: 100%;
+      gap: 0;
+      border: 1px solid $border-card;
+      border-radius: $border-radius-lg;
+      overflow: hidden;
+      background: $layer-2;
+    }
+
+    .doc-card--list {
+      display: flex;
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      border: none;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .doc-card {
+      border: none;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .doc-main-row {
+      width: 100%;
+    }
+
+    .doc-name,
+    button.doc-name,
+    span.doc-name {
+      flex: 1 1 auto;
+      max-width: none;
+      padding-right: 4px;
+      color: var(--crm-table-text);
+      font-family: 'Noto Sans SC', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+
+    .doc-name--link,
+    button.doc-name--link,
+    span.doc-name--link {
+      color: inherit;
+      cursor: default;
+      font-family: 'Noto Sans SC', sans-serif;
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.5;
+
+      &:hover {
+        color: var(--el-color-primary);
+        text-decoration: underline;
+        cursor: pointer;
+      }
+    }
+  }
+
+  &--tagged#{&}--compact {
+    .list:not(.grid) {
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      overflow: visible;
+      gap: 3px;
+    }
+
+    .doc-card--list {
+      padding: 4px 0;
+      gap: 4px;
+    }
+
+    .doc-main-row {
+      position: relative;
+      gap: 8px;
+    }
+
+    .doc-row-toolbar {
+      position: absolute;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: #fffbeb;
+      border: 1px solid rgba(217, 119, 6, 0.18);
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.12s ease;
+    }
+
+    .doc-card--list:hover .doc-row-toolbar,
+    .doc-card--list:focus-within .doc-row-toolbar,
+    .doc-main-row:hover .doc-row-toolbar {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    @media (hover: none) {
+      .doc-row-toolbar {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    }
   }
 }
 </style>

@@ -16,6 +16,13 @@ import { inventoryOnHandListBoardDefsEn } from './fragments/inventoryOnHandListB
 import { inventoryStockItemListBoardDefsEn } from './fragments/inventoryStockItemListBoardDefs.en-US'
 
 const enUS = {
+  documentUpload: {
+    category: {
+      shipPhoto: 'Shipping photos',
+      pod: 'Proof of delivery',
+      other: 'Other'
+    }
+  },
   common: {
     chinese: '简体中文',
     english: 'English',
@@ -9160,10 +9167,15 @@ const enUS = {
       packingReconcile: 'Related packing status will be reconciled to remaining stock-outs.'
     },
     opsPanel: {
-      pickRow: 'With the Ops tab open, click a row to see this stock-out summary, shipment method, and lines.',
+      pickRow: 'With the Ops tab open, click a row to see this stock-out summary, documents, shipment method, and lines.',
       loadFailed: 'Failed to load the ops panel',
       overviewTitle: 'Stock-out summary',
       shipmentTitle: 'Shipment method',
+      docsTitle: 'Documents',
+      docsNone: '(none)',
+      docsEmptyGroup: 'None',
+      docsExpand: 'Expand',
+      docsCollapse: 'Collapse',
       markFinishTitle: 'Mark finished',
       completed: 'Completed',
       itemsTitle: 'Stock-out lines',
@@ -9414,7 +9426,7 @@ const enUS = {
       salesUnitPrice: 'Sales unit price',
       outAmount: 'Stock-out amount'
     },
-    docHint: 'Upload multiple files; the list below shows all documents for this stock-out.',
+    docHint: 'Choose a type (shipping photos / proof of delivery / other) then upload. You can upload more than once.',
     sourceCode: 'Source request',
     warehouseName: 'Warehouse name',
     shipmentMethod: 'Shipment method',

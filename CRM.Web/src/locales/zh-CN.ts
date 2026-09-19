@@ -16,6 +16,13 @@ import { inventoryOnHandListBoardDefsZh } from './fragments/inventoryOnHandListB
 import { inventoryStockItemListBoardDefsZh } from './fragments/inventoryStockItemListBoardDefs.zh-CN'
 
 const zhCN = {
+  documentUpload: {
+    category: {
+      shipPhoto: '出货照片',
+      pod: '出货签收单',
+      other: '其他'
+    }
+  },
   common: {
     chinese: '简体中文',
     english: 'English',
@@ -9140,10 +9147,15 @@ const zhCN = {
       packingReconcile: '关联装箱单状态会按实际出库情况校正。'
     },
     opsPanel: {
-      pickRow: '请在「操作」页签下单击列表行，查看本单摘要、出货方式与明细。',
+      pickRow: '请在「操作」页签下单击列表行，查看本单摘要、文档、出货方式与明细。',
       loadFailed: '加载操作面板失败',
       overviewTitle: '出库摘要',
       shipmentTitle: '出货方式',
+      docsTitle: '文档',
+      docsNone: '（无上传）',
+      docsEmptyGroup: '暂无',
+      docsExpand: '展开',
+      docsCollapse: '收起',
       markFinishTitle: '标记完成',
       completed: '已完成',
       itemsTitle: '出库明细',
@@ -9393,7 +9405,7 @@ const zhCN = {
       salesUnitPrice: '销售单价',
       outAmount: '出库金额'
     },
-    docHint: '可多次上传；下方列表展示本单全部已上传文档，支持预览与下载。',
+    docHint: '先选择类型（出货照片 / 出货签收单 / 其他）再上传；可多次上传。',
     sourceCode: '来源申请',
     warehouseName: '仓库名称',
     shipmentMethod: '出货方式',

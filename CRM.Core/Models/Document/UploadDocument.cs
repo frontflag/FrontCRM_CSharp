@@ -53,6 +53,11 @@ namespace CRM.Core.Models.Document
         [StringLength(256)]
         public string? Remark { get; set; }
 
+        /// <summary>附件分类：SHIP_PHOTO / POD / OTHER；未传或未知码按 OTHER。</summary>
+        [Required]
+        [StringLength(32)]
+        public string DocCategory { get; set; } = "OTHER";
+
         public bool IsDeleted { get; set; }
 
         public DateTime? DeleteTime { get; set; }

@@ -58,7 +58,7 @@ namespace CRM.API.Controllers
             return await _userNoticeService.CanAccessNoticeBizAsync(noticeId, uid, summary?.IsSysAdmin == true, ct);
         }
 
-        /// <summary>上传文档（multipart/form-data: bizType, bizId, remark?, uploadUserId?, files）</summary>
+        /// <summary>上传文档（multipart/form-data: bizType, bizId, remark?, docCategory?, uploadUserId?, files）</summary>
         [HttpPost("upload")]
         [RequestSizeLimit(300 * 1024 * 1024)]
         [RequestFormLimits(MultipartBodyLengthLimit = 300 * 1024 * 1024)]
@@ -66,6 +66,7 @@ namespace CRM.API.Controllers
             [FromForm] string bizType,
             [FromForm] string bizId,
             [FromForm] string? remark,
+            [FromForm] string? docCategory,
             [FromForm] string? uploadUserId,
             [FromForm] IFormFileCollection? files)
         {
@@ -107,7 +108,8 @@ namespace CRM.API.Controllers
                     BizType = bizType,
                     BizId = bizId,
                     Remark = remark,
-                    UploadUserId = uploadUserId,
+                    DocCategory = docCategory,
+                    UploadUserId = string.IsNullOrWhiteSpace(uploadUserId) ? CurrentUserId : uploadUserId,
                     Files = list
                 };
 
@@ -342,6 +344,7 @@ namespace CRM.API.Controllers
                 d.MimeType,
                 d.ThumbnailRelativePath,
                 d.Remark,
+                d.DocCategory,
                 d.UploadUserId,
                 d.CreateTime
             };

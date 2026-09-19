@@ -29,6 +29,7 @@ namespace CRM.Core.Document
         public string BizId { get; set; } = string.Empty;
         public List<DocumentUploadFile> Files { get; set; } = new();
         public string? Remark { get; set; }
+        public string? DocCategory { get; set; }
         public string? UploadUserId { get; set; }
     }
 

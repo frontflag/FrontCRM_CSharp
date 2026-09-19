@@ -39,6 +39,7 @@ export function previewMimeForUpload(doc: {
 
 export const SO_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.so-item-ops.docs-expanded'
 export const PO_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.po-item-ops.docs-expanded'
+export const STOCK_OUT_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.stock-out-ops.docs-expanded'
 
 export function readOpsDocsExpanded(key: string): boolean {
   try {

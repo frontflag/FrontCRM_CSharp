@@ -199,7 +199,11 @@
               :class="{ 'tab-btn--active': detailActiveTab === 'documents' }"
               @click="detailActiveTab = 'documents'"
             >
-              {{ t('stockOutDetail.tabs.documents') }}
+              {{
+                docCount > 0
+                  ? `${t('stockOutDetail.tabs.documents')} (${docCount})`
+                  : t('stockOutDetail.tabs.documents')
+              }}
             </button>
           </div>
           <div class="tabs-body">
@@ -387,10 +391,13 @@
             <div v-show="detailActiveTab === 'documents'">
               <p class="doc-hint">{{ t('stockOutDetail.docHint') }}</p>
               <DocumentUploadPanel
+                v-if="canWriteLogistics"
                 :biz-type="DOC_BIZ"
                 :biz-id="detail.id"
                 :max-files="20"
                 :max-size-mb="100"
+                show-category-select
+                :doc-category="UPLOAD_DOC_CATEGORY.ShipPhoto"
                 @uploaded="docListRef?.refresh()"
               />
               <DocumentListPanel
@@ -398,7 +405,10 @@
                 :biz-type="DOC_BIZ"
                 :biz-id="detail.id"
                 view-mode="list"
+                show-category-tag
+                :readonly="!canWriteLogistics"
                 style="margin-top: 16px"
+                @updated="onDocListUpdated"
               />
             </div>
           </div>
@@ -712,7 +722,9 @@ import { translateSalesOrderStatus, salesOrderStatusTagType } from '@/constants/
 import { CURRENCY_CODE_TO_TEXT } from '@/constants/currency'
 import { isExpressShipmentMethod, useLogisticsFormDict } from '@/composables/useLogisticsFormDict'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
+import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
 import { StockOutTypeCode } from '@/constants/stockOutType'
+import { UPLOAD_DOC_CATEGORY } from '@/constants/uploadDocumentCategory'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import StockOutCustomsSummaryPanel from '@/components/Customs/StockOutCustomsSummaryPanel.vue'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -735,6 +747,7 @@ import { formatProfitOutRateBizDisplay } from '@/utils/profitOutRateDisplay'
 const authStore = useAuthStore()
 
 const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
+const { canWriteLogisticsData: canWriteLogistics } = useDepartmentDataReadOnly()
 
 const DOC_BIZ = 'STOCK_OUT'
 
@@ -797,6 +810,11 @@ const sellOrderItemRows = ref<SalesOrderItemLineRow[]>([])
 const receivableRows = ref<StockOutDetailReceivableRow[]>([])
 const detailActiveTab = ref<'items' | 'documents'>('items')
 const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
+const docCount = ref(0)
+
+function onDocListUpdated(n: number) {
+  docCount.value = n
+}
 
 const stockOutId = computed(() => {
   const raw = route.params.id
@@ -1129,6 +1147,7 @@ async function load() {
       receivableRows.value = []
       sellOrderItemRows.value = []
       stockOutItems.value = []
+      docCount.value = 0
       customerWorkspacePanelStore.clear()
       return
     }
@@ -1143,6 +1162,7 @@ async function load() {
     loadError.value = t('stockOutDetail.loadFailed')
     sellOrderItemRows.value = []
     receivableRows.value = []
+    docCount.value = 0
     customerWorkspacePanelStore.clear()
   } finally {
     loading.value = false

@@ -1,4 +1,5 @@
 import apiClient from './client'
+import { normalizeUploadDocCategory, type UploadDocCategory } from '@/constants/uploadDocumentCategory'
 
 export interface UploadDocumentDto {
   id: string
@@ -12,8 +13,46 @@ export interface UploadDocumentDto {
   mimeType?: string
   thumbnailRelativePath?: string
   remark?: string
+  docCategory?: UploadDocCategory
   uploadUserId?: string
   createTime?: string
+}
+
+function pickStr(raw: Record<string, unknown>, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = raw[k]
+    if (v != null && String(v).trim()) return String(v).trim()
+  }
+  return ''
+}
+
+export function normalizeUploadDocument(row: unknown): UploadDocumentDto {
+  const r = (row ?? {}) as Record<string, unknown>
+  return {
+    id: pickStr(r, 'id', 'Id'),
+    bizType: pickStr(r, 'bizType', 'BizType'),
+    bizId: pickStr(r, 'bizId', 'BizId'),
+    originalFileName: pickStr(r, 'originalFileName', 'OriginalFileName'),
+    storedFileName: pickStr(r, 'storedFileName', 'StoredFileName'),
+    relativePath: pickStr(r, 'relativePath', 'RelativePath'),
+    fileSize: Number(r.fileSize ?? r.FileSize ?? 0),
+    fileExtension: pickStr(r, 'fileExtension', 'FileExtension') || undefined,
+    mimeType: pickStr(r, 'mimeType', 'MimeType') || undefined,
+    thumbnailRelativePath: pickStr(r, 'thumbnailRelativePath', 'ThumbnailRelativePath') || undefined,
+    remark: pickStr(r, 'remark', 'Remark') || undefined,
+    docCategory: normalizeUploadDocCategory(pickStr(r, 'docCategory', 'DocCategory')),
+    uploadUserId: pickStr(r, 'uploadUserId', 'UploadUserId') || undefined,
+    createTime: pickStr(r, 'createTime', 'CreateTime') || undefined
+  }
+}
+
+function unwrapDocumentList(res: unknown): UploadDocumentDto[] {
+  const raw = Array.isArray(res)
+    ? res
+    : Array.isArray((res as { data?: unknown })?.data)
+      ? ((res as { data: unknown[] }).data)
+      : []
+  return raw.map(normalizeUploadDocument)
 }
 
 const BASE = '/api/v1/documents'
@@ -40,12 +79,14 @@ export const documentApi = {
     bizId: string,
     files: File[],
     remark?: string,
-    uploadUserId?: string
+    uploadUserId?: string,
+    docCategory?: string
   ): Promise<UploadDocumentDto[]> {
     const form = new FormData()
     form.append('bizType', bizType)
     form.append('bizId', bizId)
     if (remark) form.append('remark', remark)
+    if (docCategory) form.append('docCategory', docCategory)
     if (uploadUserId) form.append('uploadUserId', uploadUserId)
     files.forEach((f) => form.append('files', f))
 
@@ -53,17 +94,13 @@ export const documentApi = {
       headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 120_000,
     })
-    if (Array.isArray(res)) return res as UploadDocumentDto[]
-    if (res && Array.isArray(res.data)) return res.data as UploadDocumentDto[]
-    return (res && res.data) ?? []
+    return unwrapDocumentList(res)
   },
 
   /** 按业务查询文档列表 */
   async getDocuments(bizType: string, bizId: string): Promise<UploadDocumentDto[]> {
     const res = await apiClient.get<any>(`${BASE}?bizType=${encodeURIComponent(bizType)}&bizId=${encodeURIComponent(bizId)}`)
-    if (Array.isArray(res)) return res as UploadDocumentDto[]
-    if (res && Array.isArray(res.data)) return res.data as UploadDocumentDto[]
-    return []
+    return unwrapDocumentList(res)
   },
 
   /** 管理端分页查询 */
@@ -87,7 +124,8 @@ export const documentApi = {
     q.set('pageNumber', String(params.pageNumber ?? 1))
     q.set('pageSize', String(params.pageSize ?? 20))
     const res = await apiClient.get<any>(`${BASE}/admin?${q.toString()}`)
-    if (res && res.items) return { items: res.items, totalCount: res.totalCount ?? 0 }
+    if (res && res.items) return { items: (res.items as unknown[]).map(normalizeUploadDocument), totalCount: res.totalCount ?? 0 }
+    if (res?.data?.items) return { items: (res.data.items as unknown[]).map(normalizeUploadDocument), totalCount: res.data.totalCount ?? 0 }
     return { items: [], totalCount: 0 }
   },
 
