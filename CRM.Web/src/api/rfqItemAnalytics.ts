@@ -60,28 +60,34 @@ function buildParams(q: RfqItemListAnalyticsQuery): Record<string, string | numb
   return p
 }
 
+const RFQ_ITEMS_ANALYTICS_TIMEOUT_MS = 60_000
+
 export const rfqItemListAnalyticsApi = {
   getDashboard(query: RfqItemListAnalyticsQuery): Promise<RfqListAnalyticsDashboard> {
     return apiClient.get<RfqListAnalyticsDashboard>('/api/v1/rfqs/items/analytics/dashboard', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   },
 
   getTrends(query: RfqItemListAnalyticsQuery): Promise<RfqListAnalyticsTrendPoint[]> {
     return apiClient.get<RfqListAnalyticsTrendPoint[]>('/api/v1/rfqs/items/analytics/trends', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   },
 
   getBreakdowns(query: RfqItemListAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
     return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/rfqs/items/analytics/breakdowns', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   },
 
   getRankings(query: RfqItemListAnalyticsQuery): Promise<RfqItemListAnalyticsRankings> {
     return apiClient.get<RfqItemListAnalyticsRankings>('/api/v1/rfqs/items/analytics/rankings', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   }
 }

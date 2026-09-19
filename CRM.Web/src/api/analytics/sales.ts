@@ -179,6 +179,9 @@ function buildParams(q: SalesAnalyticsQuery): Record<string, string> {
   return p
 }
 
+/** 需求明细看板四接口并行且走全量聚合，默认 10s 会误杀。 */
+const RFQ_ITEMS_ANALYTICS_TIMEOUT_MS = 60_000
+
 export const salesAnalyticsApi = {
   getDashboard(query: SalesAnalyticsQuery): Promise<SalesAnalyticsDashboard> {
     return apiClient.get<SalesAnalyticsDashboard>('/api/v1/analytics/sales/dashboard', {
@@ -251,25 +254,29 @@ export const salesAnalyticsApi = {
   /** 需求明细维（reportScope；与 /rfqs/items/analytics 同实现） */
   getRfqItemsDashboard(query: SalesAnalyticsQuery): Promise<RfqListAnalyticsDashboard> {
     return apiClient.get<RfqListAnalyticsDashboard>('/api/v1/analytics/sales/rfq-items/dashboard', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   },
 
   getRfqItemsTrends(query: SalesAnalyticsQuery): Promise<RfqListAnalyticsTrendPoint[]> {
     return apiClient.get<RfqListAnalyticsTrendPoint[]>('/api/v1/analytics/sales/rfq-items/trends', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   },
 
   getRfqItemsBreakdowns(query: SalesAnalyticsQuery): Promise<SalesAnalyticsBreakdownGroup[]> {
     return apiClient.get<SalesAnalyticsBreakdownGroup[]>('/api/v1/analytics/sales/rfq-items/breakdowns', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   },
 
   getRfqItemsRankings(query: SalesAnalyticsQuery): Promise<RfqItemListAnalyticsRankings> {
     return apiClient.get<RfqItemListAnalyticsRankings>('/api/v1/analytics/sales/rfq-items/rankings', {
-      params: buildParams(query)
+      params: buildParams(query),
+      timeout: RFQ_ITEMS_ANALYTICS_TIMEOUT_MS
     })
   }
 }

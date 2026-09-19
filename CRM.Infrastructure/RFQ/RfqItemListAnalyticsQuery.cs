@@ -1,8 +1,7 @@
+using System.Collections.Concurrent;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Analytics;
-using CRM.Core.Models.Quote;
 using CRM.Core.Models.Sales;
-using CRM.Core.Services;
 using CRM.Core.Utilities;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,6 +11,8 @@ public sealed partial class RfqItemListQuery
 {
     private const short NoQuoteFoundItemStatus = 5;
     private const int BrandBreakdownTopN = 20;
+    private static readonly ConcurrentDictionary<string, Lazy<Task<RfqItemAnalyticsBundle>>> InflightBundles =
+        new(StringComparer.Ordinal);
 
     /// <inheritdoc />
     public async Task<RfqListAnalyticsDashboardDto> GetListAnalyticsDashboardAsync(
@@ -254,6 +255,26 @@ public sealed partial class RfqItemListQuery
         RFQItemQueryRequest request,
         CancellationToken cancellationToken)
     {
+        var key = RfqItemAnalyticsBundleKey.From(request);
+        var lazy = InflightBundles.GetOrAdd(
+            key,
+            _ => new Lazy<Task<RfqItemAnalyticsBundle>>(
+                () => LoadItemAnalyticsBundleCoreAsync(request, cancellationToken)));
+        try
+        {
+            return await lazy.Value.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (lazy.IsValueCreated && lazy.Value.IsCompleted)
+                InflightBundles.TryRemove(KeyValuePair.Create(key, lazy));
+        }
+    }
+
+    private async Task<RfqItemAnalyticsBundle> LoadItemAnalyticsBundleCoreAsync(
+        RFQItemQueryRequest request,
+        CancellationToken cancellationToken)
+    {
         var filtered = await RfqItemListFilter.BuildFilteredJoinQueryAsync(
             _db, _rbacService, _dataPermission, _purchaseQuoterPoolService, request, cancellationToken);
 
@@ -286,28 +307,25 @@ public sealed partial class RfqItemListQuery
         if (rows.Count == 0)
             return new RfqItemAnalyticsBundle();
 
-        var itemIds = rows.Select(i => i.Id).Where(id => !string.IsNullOrWhiteSpace(id)).ToList();
-        var quotedItemIds = itemIds.Count == 0
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : (await _db.Quotes.AsNoTracking()
-                .Where(q => q.RFQItemId != null && itemIds.Contains(q.RFQItemId))
+        // 用筛选子查询 Semi-join，避免把上万明细 ID 打进 IN 参数列表。
+        var itemIdQuery = filtered.Select(x => x.Item.Id);
+
+        var quotedItemIds = (await _db.Quotes.AsNoTracking()
+                .Where(q => q.RFQItemId != null && itemIdQuery.Contains(q.RFQItemId))
                 .Select(q => q.RFQItemId!)
                 .Distinct()
                 .ToListAsync(cancellationToken))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-        var convertedItemIds = itemIds.Count == 0
-            ? new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            : (await (
+        var convertedItemIds = (await (
                 from oi in _db.SellOrderItems.AsNoTracking()
                 join so in _db.SellOrders.AsNoTracking() on oi.SellOrderId equals so.Id
                 join q in _db.Quotes.AsNoTracking() on oi.QuoteId equals q.Id
-                where !oi.IsDeleted
-                      && oi.Status == 0
+                where oi.Status == 0
                       && oi.QuoteId != null
                       && so.Status >= SellOrderMainStatus.Approved
                       && q.RFQItemId != null
-                      && itemIds.Contains(q.RFQItemId)
+                      && itemIdQuery.Contains(q.RFQItemId)
                 select q.RFQItemId!
             ).Distinct().ToListAsync(cancellationToken))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
