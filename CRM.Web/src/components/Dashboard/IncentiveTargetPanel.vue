@@ -65,7 +65,8 @@
     >
       <p class="incentive__hint">{{ t('dashboard.incentive.hint') }}</p>
       <el-form label-position="top">
-        <el-form-item :label="termFieldLabel">
+        <el-form-item>
+          <template #label>{{ termFieldLabel }}</template>
           <el-input-number
             v-model="form.term"
             :min="0"
@@ -76,7 +77,8 @@
             class="incentive__input"
           />
         </el-form-item>
-        <el-form-item :label="yearFieldLabel">
+        <el-form-item>
+          <template #label>{{ yearFieldLabel }}</template>
           <el-input-number
             v-model="form.year"
             :min="0"
@@ -103,6 +105,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 import { incentiveTargetsApi, type IncentiveTargetMine } from '@/api/incentive/targets'
 import { getApiErrorMessage } from '@/utils/apiError'
+import { resolveIncentiveTermPeriod, resolveIncentiveYearPeriod } from '@/utils/incentiveTargetPeriod'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -130,7 +133,7 @@ const roleText = computed(() =>
   isPurchase.value ? t('dashboard.incentive.purchaseRole') : t('dashboard.incentive.salesRole')
 )
 const titleText = computed(() => {
-  const span = mine.value?.term.monthSpan
+  const span = resolveIncentiveTermPeriod(mine.value)
   return span ? t('dashboard.incentive.titleWithSpan', { span }) : t('dashboard.incentive.title')
 })
 
@@ -146,10 +149,10 @@ const detailTo = computed(() => {
 })
 
 const termFieldLabel = computed(() =>
-  t('dashboard.incentive.termField', { label: mine.value?.term.label || mine.value?.term.monthSpan || '' })
+  t('dashboard.incentive.termField', { period: resolveIncentiveTermPeriod(mine.value) })
 )
 const yearFieldLabel = computed(() =>
-  t('dashboard.incentive.yearField', { year: mine.value?.year.periodKey || '' })
+  t('dashboard.incentive.yearField', { period: resolveIncentiveYearPeriod(mine.value) })
 )
 
 const dash = '—'
