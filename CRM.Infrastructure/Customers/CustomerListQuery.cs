@@ -346,4 +346,23 @@ public sealed partial class CustomerListQuery : ICustomerListQuery
             }
         }
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CustomerImportMatchRow>> GetImportMatchRowsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _db.Customers
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .Select(c => new CustomerImportMatchRow
+            {
+                Id = c.Id,
+                CustomerCode = c.CustomerCode,
+                OfficialName = c.OfficialName,
+                CreditCode = c.CreditCode,
+                CreateTime = c.CreateTime,
+                IsDeleted = c.IsDeleted
+            })
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -351,7 +351,35 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>Excel 批量导入客户（前端解析 Excel 后提交）</summary>
+        /// <summary>Excel 导入预检：只统计将新增与将跳过的客户，不写库。</summary>
+        [HttpPost("import/preview")]
+        [RequirePermission("customer.write")]
+        public async Task<ActionResult<ApiResponse<CustomerImportPreviewResult>>> PreviewCustomerImport(
+            [FromBody] CustomerImportPreviewRequest request)
+        {
+            try
+            {
+                if (request?.Items == null || request.Items.Count == 0)
+                    return BadRequest(ApiResponse<CustomerImportPreviewResult>.Fail("导入数据为空", 400));
+                if (request.Items.Count > CustomerImportLimits.MaxPreviewItems)
+                    return BadRequest(ApiResponse<CustomerImportPreviewResult>.Fail(
+                        $"单次预检不能超过 {CustomerImportLimits.MaxPreviewItems} 条", 400));
+
+                var result = await _customerService.PreviewCustomerImportAsync(request, HttpContext.RequestAborted);
+                return Ok(ApiResponse<CustomerImportPreviewResult>.Ok(result, "预检完成"));
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(499);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "客户导入预检失败");
+                return StatusCode(500, ApiResponse<CustomerImportPreviewResult>.Fail($"预检失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>Excel 批量导入客户（前端解析 Excel 后按批提交）</summary>
         [HttpPost("import/batch")]
         [RequirePermission("customer.write")]
         public async Task<ActionResult<ApiResponse<CustomerImportBatchResult>>> ImportCustomersBatch([FromBody] CustomerImportBatchRequest request)
@@ -360,11 +388,18 @@ namespace CRM.API.Controllers
             {
                 if (request?.Items == null || request.Items.Count == 0)
                     return BadRequest(ApiResponse<CustomerImportBatchResult>.Fail("导入数据为空", 400));
+                if (request.Items.Count > CustomerImportLimits.MaxBatchItems)
+                    return BadRequest(ApiResponse<CustomerImportBatchResult>.Fail(
+                        $"单次导入不能超过 {CustomerImportLimits.MaxBatchItems} 条", 400));
 
                 var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var result = await _customerService.ImportCustomersBatchAsync(request, userId);
-                var msg = $"导入完成：成功 {result.SuccessCount} 条，失败 {result.FailCount} 条";
+                var result = await _customerService.ImportCustomersBatchAsync(request, userId, HttpContext.RequestAborted);
+                var msg = $"导入完成：成功 {result.SuccessCount} 条，跳过 {result.SkipCount} 条，失败 {result.FailCount} 条";
                 return Ok(ApiResponse<CustomerImportBatchResult>.Ok(result, msg));
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(499);
             }
             catch (Exception ex)
             {

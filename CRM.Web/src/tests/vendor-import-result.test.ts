@@ -52,6 +52,17 @@ describe('vendorImportResult', () => {
     ])
   })
 
+  it('uses the customer label in timeout text', () => {
+    expect(vendorImportRequestError('timeout of 120000ms exceeded', '客户')).toBe(
+      '请求超时，请重新导入；已成功的客户会自动跳过'
+    )
+    const rows = failureRowsFromBatch(
+      [{ excelRow: 4, customerName: '示例科技', success: false, error: '备注超过 500 个字符' }],
+      new Map()
+    )
+    expect(rows).toEqual([{ excelRow: 4, vendorName: '示例科技', error: '备注超过 500 个字符' }])
+  })
+
   it('turns a failed request into one failure line per excel row', () => {
     const rows = failureRowsForRequestError(
       [

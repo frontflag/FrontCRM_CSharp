@@ -1,13 +1,57 @@
 <template>
   <el-dialog
     v-model="visibleInner"
-    title="通过 Excel 导入客户"
-    width="560px"
+    :title="phase === 'result' ? '客户导入结果' : '通过 Excel 导入客户'"
+    :width="phase === 'result' ? '760px' : '560px'"
     destroy-on-close
     class="customer-import-dialog"
+    :close-on-click-modal="!submitting"
+    :close-on-press-escape="!submitting"
+    :before-close="handleBeforeClose"
     @closed="onClosed"
   >
     <div class="import-body">
+      <template v-if="phase === 'result'">
+        <div class="preview-box result-summary">
+          <div class="preview-row">
+            <span>导入成功</span>
+            <strong>{{ successCount }}</strong>
+            <span>家</span>
+          </div>
+          <div class="preview-row">
+            <span>跳过导入</span>
+            <strong>{{ skipCount }}</strong>
+            <span>家</span>
+          </div>
+          <div class="preview-row">
+            <span>导入失败</span>
+            <strong class="fail-num">{{ failCount }}</strong>
+            <span>家</span>
+          </div>
+        </div>
+        <div v-if="failedRows.length" class="fail-wrap">
+          <div class="error-title">失败明细</div>
+          <div class="fail-scroll">
+            <table class="fail-table">
+              <thead>
+                <tr>
+                  <th>Excel行</th>
+                  <th>客户名称</th>
+                  <th>失败原因</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, index) in sortedFailedRows" :key="`${row.excelRow}-${index}`">
+                  <td>Excel表第{{ row.excelRow }}行</td>
+                  <td>{{ row.vendorName || '(未填写名称)' }}</td>
+                  <td>{{ row.error }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+      <template v-else>
       <p class="hint">
         请先下载模板，按「客户」「联系人」两个工作表填写。客户与联系人通过「序号 / 客户序号」关联。
         「结算币别」可留空；填写时须为 RMB、USD、HKD、EUR 之一（大小写均可）。「官方网址」将写入备注前缀（官网：…），可与原备注合并。
@@ -36,7 +80,10 @@
         </ul>
       </div>
 
-      <div v-if="previewReady" class="preview-box">
+      <div v-if="submitting" class="preview-box">
+        <div class="preview-row">{{ progressText }}</div>
+      </div>
+      <div v-else-if="previewReady" class="preview-box">
         <div class="preview-row">
           <span>本次将导入客户</span>
           <strong>{{ customerCount }}</strong>
@@ -48,11 +95,14 @@
           <span>条</span>
         </div>
       </div>
+      </template>
     </div>
 
     <template #footer>
-      <el-button @click="visibleInner = false">取消</el-button>
+      <el-button v-if="phase === 'result' && failedRows.length" @click="copyFailures">复制全部失败行</el-button>
+      <el-button @click="visibleInner = false">{{ phase === 'result' ? '关闭' : '取消' }}</el-button>
       <el-button
+        v-if="phase !== 'result'"
         type="primary"
         :disabled="!canSubmit"
         :loading="submitting"
@@ -71,6 +121,16 @@ import { ElMessageBox, ElNotification } from 'element-plus';
 import { customerApi } from '@/api/customer';
 import { industryCellToStorageLabel } from '@/utils/customerIndustryStorage';
 import { CurrencyCode } from '@/constants/currency';
+import {
+  VENDOR_IMPORT_CHUNK_SIZE,
+  VENDOR_IMPORT_TIMEOUT_MS,
+  countNewVendorContacts,
+  failureRowsForRequestError,
+  failureRowsFromBatch,
+  formatVendorImportFailureText,
+  isVendorImportCanceled,
+  type VendorImportFailureRow
+} from '@/utils/vendorImportResult';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -86,15 +146,31 @@ const visibleInner = computed({
   set: (v: boolean) => emit('update:modelValue', v)
 });
 
+type ImportPayloadItem = {
+  excelRow: number;
+  customer: Record<string, unknown>;
+  contacts: Array<Record<string, unknown>>;
+};
+
 const fileInputRef = ref<HTMLInputElement | null>(null);
 const fileName = ref('');
 const parseErrors = ref<string[]>([]);
-const batchPayload = ref<{
-  items: Array<{ customer: Record<string, unknown>; contacts: Array<Record<string, unknown>> }>;
-} | null>(null);
+const batchPayload = ref<{ items: ImportPayloadItem[] } | null>(null);
 const customerCount = ref(0);
 const contactCount = ref(0);
 const submitting = ref(false);
+const progressText = ref('');
+const phase = ref<'form' | 'result'>('form');
+const successCount = ref(0);
+const skipCount = ref(0);
+const failCount = ref(0);
+const failedRows = ref<VendorImportFailureRow[]>([]);
+let importAbort: AbortController | null = null;
+let stopRequested = false;
+
+const sortedFailedRows = computed(() =>
+  [...failedRows.value].sort((a, b) => a.excelRow - b.excelRow)
+);
 
 const previewReady = computed(
   () =>
@@ -119,11 +195,63 @@ function resetState() {
   batchPayload.value = null;
   customerCount.value = 0;
   contactCount.value = 0;
+  submitting.value = false;
+  progressText.value = '';
+  phase.value = 'form';
+  successCount.value = 0;
+  skipCount.value = 0;
+  failCount.value = 0;
+  failedRows.value = [];
+  stopRequested = false;
+  importAbort = null;
   if (fileInputRef.value) fileInputRef.value.value = '';
 }
 
+function handleBeforeClose(done: () => void) {
+  if (submitting.value) {
+    stopRequested = true;
+    importAbort?.abort();
+  }
+  done();
+}
+
 function onClosed() {
+  const shouldRefresh = phase.value === 'result' && failedRows.value.length === 0;
   resetState();
+  if (shouldRefresh) emit('success');
+}
+
+function customerNameOf(item: ImportPayloadItem): string {
+  const name = item.customer.customerName ?? item.customer.officialName;
+  return typeof name === 'string' ? name : '';
+}
+
+async function copyFailures() {
+  const text = formatVendorImportFailureText(failedRows.value);
+  if (!text) return;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.left = '-9999px';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    }
+    ElNotification.success({
+      title: '已复制',
+      message: `已复制 ${failedRows.value.length} 条失败行`
+    });
+  } catch (e: unknown) {
+    ElNotification.error({
+      title: '复制失败',
+      message: e instanceof Error ? e.message : '请在失败明细中手动选择文字复制'
+    });
+  }
 }
 
 function normalizeHeaderKey(k: string): string {
@@ -297,6 +425,7 @@ function onFileChange(ev: Event) {
         number,
         {
           seq: number;
+          excelRow: number;
           name: string;
           shortName: string;
           type: number;
@@ -345,6 +474,7 @@ function onFileChange(ev: Event) {
         }
         bySeq.set(seq, {
           seq,
+          excelRow: i + 2,
           name,
           shortName: getCell(row, '客户简称'),
           type: parseCustomerType(typeRaw),
@@ -400,7 +530,7 @@ function onFileChange(ev: Event) {
       }
 
       const sortedSeq = [...bySeq.keys()].sort((a, b) => a - b);
-      const items: Array<{ customer: Record<string, unknown>; contacts: Array<Record<string, unknown>> }> = [];
+      const items: ImportPayloadItem[] = [];
 
       for (const seq of sortedSeq) {
         const c = bySeq.get(seq)!;
@@ -417,6 +547,7 @@ function onFileChange(ev: Event) {
         };
         if (c.tradeCurrency != null) customerPayload.currency = c.tradeCurrency;
         items.push({
+          excelRow: c.excelRow,
           customer: customerPayload,
           contacts: contactsBySeq.get(seq) || []
         });
@@ -439,11 +570,57 @@ function onFileChange(ev: Event) {
   reader.readAsArrayBuffer(file);
 }
 
+function requestErrorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : '请求失败';
+}
+
 async function confirmAndSubmit() {
-  if (!batchPayload.value?.items.length) return;
+  const items = batchPayload.value?.items;
+  if (!items?.length || submitting.value) return;
+
+  stopRequested = false;
+  importAbort = new AbortController();
+  const signal = importAbort.signal;
+  submitting.value = true;
+  progressText.value = '正在检查已有客户…';
+
+  let insertCount = items.length;
+  let previewSkip = 0;
+  let newContactCount = contactCount.value;
+  try {
+    const preview = await customerApi.previewCustomerImport(
+      {
+        items: items.map((item) => ({
+          excelRow: item.excelRow,
+          name: customerNameOf(item),
+          creditCode:
+            typeof item.customer.unifiedSocialCreditCode === 'string'
+              ? item.customer.unifiedSocialCreditCode
+              : undefined
+        }))
+      },
+      { timeout: VENDOR_IMPORT_TIMEOUT_MS, signal }
+    );
+    if (stopRequested) return;
+    insertCount = preview.insertCount ?? 0;
+    previewSkip = preview.skipCount ?? 0;
+    newContactCount = countNewVendorContacts(items, preview.skippedExcelRows ?? []);
+  } catch (e: unknown) {
+    if (stopRequested || isVendorImportCanceled(e)) return;
+    ElNotification.error({
+      title: '导入失败',
+      message: requestErrorMessage(e)
+    });
+    return;
+  } finally {
+    if (!stopRequested) submitting.value = false;
+  }
+
+  if (stopRequested) return;
+
   try {
     await ElMessageBox.confirm(
-      `本次将导入客户 ${customerCount.value} 家，客户联系人 ${contactCount.value} 条。确认提交到系统吗？`,
+      `本次将新增客户 ${insertCount} 家，已存在跳过 ${previewSkip} 家，联系人 ${newContactCount} 条（仅新增客户）。确认提交到系统吗？`,
       '确认导入',
       {
         type: 'warning',
@@ -456,21 +633,51 @@ async function confirmAndSubmit() {
   }
 
   submitting.value = true;
+  successCount.value = 0;
+  skipCount.value = 0;
+  failCount.value = 0;
+  failedRows.value = [];
+  const nameByRow = new Map(items.map((item) => [item.excelRow, customerNameOf(item)]));
+
   try {
-    const res = await customerApi.importCustomersBatch(batchPayload.value);
-    ElNotification.success({
-      title: '导入完成',
-      message: `成功 ${res.successCount} 条，失败 ${res.failCount} 条`
-    });
-    visibleInner.value = false;
-    emit('success');
-  } catch (e: unknown) {
-    ElNotification.error({
-      title: '导入失败',
-      message: e instanceof Error ? e.message : '请求失败'
-    });
+    for (let offset = 0; offset < items.length; offset += VENDOR_IMPORT_CHUNK_SIZE) {
+      if (stopRequested) return;
+      const chunk = items.slice(offset, offset + VENDOR_IMPORT_CHUNK_SIZE);
+      progressText.value = `正在导入 ${Math.min(offset + chunk.length, items.length)} / ${items.length}`;
+      try {
+        const res = await customerApi.importCustomersBatch(
+          { items: chunk },
+          { timeout: VENDOR_IMPORT_TIMEOUT_MS, signal }
+        );
+        successCount.value += res.successCount ?? 0;
+        skipCount.value += res.skipCount ?? 0;
+        failedRows.value.push(...failureRowsFromBatch(res.items, nameByRow));
+      } catch (e: unknown) {
+        if (stopRequested || isVendorImportCanceled(e)) return;
+        failedRows.value.push(
+          ...failureRowsForRequestError(
+            chunk.map((item) => ({ excelRow: item.excelRow, vendorName: customerNameOf(item) })),
+            requestErrorMessage(e),
+            '客户'
+          )
+        );
+        const rest = items.slice(offset + chunk.length);
+        if (rest.length) {
+          failedRows.value.push(
+            ...failureRowsForRequestError(
+              rest.map((item) => ({ excelRow: item.excelRow, vendorName: customerNameOf(item) })),
+              '未提交：上一批导入失败，请重新导入；已成功的客户会自动跳过'
+            )
+          );
+        }
+        break;
+      }
+    }
+    failCount.value = failedRows.value.length;
+    phase.value = 'result';
   } finally {
     submitting.value = false;
+    importAbort = null;
   }
 }
 </script>
@@ -569,6 +776,60 @@ async function confirmAndSubmit() {
   strong {
     font-size: 18px;
     color: $cyan-primary;
+  }
+
+  .fail-num {
+    color: #f56c6c;
+  }
+}
+
+.result-summary {
+  margin-bottom: 12px;
+}
+
+.fail-wrap {
+  user-select: text;
+
+  .error-title {
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: #f56c6c;
+    font-size: 12px;
+  }
+}
+
+.fail-scroll {
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid rgba(255, 80, 80, 0.25);
+  border-radius: $border-radius-md;
+}
+
+.fail-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: $text-primary;
+  user-select: text;
+
+  th,
+  td {
+    padding: 8px 10px;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(255, 80, 80, 0.12);
+  }
+
+  th {
+    position: sticky;
+    top: 0;
+    background: $layer-2;
+    color: $text-secondary;
+    font-weight: 600;
+  }
+
+  td:first-child {
+    white-space: nowrap;
   }
 }
 </style>

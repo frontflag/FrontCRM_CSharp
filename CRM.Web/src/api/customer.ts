@@ -368,23 +368,46 @@ export const customerApi = {
   },
 
   /** Excel 批量导入（解析后的结构化数据） */
-  async importCustomersBatch(payload: {
-    items: Array<{
-      customer: Record<string, unknown>;
-      contacts: Array<Record<string, unknown>>;
-    }>;
-  }): Promise<{
+  async previewCustomerImport(
+    payload: {
+      items: Array<{ excelRow: number; name: string; creditCode?: string }>;
+    },
+    config?: { timeout?: number; signal?: AbortSignal }
+  ): Promise<{
+    insertCount: number;
+    skipCount: number;
+    skippedExcelRows: number[];
+  }> {
+    return await apiClient.post('/api/v1/customers/import/preview', payload, config);
+  },
+
+  async importCustomersBatch(
+    payload: {
+      items: Array<{
+        excelRow: number;
+        customer: Record<string, unknown>;
+        contacts: Array<Record<string, unknown>>;
+      }>;
+    },
+    config?: { timeout?: number; signal?: AbortSignal }
+  ): Promise<{
     successCount: number;
+    skipCount: number;
     failCount: number;
     items: Array<{
       index: number;
+      excelRow: number;
+      customerName?: string;
       success: boolean;
+      skipped?: boolean;
       customerCode?: string;
       customerId?: string;
+      existingCustomerCode?: string;
+      existingCustomerId?: string;
       error?: string;
     }>;
   }> {
-    return await apiClient.post('/api/v1/customers/import/batch', payload);
+    return await apiClient.post('/api/v1/customers/import/batch', payload, config);
   },
 
   // 创建客户

@@ -14,6 +14,7 @@ export type VendorImportItemResult = {
   index?: number
   excelRow?: number
   vendorName?: string
+  customerName?: string
   success?: boolean
   skipped?: boolean
   error?: string
@@ -33,8 +34,9 @@ export function formatVendorImportFailureText(rows: VendorImportFailureRow[]): s
     .join('\n')
 }
 
-export function vendorImportRequestError(message: string): string {
-  if (/timeout|超时/i.test(message)) return VENDOR_IMPORT_TIMEOUT_MESSAGE
+export function vendorImportRequestError(message: string, entityLabel = '供应商'): string {
+  if (/timeout|超时/i.test(message))
+    return `请求超时，请重新导入；已成功的${entityLabel}会自动跳过`
   const text = message.trim()
   return text || '请求失败'
 }
@@ -58,7 +60,7 @@ export function failureRowsFromBatch(
     const excelRow = item.excelRow ?? 0
     rows.push({
       excelRow,
-      vendorName: (item.vendorName || fallbackNameByRow.get(excelRow) || '').trim(),
+      vendorName: (item.vendorName || item.customerName || fallbackNameByRow.get(excelRow) || '').trim(),
       error: (item.error || '导入失败').trim()
     })
   }
@@ -67,9 +69,10 @@ export function failureRowsFromBatch(
 
 export function failureRowsForRequestError(
   chunk: Array<{ excelRow: number; vendorName: string }>,
-  message: string
+  message: string,
+  entityLabel = '供应商'
 ): VendorImportFailureRow[] {
-  const error = vendorImportRequestError(message)
+  const error = vendorImportRequestError(message, entityLabel)
   return chunk.map((row) => ({
     excelRow: row.excelRow,
     vendorName: row.vendorName,

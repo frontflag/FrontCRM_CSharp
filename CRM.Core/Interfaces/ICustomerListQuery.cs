@@ -36,4 +36,7 @@ public interface ICustomerListQuery
         string? keyword,
         string? currentUserId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>导入查重：全部客户（含软删除），只投影名称与统一社会信用代码。</summary>
+    Task<IReadOnlyList<CustomerImportMatchRow>> GetImportMatchRowsAsync(CancellationToken cancellationToken = default);
 }
