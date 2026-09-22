@@ -375,7 +375,35 @@ namespace CRM.API.Controllers
             }
         }
 
-        /// <summary>Excel 批量导入供应商（前端解析 Excel 后提交）</summary>
+        /// <summary>Excel 导入预检：不写库，返回将新增与将跳过的数量。</summary>
+        [HttpPost("import/preview")]
+        [RequirePermission("vendor.write")]
+        public async Task<ActionResult<ApiResponse<VendorImportPreviewResult>>> PreviewVendorImport(
+            [FromBody] VendorImportPreviewRequest request)
+        {
+            try
+            {
+                if (request?.Items == null || request.Items.Count == 0)
+                    return BadRequest(ApiResponse<VendorImportPreviewResult>.Fail("导入数据为空", 400));
+                if (request.Items.Count > VendorImportLimits.MaxPreviewItems)
+                    return BadRequest(ApiResponse<VendorImportPreviewResult>.Fail(
+                        $"单次预检不能超过 {VendorImportLimits.MaxPreviewItems} 条", 400));
+
+                var result = await _vendorService.PreviewVendorImportAsync(request, HttpContext.RequestAborted);
+                return Ok(ApiResponse<VendorImportPreviewResult>.Ok(result, "预检完成"));
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(499);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "供应商导入预检失败");
+                return StatusCode(500, ApiResponse<VendorImportPreviewResult>.Fail($"预检失败: {ex.Message}", 500));
+            }
+        }
+
+        /// <summary>Excel 批量导入供应商（前端解析 Excel 后按批提交）</summary>
         [HttpPost("import/batch")]
         [RequirePermission("vendor.write")]
         public async Task<ActionResult<ApiResponse<VendorImportBatchResult>>> ImportVendorsBatch([FromBody] VendorImportBatchRequest request)
@@ -384,11 +412,18 @@ namespace CRM.API.Controllers
             {
                 if (request?.Items == null || request.Items.Count == 0)
                     return BadRequest(ApiResponse<VendorImportBatchResult>.Fail("导入数据为空", 400));
+                if (request.Items.Count > VendorImportLimits.MaxBatchItems)
+                    return BadRequest(ApiResponse<VendorImportBatchResult>.Fail(
+                        $"单次导入不能超过 {VendorImportLimits.MaxBatchItems} 条", 400));
 
                 var actorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var result = await _vendorService.ImportVendorsBatchAsync(request, actorId);
-                var msg = $"导入完成：成功 {result.SuccessCount} 条，失败 {result.FailCount} 条";
+                var result = await _vendorService.ImportVendorsBatchAsync(request, actorId, HttpContext.RequestAborted);
+                var msg = $"导入完成：成功 {result.SuccessCount} 条，跳过 {result.SkipCount} 条，失败 {result.FailCount} 条";
                 return Ok(ApiResponse<VendorImportBatchResult>.Ok(result, msg));
+            }
+            catch (OperationCanceledException)
+            {
+                return StatusCode(499);
             }
             catch (Exception ex)
             {

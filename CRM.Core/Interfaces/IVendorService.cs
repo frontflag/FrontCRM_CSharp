@@ -15,7 +15,15 @@ namespace CRM.Core.Interfaces
         /// <summary>
         /// 批量导入供应商（Excel 解析后的结构化数据）
         /// </summary>
-        Task<VendorImportBatchResult> ImportVendorsBatchAsync(VendorImportBatchRequest request, string? actingUserId = null);
+        Task<VendorImportBatchResult> ImportVendorsBatchAsync(
+            VendorImportBatchRequest request,
+            string? actingUserId = null,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>导入前只读预检：按名称、统一社会信用代码统计将新增与将跳过的行，不写库。</summary>
+        Task<VendorImportPreviewResult> PreviewVendorImportAsync(
+            VendorImportPreviewRequest request,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// 根据ID获取
@@ -409,8 +417,17 @@ namespace CRM.Core.Interfaces
     /// </summary>
     public class VendorImportBatchItem
     {
+        /// <summary>供应商工作表行号（表头为第 1 行）。</summary>
+        public int ExcelRow { get; set; }
         public CreateVendorRequest Vendor { get; set; } = new();
         public List<AddVendorContactRequest> Contacts { get; set; } = new();
+    }
+
+    /// <summary>单次导入条数上限。浏览器按批提交，避免单次请求超过网关超时。</summary>
+    public static class VendorImportLimits
+    {
+        public const int MaxBatchItems = 500;
+        public const int MaxPreviewItems = 10000;
     }
 
     /// <summary>
@@ -419,6 +436,7 @@ namespace CRM.Core.Interfaces
     public class VendorImportBatchResult
     {
         public int SuccessCount { get; set; }
+        public int SkipCount { get; set; }
         public int FailCount { get; set; }
         public List<VendorImportItemResult> Items { get; set; } = new();
     }
@@ -429,10 +447,36 @@ namespace CRM.Core.Interfaces
     public class VendorImportItemResult
     {
         public int Index { get; set; }
+        public int ExcelRow { get; set; }
+        public string? VendorName { get; set; }
         public bool Success { get; set; }
+        public bool Skipped { get; set; }
         public string? VendorCode { get; set; }
         public string? VendorId { get; set; }
+        public string? ExistingVendorCode { get; set; }
+        public string? ExistingVendorId { get; set; }
         public string? Error { get; set; }
+    }
+
+    /// <summary>导入预检请求（只含查重字段）。</summary>
+    public class VendorImportPreviewRequest
+    {
+        public List<VendorImportPreviewItem> Items { get; set; } = new();
+    }
+
+    public class VendorImportPreviewItem
+    {
+        public int ExcelRow { get; set; }
+        public string? Name { get; set; }
+        public string? CreditCode { get; set; }
+    }
+
+    /// <summary>导入预检结果。SkippedExcelRows 供前端统计「仅新增供应商」的联系人。</summary>
+    public class VendorImportPreviewResult
+    {
+        public int InsertCount { get; set; }
+        public int SkipCount { get; set; }
+        public List<int> SkippedExcelRows { get; set; } = new();
     }
 
     /// <summary>

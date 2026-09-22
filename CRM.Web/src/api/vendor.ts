@@ -121,24 +121,48 @@ export const vendorApi = {
     return response as Vendor;
   },
 
-  /** Excel 批量导入（解析后的结构化数据） */
-  async importVendorsBatch(payload: {
-    items: Array<{
-      vendor: Record<string, unknown>;
-      contacts: Array<Record<string, unknown>>;
-    }>;
-  }): Promise<{
+  /** Excel 导入预检（不写库） */
+  async previewVendorImport(
+    payload: {
+      items: Array<{ excelRow: number; name: string; creditCode?: string }>;
+    },
+    config?: { timeout?: number; signal?: AbortSignal }
+  ): Promise<{
+    insertCount: number;
+    skipCount: number;
+    skippedExcelRows: number[];
+  }> {
+    return await apiClient.post('/api/v1/vendors/import/preview', payload, config);
+  },
+
+  /** Excel 批量导入（解析后的结构化数据，单批） */
+  async importVendorsBatch(
+    payload: {
+      items: Array<{
+        excelRow: number;
+        vendor: Record<string, unknown>;
+        contacts: Array<Record<string, unknown>>;
+      }>;
+    },
+    config?: { timeout?: number; signal?: AbortSignal }
+  ): Promise<{
     successCount: number;
+    skipCount: number;
     failCount: number;
     items: Array<{
       index: number;
+      excelRow: number;
+      vendorName?: string;
       success: boolean;
+      skipped?: boolean;
       vendorCode?: string;
       vendorId?: string;
+      existingVendorCode?: string;
+      existingVendorId?: string;
       error?: string;
     }>;
   }> {
-    return await apiClient.post('/api/v1/vendors/import/batch', payload);
+    return await apiClient.post('/api/v1/vendors/import/batch', payload, config);
   },
 
   async updateVendor(id: string, data: UpdateVendorRequest): Promise<Vendor> {

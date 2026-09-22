@@ -24,6 +24,9 @@ namespace CRM.Infrastructure.Repositories
         }
 
         /// <inheritdoc />
+        public void DiscardPendingChanges() => _context.ChangeTracker.Clear();
+
+        /// <inheritdoc />
         public async Task<string?> GetPurchaseOrderIdByPurchaseOrderItemLineCodeAsync(string purchaseOrderItemCode,
             CancellationToken cancellationToken = default)
         {

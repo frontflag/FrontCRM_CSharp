@@ -14,6 +14,11 @@ namespace CRM.Core.Interfaces
         Task<string> GenerateNextAsync(string moduleCode);
 
         /// <summary>
+        /// 一次预占连续的多个流水号（一次行锁）。返回顺序即编号顺序。
+        /// </summary>
+        Task<IReadOnlyList<string>> ReserveNextAsync(string moduleCode, int count, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// 预览下一个流水号（不消耗序号）
         /// </summary>
         Task<string> PreviewNextAsync(string moduleCode);

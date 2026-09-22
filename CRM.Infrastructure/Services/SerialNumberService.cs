@@ -27,23 +27,31 @@ namespace CRM.Infrastructure.Services
         /// <inheritdoc/>
         public async Task<string> GenerateNextAsync(string moduleCode)
         {
-            // 使用事务 + 行锁确保并发安全
-            await using var transaction = await _context.Database.BeginTransactionAsync();
+            var codes = await ReserveNextAsync(moduleCode, 1);
+            return codes[0];
+        }
+
+        /// <inheritdoc/>
+        public async Task<IReadOnlyList<string>> ReserveNextAsync(
+            string moduleCode,
+            int count,
+            CancellationToken cancellationToken = default)
+        {
+            if (count <= 0)
+                throw new ArgumentOutOfRangeException(nameof(count), "预占数量必须大于 0。");
+
+            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
             try
             {
-                // PostgreSQL: FOR UPDATE 行锁，防止并发重复
                 var serial = await _context.SerialNumbers
                     .FromSqlRaw(
                         "SELECT * FROM sys_serial_number WHERE \"ModuleCode\" = {0} FOR UPDATE",
                         moduleCode)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync(cancellationToken);
 
                 if (serial == null)
-                {
                     throw new InvalidOperationException($"未找到业务模块 '{moduleCode}' 的流水号配置，请先初始化。");
-                }
 
-                // 检查是否需要按年/月重置
                 var now = DateTime.UtcNow;
                 if (serial.ResetByYear && serial.LastResetYear != now.Year)
                 {
@@ -58,22 +66,23 @@ namespace CRM.Infrastructure.Services
                     serial.LastResetMonth = now.Month;
                 }
 
-                // 递增流水号
-                serial.CurrentSequence += 1;
+                var codes = new string[count];
+                for (var i = 0; i < count; i++)
+                {
+                    serial.CurrentSequence += 1;
+                    codes[i] = FormatBusinessCode(serial.Prefix, serial.CurrentSequence);
+                }
+
                 serial.UpdateTime = DateTime.UtcNow;
-
                 _context.SerialNumbers.Update(serial);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-
-                // 业务编号：前缀（2～16 字符，见 sys_serial_number）+ 5 位 32 进制流水号
-                var result = FormatBusinessCode(serial.Prefix, serial.CurrentSequence);
-                _logger.LogDebug("生成流水号：{ModuleCode} -> {SerialNo}", moduleCode, result);
-                return result;
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                _logger.LogDebug("预占流水号：{ModuleCode} x {Count} -> {First}", moduleCode, count, codes[0]);
+                return codes;
             }
             catch
             {
-                await transaction.RollbackAsync();
+                await transaction.RollbackAsync(CancellationToken.None);
                 throw;
             }
         }

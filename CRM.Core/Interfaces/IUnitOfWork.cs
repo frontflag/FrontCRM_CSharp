@@ -3,6 +3,9 @@ namespace CRM.Core.Interfaces
     public interface IUnitOfWork : IDisposable
     {
         Task<int> SaveChangesAsync();
+
+        /// <summary>丢弃当前上下文中尚未保存的跟踪实体，便于批量保存失败后逐条重试。</summary>
+        void DiscardPendingChanges();
         Task<IEnumerable<T>> QueryAsync<T>(string sql) where T : class, new();
         Task ExecuteAsync(string sql);
         Task ExecuteAsync(string sql, params object[] parameters);
