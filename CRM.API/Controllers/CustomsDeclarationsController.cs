@@ -54,6 +54,7 @@ public class CustomsDeclarationsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<CustomsDeclarationListItemDto>>>> GetList(
         [FromQuery] string? declarationCode,
+        [FromQuery] string? warehouseEntryNo,
         [FromQuery] string? packingCode,
         [FromQuery] string? stockOutRequestId,
         [FromQuery] short? internalStatus,
@@ -70,6 +71,7 @@ public class CustomsDeclarationsController : ControllerBase
 
             var n = Math.Clamp(take, 1, 1000);
             var codeQ = (declarationCode ?? string.Empty).Trim();
+            var entryQ = (warehouseEntryNo ?? string.Empty).Trim();
             var packingQ = (packingCode ?? string.Empty).Trim();
             var sorQ = (stockOutRequestId ?? string.Empty).Trim();
 
@@ -78,6 +80,8 @@ public class CustomsDeclarationsController : ControllerBase
 
             if (!string.IsNullOrEmpty(codeQ))
                 dq = dq.Where(d => EF.Functions.ILike(d.DeclarationCode, $"%{codeQ}%"));
+            if (!string.IsNullOrEmpty(entryQ))
+                dq = dq.Where(d => EF.Functions.ILike(d.WarehouseEntryNo ?? "", $"%{entryQ}%"));
             if (!string.IsNullOrEmpty(packingQ))
                 dq = CustomsDeclarationPackingLookup.WherePackingCode(dq, _db, packingQ);
             if (!string.IsNullOrEmpty(sorQ))
@@ -146,6 +150,7 @@ public class CustomsDeclarationsController : ControllerBase
             {
                 Id = x.d.Id,
                 DeclarationCode = x.d.DeclarationCode,
+                WarehouseEntryNo = x.d.WarehouseEntryNo,
                 PackingId = packingByDec.TryGetValue(x.d.Id.Trim(), out var packHit)
                     ? packHit.Id
                     : x.d.PackingId,
@@ -280,6 +285,7 @@ public class CustomsDeclarationsController : ControllerBase
             PackingCode = packing?.Code,
             StockOutRequestId = string.IsNullOrWhiteSpace(firstSor) ? null : firstSor.Trim(),
             StockOutRequestCode = firstSorCode,
+            WarehouseEntryNo = row.WarehouseEntryNo,
             CustomsBrokerId = row.CustomsBrokerId,
             CustomsBrokerName = broker?.Cname,
             CustomsBrokerCode = broker?.BrokerCode,
@@ -593,6 +599,36 @@ public class CustomsDeclarationsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新海关状态失败");
+            return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
+        }
+    }
+
+    public class SetWarehouseEntryNoRequest
+    {
+        public string? WarehouseEntryNo { get; set; }
+    }
+
+    [HttpPatch("{id}/warehouse-entry-no")]
+    public async Task<ActionResult<ApiResponse<object>>> SetWarehouseEntryNo(string id, [FromBody] SetWarehouseEntryNoRequest body)
+    {
+        try
+        {
+            if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
+
+            if (!await LogisticsDataAccessHttp.CanWriteAsync(_rbacService, User))
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号物流数据为只读或禁止", 403));
+            var uid = CustomsLockedCostUsdHttp.UserId(User);
+            await _service.SetWarehouseEntryNoAsync(id, body?.WarehouseEntryNo, uid);
+            return Ok(ApiResponse<object>.Ok(null, "已更新报关入仓号"));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message, 400));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新报关入仓号失败");
             return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
         }
     }

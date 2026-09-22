@@ -99,6 +99,26 @@ public class CustomsDeclarationService : ICustomsDeclarationService
         await _unitOfWork.SaveChangesAsync();
     }
 
+    public async Task SetWarehouseEntryNoAsync(string declarationId, string? warehouseEntryNo, string? actingUserId)
+    {
+        var dec = await _declarationRepo.GetByIdAsync(declarationId.Trim())
+                  ?? throw new InvalidOperationException("报关单不存在");
+        if (dec.InternalStatus == CustomsDeclarationInternalStatus.Voided)
+            throw new InvalidOperationException("报关单已作废，不能修改报关入仓号");
+
+        var text = warehouseEntryNo?.Trim();
+        if (string.IsNullOrEmpty(text))
+            text = null;
+        else if (text.Length > 64)
+            throw new InvalidOperationException("报关入仓号不能超过 64 个字符");
+
+        dec.WarehouseEntryNo = text;
+        dec.ModifyTime = DateTime.UtcNow;
+        dec.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
+        await _declarationRepo.UpdateAsync(dec);
+        await _unitOfWork.SaveChangesAsync();
+    }
+
     /// <inheritdoc />
     public Task CompleteDeclarationAndTransferAsync(string declarationId, string? actingUserId)
     {

@@ -4,6 +4,7 @@ public sealed class CustomsDeclarationListItemDto
 {
     public string Id { get; set; } = string.Empty;
     public string DeclarationCode { get; set; } = string.Empty;
+    public string? WarehouseEntryNo { get; set; }
     public string? PackingId { get; set; }
     public string? PackingCode { get; set; }
     /// <summary>列表展示用：取首条明细关联的销售出库通知。</summary>
@@ -31,6 +32,7 @@ public sealed class CustomsDeclarationItemListItemDto
     public string Id { get; set; } = string.Empty;
     public string DeclarationId { get; set; } = string.Empty;
     public string DeclarationCode { get; set; } = string.Empty;
+    public string? WarehouseEntryNo { get; set; }
     public string? PackingId { get; set; }
     public string? PackingCode { get; set; }
     /// <summary>报关出库单出库完成时的实际出库日期；未完成时为空。</summary>
@@ -76,6 +78,7 @@ public sealed class CustomsDeclarationDetailViewDto
     public string? PackingCode { get; set; }
     public string? StockOutRequestId { get; set; }
     public string? StockOutRequestCode { get; set; }
+    public string? WarehouseEntryNo { get; set; }
     public string CustomsBrokerId { get; set; } = string.Empty;
     public string? CustomsBrokerName { get; set; }
     public string? CustomsBrokerCode { get; set; }

@@ -21,6 +21,12 @@
           />
         </div>
         <input
+          v-model="filters.warehouseEntryNo"
+          class="search-input search-input--filter"
+          :placeholder="t('customsPages.items.filterWarehouseEntryNo')"
+          @keyup.enter="handleSearch"
+        />
+        <input
           v-model="filters.packingCode"
           class="search-input search-input--filter"
           :placeholder="t('customsPages.items.filterPackingCode')"
@@ -74,7 +80,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="customs-declaration-item-list-main-v5"
+      column-layout-key="customs-declaration-item-list-main-v6"
       :columns="tableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -96,6 +102,9 @@
           {{ row.declarationCode || '—' }}
         </router-link>
         <span v-else>{{ row.declarationCode || '—' }}</span>
+      </template>
+      <template #col-warehouseEntryNo="{ row }">
+        <span>{{ row.warehouseEntryNo?.trim() || '—' }}</span>
       </template>
       <template #col-packingCode="{ row }">
         <router-link
@@ -286,6 +295,7 @@ const query = reactive({ page: 1, pageSize: 20 })
 
 const filters = reactive({
   declarationCode: '',
+  warehouseEntryNo: '',
   packingCode: '',
   purchasePn: '',
   customer: '',
@@ -314,6 +324,14 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
       prop: 'declarationCode',
       width: colW(t('customsPages.items.colDecCode'), 8),
       minWidth: colW(t('customsPages.items.colDecCode'), 8)
+    },
+    {
+      key: 'warehouseEntryNo',
+      label: t('customsPages.items.colWarehouseEntryNo'),
+      prop: 'warehouseEntryNo',
+      width: colW(t('customsPages.items.colWarehouseEntryNo'), 8),
+      minWidth: colW(t('customsPages.items.colWarehouseEntryNo'), 8),
+      showOverflowTooltip: true
     },
     {
       key: 'packingCode',
@@ -522,6 +540,7 @@ function handleSearch() {
 
 function resetFilters() {
   filters.declarationCode = ''
+  filters.warehouseEntryNo = ''
   filters.packingCode = ''
   filters.purchasePn = ''
   filters.customer = ''
@@ -537,6 +556,7 @@ async function load() {
   try {
     const params: Record<string, unknown> = { take: 500 }
     if (filters.declarationCode.trim()) params.declarationCode = filters.declarationCode.trim()
+    if (filters.warehouseEntryNo.trim()) params.warehouseEntryNo = filters.warehouseEntryNo.trim()
     if (filters.packingCode.trim()) params.packingCode = filters.packingCode.trim()
     if (filters.purchasePn.trim()) params.purchasePn = filters.purchasePn.trim()
     if (filters.customer.trim()) params.customer = filters.customer.trim()

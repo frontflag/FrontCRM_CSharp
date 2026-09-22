@@ -1769,6 +1769,7 @@
             class="aux-panel-tab-body"
             @set-clearance="customsDeclarationOpsStore.runSetClearance()"
             @create-arrival="customsDeclarationOpsStore.runCreateArrival()"
+            @save-warehouse-entry="customsDeclarationOpsStore.runSaveWarehouseEntry($event)"
           />
           <CustomsDeclarationFlowPanel
             v-show="showCustomsDeclarationFlowPanel"

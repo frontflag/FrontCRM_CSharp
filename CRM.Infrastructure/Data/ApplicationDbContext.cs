@@ -1596,6 +1596,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.FeesCalculatedAt).HasColumnName("fees_calculated_at");
                 entity.Property(e => e.FeesLocked).HasColumnName("fees_locked").HasDefaultValue(false);
                 entity.Property(e => e.TotalTaxAmount).HasColumnType("numeric(18,2)");
+                entity.Property(e => e.WarehouseEntryNo).HasColumnName("warehouse_entry_no").HasMaxLength(64);
                 entity.Property(e => e.Remark).HasMaxLength(500);
                 entity.Property(e => e.CreateByUserId).HasColumnName("create_by_user_id").HasMaxLength(36);
                 entity.Property(e => e.ModifyByUserId).HasColumnName("modify_by_user_id").HasMaxLength(36);

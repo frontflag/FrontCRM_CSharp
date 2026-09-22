@@ -5,6 +5,7 @@ import { getApiErrorMessage } from '@/utils/apiError'
 
 type RowRecord = Record<string, unknown>
 type RowHandler = (row: RowRecord) => void
+type SaveWarehouseEntryHandler = (row: RowRecord, warehouseEntryNo: string) => void
 
 export const useCustomsDeclarationOpsPanelStore = defineStore('customsDeclarationOpsPanel', () => {
   const row = ref<RowRecord | null>(null)
@@ -16,20 +17,27 @@ export const useCustomsDeclarationOpsPanelStore = defineStore('customsDeclaratio
 
   let setClearanceHandler: RowHandler | null = null
   let createArrivalHandler: RowHandler | null = null
+  let saveWarehouseEntryHandler: SaveWarehouseEntryHandler | null = null
   let loadSeq = 0
 
   function rowKey(target: RowRecord) {
     return String(target.id ?? target.Id ?? '').trim()
   }
 
-  function registerHandlers(handlers: { setClearance?: RowHandler; createArrival?: RowHandler }) {
+  function registerHandlers(handlers: {
+    setClearance?: RowHandler
+    createArrival?: RowHandler
+    saveWarehouseEntry?: SaveWarehouseEntryHandler
+  }) {
     if (handlers.setClearance) setClearanceHandler = handlers.setClearance
     if (handlers.createArrival) createArrivalHandler = handlers.createArrival
+    if (handlers.saveWarehouseEntry) saveWarehouseEntryHandler = handlers.saveWarehouseEntry
   }
 
   function unregisterHandlers() {
     setClearanceHandler = null
     createArrivalHandler = null
+    saveWarehouseEntryHandler = null
   }
 
   function clear() {
@@ -101,6 +109,10 @@ export const useCustomsDeclarationOpsPanelStore = defineStore('customsDeclaratio
     if (row.value && createArrivalHandler) createArrivalHandler(row.value)
   }
 
+  function runSaveWarehouseEntry(warehouseEntryNo: string) {
+    if (row.value && saveWarehouseEntryHandler) saveWarehouseEntryHandler(row.value, warehouseEntryNo)
+  }
+
   return {
     row,
     detail,
@@ -116,6 +128,7 @@ export const useCustomsDeclarationOpsPanelStore = defineStore('customsDeclaratio
     refreshFromListRows,
     runSetClearance,
     runCreateArrival,
+    runSaveWarehouseEntry,
     rowKey
   }
 })

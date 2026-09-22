@@ -124,6 +124,10 @@
                 <span v-else>—</span>
               </span>
             </div>
+            <div class="info-item">
+              <span class="info-label">{{ t('customsPages.declarations.colWarehouseEntryNo') }}</span>
+              <span class="info-value">{{ detail.warehouseEntryNo?.trim() || '—' }}</span>
+            </div>
             <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
           </div>
           <div v-if="detail.remark" class="info-grid info-grid--inline-labels">
@@ -270,6 +274,7 @@ import {
   fetchCustomsDeclarationById,
   fetchCustomsDeclarationChangeLogs,
   patchCustomsClearanceStatus,
+  patchCustomsWarehouseEntryNo,
   type CustomsDeclarationDetailDto,
   type CustomsDeclarationFieldChangeLogRow
 } from '@/api/customs'
@@ -511,11 +516,32 @@ async function saveClearance() {
   }
 }
 
+async function saveWarehouseEntry(value: string) {
+  const id = orderId()
+  if (!id || !detail.value) return
+  customsDeclarationOpsStore.actionLoading = true
+  try {
+    await patchCustomsWarehouseEntryNo(id, value)
+    ElMessage.success(t('customsPages.declarations.warehouseEntrySaved'))
+    const next = value.trim() || null
+    detail.value.warehouseEntryNo = next
+    const panelDetail = customsDeclarationOpsStore.detail
+    if (panelDetail && panelDetail.id === id) panelDetail.warehouseEntryNo = next
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  } finally {
+    customsDeclarationOpsStore.actionLoading = false
+  }
+}
+
 onMounted(() => {
   customsDeclarationOpsStore.registerHandlers({
     setClearance: () => openClearance(),
     createArrival: () => {
       void handleCreateArrivalNotifies()
+    },
+    saveWarehouseEntry: (_row, value) => {
+      void saveWarehouseEntry(value)
     }
   })
   void load()

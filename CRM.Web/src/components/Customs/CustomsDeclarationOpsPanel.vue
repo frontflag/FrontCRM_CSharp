@@ -54,6 +54,55 @@
 
       <section class="ops-card">
         <header class="ops-card__head">
+          <h3 class="ops-card__title">{{ t('customsPages.declarations.opsPanel.warehouseEntryTitle') }}</h3>
+        </header>
+        <div class="ops-card__body">
+          <p v-if="isVoided || !canWriteLogistics" class="ops-entry-readonly">{{ warehouseEntryDisplay }}</p>
+          <div v-else class="ops-entry-row">
+            <input
+              ref="warehouseEntryInputRef"
+              class="ops-entry-input"
+              type="text"
+              maxlength="64"
+              :readonly="!warehouseEntryEditing"
+              :disabled="warehouseEntryEditing && actionLoading"
+              :value="warehouseEntryEditing ? warehouseEntryDraft : warehouseEntryDisplay"
+              :placeholder="warehouseEntryEditing ? t('customsPages.declarations.opsPanel.warehouseEntryPlaceholder') : ''"
+              @input="onWarehouseEntryInput"
+              @keyup.enter="saveWarehouseEntry"
+            />
+            <button
+              v-if="!warehouseEntryEditing"
+              type="button"
+              class="ops-action-btn ops-entry-save ops-entry-edit"
+              @click="beginWarehouseEntryEdit"
+            >
+              {{ t('customsPages.declarations.opsPanel.warehouseEntryEdit') }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="ops-action-btn ops-action-btn--primary ops-entry-save"
+              :disabled="actionLoading"
+              @click="saveWarehouseEntry"
+            >
+              {{ t('customsPages.declarations.opsPanel.warehouseEntrySave') }}
+            </button>
+            <button
+              v-if="warehouseEntryEditing"
+              type="button"
+              class="ops-action-btn ops-entry-save ops-entry-edit"
+              :disabled="actionLoading"
+              @click="cancelWarehouseEntry"
+            >
+              {{ t('customsPages.declarations.opsPanel.warehouseEntryCancel') }}
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section class="ops-card">
+        <header class="ops-card__head">
           <h3 class="ops-card__title">{{ t('customsPages.declarations.opsPanel.clearanceTitle') }}</h3>
         </header>
         <div class="ops-card__body">
@@ -127,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck } from '@element-plus/icons-vue'
 import type { CustomsDeclarationDetailDto } from '@/api/customs'
@@ -152,6 +201,7 @@ const emit = defineEmits<{
   clear: []
   'set-clearance': []
   'create-arrival': []
+  'save-warehouse-entry': [warehouseEntryNo: string]
 }>()
 
 const { t } = useI18n()
@@ -200,6 +250,75 @@ const clearanceStatus = computed(() =>
 )
 
 const isVoided = computed(() => internalStatus.value === -1)
+
+const warehouseEntryDraft = ref('')
+const warehouseEntryEditing = ref(false)
+const warehouseEntrySaving = ref(false)
+const warehouseEntryInputRef = ref<HTMLInputElement | null>(null)
+
+function savedWarehouseEntry() {
+  const raw = props.detail?.warehouseEntryNo ?? props.row?.warehouseEntryNo
+  return String(raw ?? '').trim()
+}
+
+watch(
+  () => `${props.detail?.id ?? ''}|${String(props.row?.id ?? '')}`,
+  () => {
+    warehouseEntryEditing.value = false
+    warehouseEntrySaving.value = false
+    warehouseEntryDraft.value = savedWarehouseEntry()
+  },
+  { immediate: true }
+)
+
+watch(
+  () => savedWarehouseEntry(),
+  (value) => {
+    if (warehouseEntryEditing.value && !warehouseEntrySaving.value) return
+    warehouseEntryDraft.value = value
+  }
+)
+
+watch(
+  () => props.actionLoading,
+  (loading) => {
+    if (loading || !warehouseEntrySaving.value) return
+    warehouseEntrySaving.value = false
+    if (warehouseEntryDraft.value.trim() === savedWarehouseEntry()) warehouseEntryEditing.value = false
+  }
+)
+
+const warehouseEntryDisplay = computed(() => savedWarehouseEntry() || '—')
+
+function onWarehouseEntryInput(event: Event) {
+  if (!warehouseEntryEditing.value) return
+  warehouseEntryDraft.value = (event.target as HTMLInputElement).value
+}
+
+async function beginWarehouseEntryEdit() {
+  warehouseEntryDraft.value = savedWarehouseEntry()
+  warehouseEntryEditing.value = true
+  await nextTick()
+  warehouseEntryInputRef.value?.focus()
+}
+
+function saveWarehouseEntry() {
+  if (!warehouseEntryEditing.value || props.actionLoading) return
+  const next = warehouseEntryDraft.value.trim()
+  if (next === savedWarehouseEntry()) {
+    warehouseEntryEditing.value = false
+    return
+  }
+  warehouseEntrySaving.value = true
+  emit('save-warehouse-entry', next)
+}
+
+function cancelWarehouseEntry() {
+  if (props.actionLoading) return
+  warehouseEntrySaving.value = false
+  warehouseEntryDraft.value = savedWarehouseEntry()
+  warehouseEntryEditing.value = false
+}
 
 const internalLabel = computed(() => {
   const v = internalStatus.value
@@ -616,6 +735,45 @@ function formatQty(v: number) {
   line-height: 1.55;
 }
 
+.ops-entry-readonly {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.ops-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ops-entry-input {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: $text-primary;
+  background: #fff;
+}
+
+.ops-entry-input[readonly] {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.ops-entry-input:disabled {
+  background: #f3f4f6;
+  color: #9ca3af;
+}
+
 .ops-action-btn {
   width: 100%;
   border: none;
@@ -629,6 +787,19 @@ function formatQty(v: number) {
 .ops-action-btn--primary {
   background: #0f4c81;
   color: #fff;
+}
+
+.ops-entry-save {
+  width: auto;
+  flex: 0 0 auto;
+  padding: 8px 16px;
+  white-space: nowrap;
+}
+
+.ops-entry-edit {
+  background: transparent;
+  color: #0f4c81;
+  padding-right: 4px;
 }
 
 .ops-action-btn--disabled,

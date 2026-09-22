@@ -870,6 +870,11 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<decimal>("TotalTaxAmount")
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<string>("WarehouseEntryNo")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("warehouse_entry_no");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DeclarationCode")

@@ -105,6 +105,7 @@ export interface CreateCustomsOutNotifyResultDto {
 export interface CustomsDeclarationListItemDto {
   id: string
   declarationCode: string
+  warehouseEntryNo?: string | null
   packingId?: string | null
   packingCode?: string | null
   stockOutRequestId?: string | null
@@ -127,6 +128,7 @@ export interface CustomsDeclarationItemListItemDto {
   id: string
   declarationId: string
   declarationCode: string
+  warehouseEntryNo?: string | null
   packingId?: string | null
   packingCode?: string | null
   declareDate?: string | null
@@ -227,6 +229,7 @@ export interface CustomsDeclarationDetailDto {
   packingCode?: string | null
   stockOutRequestId?: string | null
   stockOutRequestCode?: string | null
+  warehouseEntryNo?: string | null
   customsBrokerId: string
   customsBrokerName?: string | null
   customsBrokerCode?: string | null
@@ -653,6 +656,13 @@ function normalizeCustomsDeclarationBusinessRecords(raw: unknown): CustomsDeclar
 export async function patchCustomsClearanceStatus(id: string, customsClearanceStatus: number): Promise<void> {
   await apiClient.patch(`/api/v1/customs-declarations/${encodeURIComponent(id)}/customs-clearance-status`, {
     customsClearanceStatus
+  })
+}
+
+export async function patchCustomsWarehouseEntryNo(id: string, warehouseEntryNo: string | null): Promise<void> {
+  const text = warehouseEntryNo?.trim() ?? ''
+  await apiClient.patch(`/api/v1/customs-declarations/${encodeURIComponent(id)}/warehouse-entry-no`, {
+    warehouseEntryNo: text || null
   })
 }
 

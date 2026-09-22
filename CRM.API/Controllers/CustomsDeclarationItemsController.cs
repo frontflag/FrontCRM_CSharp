@@ -83,6 +83,7 @@ public class CustomsDeclarationItemsController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<CustomsDeclarationItemListItemDto>>>> GetList(
         [FromQuery] string? declarationCode,
+        [FromQuery] string? warehouseEntryNo,
         [FromQuery] string? packingCode,
         [FromQuery] string? purchasePn,
         [FromQuery] string? customer,
@@ -99,6 +100,7 @@ public class CustomsDeclarationItemsController : ControllerBase
 
             var n = Math.Clamp(take, 1, 1000);
             var decQ = (declarationCode ?? string.Empty).Trim();
+            var entryQ = (warehouseEntryNo ?? string.Empty).Trim();
             var packingQ = (packingCode ?? string.Empty).Trim();
             var pnQ = (purchasePn ?? string.Empty).Trim();
             var custQ = (customer ?? string.Empty).Trim();
@@ -134,6 +136,8 @@ public class CustomsDeclarationItemsController : ControllerBase
                 join u in _db.Users.AsNoTracking() on i.SalesUserId equals u.Id into uj
                 from u in uj.DefaultIfEmpty()
                 where string.IsNullOrEmpty(decQ) || EF.Functions.ILike(d.DeclarationCode, $"%{decQ}%")
+                where string.IsNullOrEmpty(entryQ)
+                      || EF.Functions.ILike(d.WarehouseEntryNo ?? "", $"%{entryQ}%")
                 where string.IsNullOrEmpty(packingQ)
                       || _db.Packings.Any(p =>
                           !p.IsDeleted
@@ -201,6 +205,7 @@ public class CustomsDeclarationItemsController : ControllerBase
                     Id = x.i.Id,
                     DeclarationId = x.i.DeclarationId,
                     DeclarationCode = x.d.DeclarationCode,
+                    WarehouseEntryNo = x.d.WarehouseEntryNo,
                     PackingId = packingByDec.TryGetValue(x.d.Id.Trim(), out var packHit)
                         ? packHit.Id
                         : x.d.PackingId,

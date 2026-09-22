@@ -146,6 +146,11 @@ public class CustomsDeclaration : BaseGuidEntity, ISoftDeletable
     [StringLength(36)]
     public string ToWarehouseId { get; set; } = string.Empty;
 
+    /// <summary>报关入仓号。可空，最长 64。</summary>
+    [StringLength(64)]
+    [Column("warehouse_entry_no")]
+    public string? WarehouseEntryNo { get; set; }
+
     [StringLength(500)]
     public string? Remark { get; set; }
 

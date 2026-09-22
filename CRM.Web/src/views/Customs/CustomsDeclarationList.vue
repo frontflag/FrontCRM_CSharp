@@ -55,6 +55,15 @@
           @clear="handleSearch"
         />
         <el-input
+          v-model="filters.warehouseEntryNo"
+          clearable
+          :placeholder="t('customsPages.declarations.filterWarehouseEntryNo')"
+          class="search-input"
+          style="width: 150px"
+          @keyup.enter="handleSearch"
+          @clear="handleSearch"
+        />
+        <el-input
           v-model="filters.packingCode"
           clearable
           :placeholder="t('customsPages.declarations.filterPackingCode')"
@@ -159,7 +168,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="customs-declaration-list-main-v2"
+      column-layout-key="customs-declaration-list-main-v3"
       :columns="tableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -181,6 +190,9 @@
       </template>
       <template #col-declarationCode="{ row }">
         <span class="code-text">{{ row.declarationCode || '—' }}</span>
+      </template>
+      <template #col-warehouseEntryNo="{ row }">
+        <span>{{ row.warehouseEntryNo?.trim() || '—' }}</span>
       </template>
       <template #col-packingCode="{ row }">
         <router-link
@@ -368,6 +380,7 @@ import {
   fetchCustomsDeclarations,
   forceDeleteCustomsDeclaration,
   patchCustomsClearanceStatus,
+  patchCustomsWarehouseEntryNo,
   type CustomsDeclarationListItemDto
 } from '@/api/customs'
 import { useAuthStore } from '@/stores/auth'
@@ -404,11 +417,13 @@ const filters = reactive<{
   internalStatus?: number
   customsClearanceStatus?: number
   declarationCode: string
+  warehouseEntryNo: string
   packingCode: string
   stockOutRequestId: string
   declareRange: string[] | null
 }>({
   declarationCode: '',
+  warehouseEntryNo: '',
   packingCode: '',
   stockOutRequestId: '',
   declareRange: null
@@ -550,6 +565,7 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'internalStatus', label: t('customsPages.declarations.colInternal'), prop: 'internalStatus', width: 120, align: 'center' },
   { key: 'customsClearanceStatus', label: t('customsPages.declarations.colClearance'), prop: 'customsClearanceStatus', width: 110, align: 'center' },
   { key: 'declarationCode', label: t('customsPages.declarations.colDecCode'), prop: 'declarationCode', width: 140, minWidth: 130 },
+  { key: 'warehouseEntryNo', label: t('customsPages.declarations.colWarehouseEntryNo'), prop: 'warehouseEntryNo', width: 150, minWidth: 130, showOverflowTooltip: true },
   { key: 'packingCode', label: t('customsPages.declarations.colPackingCode'), prop: 'packingCode', width: 150, minWidth: 130, showOverflowTooltip: true },
   { key: 'declareDate', label: t('customsPages.declarations.colDeclareDate'), prop: 'declareDate', width: 120 },
   { key: 'customsBrokerName', label: t('customsPages.declarations.colBroker'), prop: 'customsBrokerName', minWidth: 140, showOverflowTooltip: true },
@@ -633,6 +649,7 @@ function resetFilters() {
   filters.internalStatus = undefined
   filters.customsClearanceStatus = undefined
   filters.declarationCode = ''
+  filters.warehouseEntryNo = ''
   filters.packingCode = ''
   filters.stockOutRequestId = ''
   filters.declareRange = null
@@ -647,6 +664,7 @@ async function load() {
     if (filters.internalStatus != null) params.internalStatus = filters.internalStatus
     if (filters.customsClearanceStatus != null) params.customsClearanceStatus = filters.customsClearanceStatus
     if (filters.declarationCode.trim()) params.declarationCode = filters.declarationCode.trim()
+    if (filters.warehouseEntryNo.trim()) params.warehouseEntryNo = filters.warehouseEntryNo.trim()
     if (filters.packingCode.trim()) params.packingCode = filters.packingCode.trim()
     if (filters.stockOutRequestId.trim()) params.stockOutRequestId = filters.stockOutRequestId.trim()
     if (filters.declareRange?.length === 2) {
@@ -813,6 +831,23 @@ async function handleCreateArrival(row: CustomsDeclarationListItemDto) {
   }
 }
 
+async function saveWarehouseEntry(row: CustomsDeclarationListItemDto, value: string) {
+  customsDeclarationOpsStore.actionLoading = true
+  try {
+    await patchCustomsWarehouseEntryNo(row.id, value)
+    ElMessage.success(t('customsPages.declarations.warehouseEntrySaved'))
+    const next = value.trim() || null
+    const hit = allRows.value.find((item) => item.id === row.id)
+    if (hit) hit.warehouseEntryNo = next
+    const detail = customsDeclarationOpsStore.detail
+    if (detail && detail.id === row.id) detail.warehouseEntryNo = next
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  } finally {
+    customsDeclarationOpsStore.actionLoading = false
+  }
+}
+
 onMounted(() => {
   customsDeclarationOpsStore.registerHandlers({
     setClearance: (row) => {
@@ -820,6 +855,9 @@ onMounted(() => {
     },
     createArrival: (row) => {
       void handleCreateArrival(row as unknown as CustomsDeclarationListItemDto)
+    },
+    saveWarehouseEntry: (row, value) => {
+      void saveWarehouseEntry(row as unknown as CustomsDeclarationListItemDto, value)
     }
   })
   void load()
