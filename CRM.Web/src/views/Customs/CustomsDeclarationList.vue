@@ -200,7 +200,10 @@
         <span>{{ row.customsBrokerName || '—' }}</span>
       </template>
       <template #col-totalTaxAmount="{ row }">
-        <span class="amount-text dock-quote-tier-line">{{ formatTotalAmountNumber(row.totalTaxAmount) }}</span>
+        <span>{{ formatTotalAmountNumber(row.totalTaxAmount) }}</span>
+      </template>
+      <template #col-totalTaxAmountUsd="{ row }">
+        <span class="amount-text dock-quote-tier-line">{{ formatTotalTaxUsd(row.totalTaxAmountUsd) }}</span>
       </template>
       <template #col-remark="{ row }">
         <span>{{ row.remark || '—' }}</span>
@@ -538,6 +541,11 @@ function toggleOpCol() {
   opColExpanded.value = !opColExpanded.value
 }
 
+function formatTotalTaxUsd(value: number | null | undefined): string {
+  if (value == null) return '—'
+  return formatTotalAmountNumber(value)
+}
+
 const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'internalStatus', label: t('customsPages.declarations.colInternal'), prop: 'internalStatus', width: 120, align: 'center' },
   { key: 'customsClearanceStatus', label: t('customsPages.declarations.colClearance'), prop: 'customsClearanceStatus', width: 110, align: 'center' },
@@ -545,7 +553,8 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'packingCode', label: t('customsPages.declarations.colPackingCode'), prop: 'packingCode', width: 150, minWidth: 130, showOverflowTooltip: true },
   { key: 'declareDate', label: t('customsPages.declarations.colDeclareDate'), prop: 'declareDate', width: 120 },
   { key: 'customsBrokerName', label: t('customsPages.declarations.colBroker'), prop: 'customsBrokerName', minWidth: 140, showOverflowTooltip: true },
-  { key: 'totalTaxAmount', label: t('customsPages.declarations.colTotal'), prop: 'totalTaxAmount', width: 120, align: 'right' },
+  { key: 'totalTaxAmount', label: t('customsPages.declarations.colTotalRmb'), prop: 'totalTaxAmount', width: 148, align: 'right' },
+  { key: 'totalTaxAmountUsd', label: t('customsPages.declarations.colTotalUsd'), prop: 'totalTaxAmountUsd', width: 148, align: 'right' },
   { key: 'remark', label: t('customsPages.declarations.colRemark'), prop: 'remark', minWidth: 120, showOverflowTooltip: true },
   { key: 'stockOutRequestCode', label: t('customsPages.declarations.colSor'), prop: 'stockOutRequestCode', minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('customsPages.declarations.colCreateTime'), prop: 'createTime', width: 170 },

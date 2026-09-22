@@ -116,6 +116,10 @@ public class CustomsDeclarationsController : ControllerBase
                 select new { d = x.Declaration, b, u, x.DeclareDate };
 
             var rows = await query.Take(n).ToListAsync();
+            var rateLogs = await _db.FinanceExchangeRateChangeLogs.AsNoTracking()
+                .Select(x => new { x.CreateTime, x.UsdToCny })
+                .ToListAsync();
+            var declareDateFx = new CustomsDeclareDateFx(rateLogs.Select(x => (x.CreateTime, x.UsdToCny)));
             var decIds = rows.Select(x => x.d.Id).ToList();
             var firstSorByDec = await _db.CustomsDeclarationItems.AsNoTracking()
                 .Where(i => decIds.Contains(i.DeclarationId))
@@ -162,6 +166,7 @@ public class CustomsDeclarationsController : ControllerBase
                 CustomsClearanceStatus = x.d.CustomsClearanceStatus,
                 DeclareDate = x.DeclareDate,
                 TotalTaxAmount = x.d.TotalTaxAmount,
+                TotalTaxAmountUsd = declareDateFx.TotalTaxUsd(x.d.TotalTaxAmount, x.DeclareDate),
                 Remark = x.d.Remark,
                 CreateTime = x.d.CreateTime,
                 CreateByUserId = x.d.CreateByUserId,

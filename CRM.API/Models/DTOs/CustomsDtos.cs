@@ -18,6 +18,8 @@ public sealed class CustomsDeclarationListItemDto
     /// <summary>报关出库单出库完成时的实际出库日期；未完成时为空。</summary>
     public DateTime? DeclareDate { get; set; }
     public decimal TotalTaxAmount { get; set; }
+    /// <summary>报关总费用按申报日财务汇率折合的美元；无申报日期或无可追溯汇率时为空。</summary>
+    public decimal? TotalTaxAmountUsd { get; set; }
     public string? Remark { get; set; }
     public DateTime CreateTime { get; set; }
     public string? CreateByUserId { get; set; }

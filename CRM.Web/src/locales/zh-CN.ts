@@ -304,6 +304,8 @@ const zhCN = {
       colDeclareDate: '申报日期',
       colBroker: '报关公司',
       colTotal: '报关总费用',
+      colTotalRmb: '报关总费用RMB',
+      colTotalUsd: '报关总费用USD',
       colRemark: '备注',
       colSor: '出库通知单号',
       colPackingCode: '装箱单号',

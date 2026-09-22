@@ -306,6 +306,8 @@ const enUS = {
       colDeclareDate: 'Declare date',
       colBroker: 'Broker',
       colTotal: 'Total tax amount',
+      colTotalRmb: 'Total tax amount (RMB)',
+      colTotalUsd: 'Total tax amount (USD)',
       colRemark: 'Remark',
       colSor: 'Stock-out request',
       colPackingCode: 'Packing no.',

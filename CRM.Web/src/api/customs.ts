@@ -116,6 +116,7 @@ export interface CustomsDeclarationListItemDto {
   customsClearanceStatus: number
   declareDate?: string | null
   totalTaxAmount: number
+  totalTaxAmountUsd?: number | null
   remark?: string | null
   createTime: string
   createByUserId?: string | null
