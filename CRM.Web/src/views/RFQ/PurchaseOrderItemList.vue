@@ -868,6 +868,7 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
@@ -1417,7 +1418,12 @@ function listRouteName() {
 /** 筛选条件变更后查询：回到第一页（与分页切换区分）。 */
 function runSearch() {
   page.value = 1
-  router.replace({ name: listRouteName(), query: buildListRouteQueryFromUi() })
+  replaceListQueryOrReload(
+    router,
+    route,
+    { name: listRouteName(), query: buildListRouteQueryFromUi() },
+    () => loadList()
+  )
 }
 
 function clearPresetChip() {

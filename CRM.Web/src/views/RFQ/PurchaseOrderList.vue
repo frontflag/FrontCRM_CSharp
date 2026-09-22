@@ -431,6 +431,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, inject, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -895,22 +896,17 @@ const loadData = async () => {
 const handleSearch = () => {
   pageInfo.value.page = 1
   const keywords = currentListKeywords()
-  if (activePreset.value) {
-    router.replace({
-      name: 'PurchaseOrderList',
-      query: buildPoListRouteQuery({ preset: activePreset.value, keywords })
-    })
-    return
-  }
-  const query = buildPoListRouteQuery({
-    keywords,
-    advanced: {
-      startDate: filterForm.value.createDateRange?.[0],
-      endDate: filterForm.value.createDateRange?.[1],
-      status: formatPurchaseOrderStatusesForRoute(filterForm.value.status) || undefined
-    }
-  })
-  router.replace({ name: 'PurchaseOrderList', query })
+  const query = activePreset.value
+    ? buildPoListRouteQuery({ preset: activePreset.value, keywords })
+    : buildPoListRouteQuery({
+        keywords,
+        advanced: {
+          startDate: filterForm.value.createDateRange?.[0],
+          endDate: filterForm.value.createDateRange?.[1],
+          status: formatPurchaseOrderStatusesForRoute(filterForm.value.status) || undefined
+        }
+      })
+  replaceListQueryOrReload(router, route, { name: 'PurchaseOrderList', query }, () => loadData())
 }
 
 const handleReset = () => {
