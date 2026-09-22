@@ -592,6 +592,7 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
@@ -1120,7 +1121,12 @@ function onStockOutListPageSizeChange() {
 }
 
 const handleSearch = () => {
-  router.replace({ name: 'StockOutList', query: buildRouteQuery() })
+  replaceListQueryOrReload(
+    router,
+    route,
+    { name: 'StockOutList', query: buildRouteQuery() },
+    () => runStockOutListFetch(true)
+  )
 }
 
 async function handleExport() {

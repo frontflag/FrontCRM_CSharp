@@ -266,6 +266,7 @@ import { stockInApi } from '@/api/stockIn'
 import { inventoryCenterApi, type WarehouseInfo } from '@/api/inventoryCenter'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDateTime2DigitYear } from '@/utils/displayDateTime'
@@ -627,7 +628,12 @@ function opsPanelRowClassName({ row }: { row: QcInfoDto }) {
 /** 列表主栏 search-bar 与 URL query 同步 */
 const handleSearch = () => {
   resetListRightPanelOnReload(qcOpsStore)
-  router.replace({ name: 'QcList', query: buildListRouteQueryFromUi() })
+  replaceListQueryOrReload(
+    router,
+    route,
+    { name: 'QcList', query: buildListRouteQueryFromUi() },
+    () => loadData()
+  )
 }
 
 const resetFilters = () => {

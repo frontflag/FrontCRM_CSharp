@@ -294,6 +294,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, inject, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
@@ -687,22 +688,17 @@ watch(
 const handleSearch = () => {
   pageInfo.value.page = 1
   const keywords = currentListKeywords()
-  if (activePreset.value) {
-    router.replace({
-      name: 'SalesOrderList',
-      query: buildSoListRouteQuery({ preset: activePreset.value, keywords })
-    })
-    return
-  }
-  const query = buildSoListRouteQuery({
-    keywords,
-    advanced: {
-      startDate: filterForm.value.createDateRange?.[0],
-      endDate: filterForm.value.createDateRange?.[1],
-      status: formatSalesOrderStatusesForRoute(filterForm.value.status) || undefined
-    }
-  })
-  router.replace({ name: 'SalesOrderList', query })
+  const query = activePreset.value
+    ? buildSoListRouteQuery({ preset: activePreset.value, keywords })
+    : buildSoListRouteQuery({
+        keywords,
+        advanced: {
+          startDate: filterForm.value.createDateRange?.[0],
+          endDate: filterForm.value.createDateRange?.[1],
+          status: formatSalesOrderStatusesForRoute(filterForm.value.status) || undefined
+        }
+      })
+  replaceListQueryOrReload(router, route, { name: 'SalesOrderList', query }, () => loadData())
 }
 
 const handleReset = () => {

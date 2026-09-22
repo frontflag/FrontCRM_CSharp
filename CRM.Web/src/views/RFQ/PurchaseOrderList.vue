@@ -436,6 +436,7 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import { purchaseOrderApi } from '@/api/purchaseOrder'
+import { getApiErrorMessage } from '@/utils/apiError'
 import type { PurchaseOrderListAnalyticsQuery } from '@/api/purchaseOrderAnalytics'
 import { useAuthStore } from '@/stores/auth'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
@@ -1006,8 +1007,9 @@ const cancelSupplierConfirm = async (row: any) => {
     await purchaseOrderApi.updateStatus(row.id, 20)
     ElMessage.success(t('purchaseOrderList.cancelConfirmSuccess'))
     await loadData()
-  } catch {
-    // 取消或失败已由全局拦截器提示
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(getApiErrorMessage(e, '取消确认失败'))
   }
 }
 

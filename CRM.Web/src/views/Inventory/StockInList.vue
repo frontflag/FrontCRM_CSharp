@@ -417,6 +417,7 @@
 <script setup lang="ts">
 import { computed, inject, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
@@ -1050,7 +1051,9 @@ const handleSearch = () => {
     query.itemCurrency = String(filters.itemCurrency)
   }
   if (stockInAmountDrillActive.value) query.drill = LOGISTICS_ANALYTICS_STOCK_IN_DRILL
-  router.replace({ name: 'StockInList', query })
+  replaceListQueryOrReload(router, route, { name: 'StockInList', query }, () => {
+    if (viewMode.value === 'list') void fetchList(true)
+  })
 }
 
 watch(listTotalServer, () => {

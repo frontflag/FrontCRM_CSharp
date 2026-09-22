@@ -473,6 +473,7 @@ import { logisticsApi, type StockInNotifyDto, type StockInNotifyItemDto } from '
 import { fetchCustomsBrokers, type CustomsBrokerDto } from '@/api/customs'
 import { normalizeRegionType, REGION_TYPE_OVERSEAS } from '@/constants/regionType'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import { buildArrivalNoticeListColumns } from '@/composables/buildArrivalNoticeListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -916,7 +917,12 @@ function syncFiltersFromRoute() {
 function runSearch() {
   resetListRightPanelOnReload(arrivalNoticeOpsStore)
   listPage.value = 1
-  router.replace({ name: 'ArrivalNoticeList', query: buildListRouteQueryFromUi() })
+  replaceListQueryOrReload(
+    router,
+    route,
+    { name: 'ArrivalNoticeList', query: buildListRouteQueryFromUi() },
+    () => applyArrivalList(true)
+  )
 }
 
 function clearPresetChip() {

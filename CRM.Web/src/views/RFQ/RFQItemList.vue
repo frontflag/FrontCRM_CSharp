@@ -1067,6 +1067,7 @@
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, onUnmounted, onBeforeUnmount, nextTick, watch, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { storeToRefs } from 'pinia'
@@ -2302,27 +2303,22 @@ function handleSearch() {
     salesUserId: searchForm.salesUserId ?? '',
     purchaserUserId: searchForm.purchaserUserId ?? ''
   })
-  if (activePreset.value) {
-    router.replace({
-      name: rfqItemListRouteName.value,
-      query: buildRfqItemListRouteQuery({ preset: activePreset.value, keywords })
-    })
-    return
-  }
-  router.replace({
-    name: rfqItemListRouteName.value,
-    query: buildRfqItemListRouteQuery({
-      keywords,
-      advanced: {
-        startDate: dateRange.value?.[0],
-        endDate: dateRange.value?.[1],
-        itemStatus:
-          searchForm.itemStatus !== undefined && searchForm.itemStatus !== null
-            ? String(searchForm.itemStatus)
-            : undefined,
-        hasQuotesOnly: searchForm.hasQuotesOnly
-      }
-    })
+  const query = activePreset.value
+    ? buildRfqItemListRouteQuery({ preset: activePreset.value, keywords })
+    : buildRfqItemListRouteQuery({
+        keywords,
+        advanced: {
+          startDate: dateRange.value?.[0],
+          endDate: dateRange.value?.[1],
+          itemStatus:
+            searchForm.itemStatus !== undefined && searchForm.itemStatus !== null
+              ? String(searchForm.itemStatus)
+              : undefined,
+          hasQuotesOnly: searchForm.hasQuotesOnly
+        }
+      })
+  replaceListQueryOrReload(router, route, { name: rfqItemListRouteName.value, query }, () => {
+    if (viewMode.value === 'list') void loadData()
   })
 }
 

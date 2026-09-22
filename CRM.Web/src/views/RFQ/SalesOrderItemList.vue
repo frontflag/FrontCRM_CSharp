@@ -838,6 +838,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, nextTick, watch, inject, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { ArrowRight, Setting } from '@element-plus/icons-vue'
@@ -1454,7 +1455,12 @@ async function handleClearBasket() {
 
 function runSearch() {
   page.value = 1
-  router.replace({ name: 'SalesOrderItemList', query: buildRouteQueryFromFilters() })
+  replaceListQueryOrReload(
+    router,
+    route,
+    { name: 'SalesOrderItemList', query: buildRouteQueryFromFilters() },
+    () => loadList()
+  )
 }
 
 function buildRouteQueryFromFilters(): Record<string, string> {

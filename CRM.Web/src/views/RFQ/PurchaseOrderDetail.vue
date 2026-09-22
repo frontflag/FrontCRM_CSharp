@@ -1827,8 +1827,9 @@ async function handleRevertVendorConfirm() {
     await purchaseOrderApi.updateStatus(order.value.id, 20)
     ElMessage.success(t('purchaseOrderList.cancelConfirmSuccess'))
     await fetchOrder()
-  } catch {
-    /* 取消或失败已由全局拦截器提示 */
+  } catch (e) {
+    if (e === 'cancel' || e === 'close') return
+    ElMessage.error(getApiErrorMessage(e, '取消确认失败'))
   }
 }
 

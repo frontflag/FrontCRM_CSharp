@@ -319,6 +319,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, inject, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { replaceListQueryOrReload } from '@/utils/replaceListQueryOrReload'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { canAccessRfqRecycleBin } from '@/utils/rfqRecycleBinAccess'
@@ -631,7 +632,7 @@ const handleSearch = () => {
   if (creator) q.createUserName = creator
   if (searchForm.value.dateRange?.[0]) q.startDate = searchForm.value.dateRange[0]
   if (searchForm.value.dateRange?.[1]) q.endDate = searchForm.value.dateRange[1]
-  router.replace({ name: 'RFQList', query: q })
+  replaceListQueryOrReload(router, route, { name: 'RFQList', query: q }, () => loadData())
 }
 
 const handleReset = () => {
