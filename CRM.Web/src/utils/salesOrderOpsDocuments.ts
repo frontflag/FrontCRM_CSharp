@@ -40,6 +40,14 @@ export function previewMimeForUpload(doc: {
 export const SO_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.so-item-ops.docs-expanded'
 export const PO_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.po-item-ops.docs-expanded'
 export const STOCK_OUT_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.stock-out-ops.docs-expanded'
+export const CUSTOMS_DECLARATION_OPS_DOCS_EXPANDED_STORAGE_KEY = 'frontcrm.customs-declaration-ops.docs-expanded'
+export const CUSTOMS_DECLARATION_DOCS_CHANGED = 'frontcrm:customs-declaration-docs-changed'
+
+export function emitCustomsDeclarationDocsChanged(bizId: string) {
+  const id = bizId.trim()
+  if (!id || typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent(CUSTOMS_DECLARATION_DOCS_CHANGED, { detail: id }))
+}
 
 export function readOpsDocsExpanded(key: string): boolean {
   try {

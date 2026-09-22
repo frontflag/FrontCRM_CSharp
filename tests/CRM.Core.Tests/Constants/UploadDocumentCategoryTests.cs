@@ -13,6 +13,8 @@ public class UploadDocumentCategoryTests
     [InlineData("ship_photo", UploadDocumentCategory.ShipPhoto)]
     [InlineData("POD", UploadDocumentCategory.Pod)]
     [InlineData("pod", UploadDocumentCategory.Pod)]
+    [InlineData("CONTRACT", UploadDocumentCategory.Contract)]
+    [InlineData("contract", UploadDocumentCategory.Contract)]
     [InlineData("OTHER", UploadDocumentCategory.Other)]
     public void Normalize_MapsKnownCodesAndFallsBackToOther(string? raw, string expected)
     {

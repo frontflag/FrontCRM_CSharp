@@ -65,6 +65,7 @@ declare module 'vue' {
     CustomsDeclarationFlowPanel: typeof import('./src/components/Customs/CustomsDeclarationFlowPanel.vue')['default']
     CustomsDeclarationIconLink: typeof import('./src/components/Customs/CustomsDeclarationIconLink.vue')['default']
     CustomsDeclarationLink: typeof import('./src/components/Customs/CustomsDeclarationLink.vue')['default']
+    CustomsDeclarationOpsDocumentsCard: typeof import('./src/components/Customs/CustomsDeclarationOpsDocumentsCard.vue')['default']
     CustomsDeclarationOpsPanel: typeof import('./src/components/Customs/CustomsDeclarationOpsPanel.vue')['default']
     CustomsExtendCell: typeof import('./src/components/list/CustomsExtendCell.vue')['default']
     CustomsExtendColumnHeader: typeof import('./src/components/list/CustomsExtendColumnHeader.vue')['default']

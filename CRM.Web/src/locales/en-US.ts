@@ -20,6 +20,7 @@ const enUS = {
     category: {
       shipPhoto: 'Shipping photos',
       pod: 'Proof of delivery',
+      contract: 'Contract',
       other: 'Other'
     }
   },
@@ -348,6 +349,11 @@ const enUS = {
         close: 'Close',
         pickRow: 'Click a list row to view summary and actions',
         overviewTitle: 'Overview',
+        docsTitle: 'Documents',
+        docsNone: '(none)',
+        docsEmpty: 'No documents',
+        docsExpand: 'Expand',
+        docsCollapse: 'Collapse',
         warehouseEntryTitle: 'Warehouse entry no.',
         warehouseEntryPlaceholder: 'Enter warehouse entry no.',
         warehouseEntryEdit: 'Edit',
@@ -409,6 +415,8 @@ const enUS = {
       },
       basicInfo: 'Basic information',
       sectionItems: 'Declaration lines',
+      docsTab: 'Documents',
+      docHint: 'Choose a type (Contract / Other) before upload. You can upload more than once.',
       sectionBusinessRecords: 'Business records',
       colExchangeRate: 'Exchange rate',
       colWarehouseRoute: 'Source → target warehouse',

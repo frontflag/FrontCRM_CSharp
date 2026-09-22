@@ -37,6 +37,12 @@
         </div>
       </section>
 
+      <CustomsDeclarationOpsDocumentsCard
+        v-if="declarationId"
+        :biz-id="declarationId"
+        :can-write="canWriteDocuments"
+      />
+
       <section class="ops-card ops-card--status-only">
         <div class="ops-card__body ops-card__body--status">
           <div class="ops-status-tags">
@@ -180,6 +186,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleCheck } from '@element-plus/icons-vue'
 import type { CustomsDeclarationDetailDto } from '@/api/customs'
+import CustomsDeclarationOpsDocumentsCard from '@/components/Customs/CustomsDeclarationOpsDocumentsCard.vue'
 import { formatDisplayDate } from '@/utils/displayDateTime'
 import {
   buildCustomsArrivalDisabledHintContent,
@@ -250,6 +257,14 @@ const clearanceStatus = computed(() =>
 )
 
 const isVoided = computed(() => internalStatus.value === -1)
+
+const declarationId = computed(() => {
+  const fromDetail = props.detail?.id?.trim()
+  if (fromDetail) return fromDetail
+  return String(props.row?.id ?? '').trim()
+})
+
+const canWriteDocuments = computed(() => !!props.canWriteLogistics && !isVoided.value)
 
 const warehouseEntryDraft = ref('')
 const warehouseEntryEditing = ref(false)

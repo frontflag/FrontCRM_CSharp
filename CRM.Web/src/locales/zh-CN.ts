@@ -20,6 +20,7 @@ const zhCN = {
     category: {
       shipPhoto: '出货照片',
       pod: '出货签收单',
+      contract: '合同',
       other: '其他'
     }
   },
@@ -346,6 +347,11 @@ const zhCN = {
         close: '收起',
         pickRow: '单击列表行查看概况与操作入口',
         overviewTitle: '报关概况',
+        docsTitle: '文档',
+        docsNone: '（无上传）',
+        docsEmpty: '暂无',
+        docsExpand: '展开',
+        docsCollapse: '收起',
         warehouseEntryTitle: '报关入仓号',
         warehouseEntryPlaceholder: '请输入报关入仓号',
         warehouseEntryEdit: '编辑',
@@ -407,6 +413,8 @@ const zhCN = {
       },
       basicInfo: '基础信息',
       sectionItems: '报关明细',
+      docsTab: '文档',
+      docHint: '先选择类型（合同 / 其他）再上传；可多次上传。',
       sectionBusinessRecords: '业务记录',
       colExchangeRate: '汇率',
       colWarehouseRoute: '源仓 → 目标仓',

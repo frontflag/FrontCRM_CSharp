@@ -152,10 +152,11 @@ function categoryLabel(doc: UploadDocumentDto) {
   return t(uploadDocCategoryI18nKey(normalizeUploadDocCategory(doc.docCategory)))
 }
 
-function categoryTagType(doc: UploadDocumentDto): 'warning' | 'success' | 'info' {
+function categoryTagType(doc: UploadDocumentDto): 'warning' | 'success' | 'info' | 'primary' {
   const code = normalizeUploadDocCategory(doc.docCategory)
   if (code === UPLOAD_DOC_CATEGORY.ShipPhoto) return 'warning'
   if (code === UPLOAD_DOC_CATEGORY.Pod) return 'success'
+  if (code === UPLOAD_DOC_CATEGORY.Contract) return 'primary'
   return 'info'
 }
 

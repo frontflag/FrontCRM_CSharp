@@ -18,7 +18,7 @@
         :teleported="false"
       >
         <el-option
-          v-for="code in UPLOAD_DOC_CATEGORY_ORDER"
+          v-for="code in categoryChoices"
           :key="code"
           :label="t(uploadDocCategoryI18nKey(code))"
           :value="code"
@@ -83,6 +83,8 @@ const props = withDefaults(
     remarkAllowed?: boolean
     showCategorySelect?: boolean
     docCategory?: string
+    /** 不传时用出库单三类。报关单传入合同 / 其他。 */
+    categoryOptions?: UploadDocCategory[]
     compact?: boolean
   }>(),
   {
@@ -104,12 +106,22 @@ const dragDepth = ref(0)
 const remark = ref('')
 const selectedFiles = ref<File[]>([])
 const uploading = ref(false)
-const categoryModel = ref<UploadDocCategory>(normalizeUploadDocCategory(props.docCategory))
+const categoryChoices = computed<UploadDocCategory[]>(() =>
+  props.categoryOptions?.length ? props.categoryOptions : UPLOAD_DOC_CATEGORY_ORDER
+)
+
+function pickCategory(raw?: string | null): UploadDocCategory {
+  const normalized = normalizeUploadDocCategory(raw)
+  if (categoryChoices.value.includes(normalized)) return normalized
+  return categoryChoices.value[0] ?? UPLOAD_DOC_CATEGORY.Other
+}
+
+const categoryModel = ref<UploadDocCategory>(pickCategory(props.docCategory))
 
 watch(
-  () => props.docCategory,
-  (v) => {
-    categoryModel.value = normalizeUploadDocCategory(v)
+  () => [props.docCategory, categoryChoices.value.join('|')] as const,
+  () => {
+    categoryModel.value = pickCategory(props.docCategory)
   }
 )
 

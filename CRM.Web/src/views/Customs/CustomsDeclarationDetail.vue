@@ -147,14 +147,30 @@
         />
 
         <div class="info-section">
-          <div class="section-header">
-            <div class="section-header__main">
-              <div class="section-dot section-dot--cyan"></div>
-              <span class="section-title">{{ t('customsPages.declarations.sectionItems') }}</span>
-              <span v-if="detail.items?.length" class="section-count">{{ detail.items.length }}</span>
-            </div>
+          <div class="tabs-nav">
+            <button
+              type="button"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': itemsPanelTab === 'items' }"
+              @click="itemsPanelTab = 'items'"
+            >
+              {{ t('customsPages.declarations.sectionItems') }}
+              <span v-if="detail.items?.length" class="tab-count">{{ detail.items.length }}</span>
+            </button>
+            <button
+              type="button"
+              class="tab-btn"
+              :class="{ 'tab-btn--active': itemsPanelTab === 'documents' }"
+              @click="itemsPanelTab = 'documents'"
+            >
+              {{
+                docCount > 0
+                  ? `${t('customsPages.declarations.docsTab')} (${docCount})`
+                  : t('customsPages.declarations.docsTab')
+              }}
+            </button>
           </div>
-          <div class="detail-panel-section-body">
+          <div v-show="itemsPanelTab === 'items'" class="detail-panel-section-body">
             <div v-if="detail.items?.length" class="detail-items-table-wrap">
               <el-table :data="detail.items" size="small" border class="detail-panel-list-table">
                 <el-table-column prop="lineNo" label="#" width="56" align="center" />
@@ -189,6 +205,29 @@
               </el-table>
             </div>
             <DetailListPanelEmpty v-else size="low" />
+          </div>
+          <div v-show="itemsPanelTab === 'documents'" class="detail-panel-section-body">
+            <p class="doc-hint">{{ t('customsPages.declarations.docHint') }}</p>
+            <DocumentUploadPanel
+              v-if="canWriteDocuments"
+              :biz-type="CUSTOMS_DECLARATION_DOC_BIZ"
+              :biz-id="detail.id"
+              :max-files="20"
+              :max-size-mb="100"
+              show-category-select
+              :category-options="CUSTOMS_DECLARATION_DOC_CATEGORIES"
+              :doc-category="UPLOAD_DOC_CATEGORY.Contract"
+              @uploaded="docListRef?.refresh()"
+            />
+            <DocumentListPanel
+              ref="docListRef"
+              :biz-type="CUSTOMS_DECLARATION_DOC_BIZ"
+              :biz-id="detail.id"
+              view-mode="list"
+              show-category-tag
+              :readonly="!canWriteDocuments"
+              @updated="onDocsUpdated"
+            />
           </div>
         </div>
 
@@ -269,6 +308,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import DetailListPanelEmpty from '@/components/Common/DetailListPanelEmpty.vue'
 import CustomsDeclarationBusinessRecordsPanel from '@/components/Customs/CustomsDeclarationBusinessRecordsPanel.vue'
 import CustomsDeclarationFeesPanel from '@/components/Customs/CustomsDeclarationFeesPanel.vue'
+import DocumentUploadPanel from '@/components/Document/DocumentUploadPanel.vue'
+import DocumentListPanel from '@/components/Document/DocumentListPanel.vue'
 import {
   createCustomsArrivalNotifies,
   fetchCustomsDeclarationById,
@@ -285,6 +326,15 @@ import { formatDisplayDate } from '@/utils/displayDateTime'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useDepartmentDataReadOnly } from '@/composables/useDepartmentDataReadOnly'
+import {
+  CUSTOMS_DECLARATION_DOC_BIZ,
+  CUSTOMS_DECLARATION_DOC_CATEGORIES,
+  UPLOAD_DOC_CATEGORY
+} from '@/constants/uploadDocumentCategory'
+import {
+  CUSTOMS_DECLARATION_DOCS_CHANGED,
+  emitCustomsDeclarationDocsChanged
+} from '@/utils/salesOrderOpsDocuments'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
 import { useCustomsDeclarationOpsPanelStore } from '@/stores/customsDeclarationOpsPanel'
@@ -298,6 +348,30 @@ const customsDeclarationOpsStore = useCustomsDeclarationOpsPanelStore()
 const customsDeclarationFlowStore = useCustomsDeclarationFlowPanelStore()
 const authStore = useAuthStore()
 const { canWriteLogisticsData: canWriteLogistics } = useDepartmentDataReadOnly()
+const itemsPanelTab = ref<'items' | 'documents'>('items')
+const docCount = ref(0)
+const docsLoaded = ref(false)
+const docListRef = ref<InstanceType<typeof DocumentListPanel> | null>(null)
+let docsSilentRefresh = false
+
+function onDocsChanged(event: Event) {
+  const id = String((event as CustomEvent<string>).detail ?? '').trim()
+  if (!detail.value || id !== detail.value.id.trim()) return
+  docsSilentRefresh = true
+  docListRef.value?.refresh()
+}
+
+function onDocsUpdated(n: number) {
+  const prevLoaded = docsLoaded.value
+  const prev = docCount.value
+  docCount.value = n
+  docsLoaded.value = true
+  if (docsSilentRefresh) {
+    docsSilentRefresh = false
+    return
+  }
+  if (prevLoaded && prev !== n && detail.value?.id) emitCustomsDeclarationDocsChanged(detail.value.id)
+}
 const canCorrectLockedCostUsd = computed(() => authStore.canForceDelete())
 const changeLogs = ref<CustomsDeclarationFieldChangeLogRow[]>([])
 const { maskPurchaseSensitiveFields: maskPurchase } = usePurchaseSensitiveFieldMask()
@@ -306,6 +380,9 @@ const loading = ref(false)
 const creatingArrival = ref(false)
 const loadError = ref('')
 const detail = ref<CustomsDeclarationDetailDto | null>(null)
+const canWriteDocuments = computed(
+  () => canWriteLogistics.value && Number(detail.value?.internalStatus) !== -1
+)
 const clearanceVisible = ref(false)
 const clearanceSaving = ref(false)
 const clearanceForm = reactive({ status: 0 })
@@ -535,6 +612,7 @@ async function saveWarehouseEntry(value: string) {
 }
 
 onMounted(() => {
+  window.addEventListener(CUSTOMS_DECLARATION_DOCS_CHANGED, onDocsChanged)
   customsDeclarationOpsStore.registerHandlers({
     setClearance: () => openClearance(),
     createArrival: () => {
@@ -548,6 +626,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener(CUSTOMS_DECLARATION_DOCS_CHANGED, onDocsChanged)
   customsDeclarationOpsStore.unregisterHandlers()
   customsDeclarationOpsStore.clear()
   customsDeclarationFlowStore.clear()
@@ -557,6 +636,9 @@ watch(
   () => orderId(),
   (id, prev) => {
     if (!id || id === prev) return
+    itemsPanelTab.value = 'items'
+    docCount.value = 0
+    docsLoaded.value = false
     void load()
   }
 )
@@ -685,6 +767,51 @@ watch(
   border-radius: $border-radius-lg;
   margin-bottom: 16px;
   overflow: hidden;
+}
+
+.tabs-nav {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0 16px;
+  background: var(--crm-detail-section-header-bg);
+}
+
+.tab-btn {
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: $text-muted;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  margin-bottom: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &:hover {
+    color: $text-secondary;
+  }
+
+  &--active {
+    color: $cyan-primary;
+    border-bottom-color: $cyan-primary;
+  }
+}
+
+.tab-count {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 212, 255, 0.1);
+  color: $cyan-primary;
+}
+
+.doc-hint {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: $text-muted;
 }
 
 .section-header {
