@@ -979,6 +979,8 @@ namespace CRM.Core.Services
                     {
                         StockInTime = stockIn.StockInDate,
                         StockInCode = stockIn.StockInCode,
+                        PurchasePn = FirstNonEmpty(line.PurchasePn, stockLayer?.PurchasePn, poItem?.PN),
+                        PurchaseBrand = FirstNonEmpty(line.PurchaseBrand, stockLayer?.PurchaseBrand, poItem?.Brand),
                         BatchNo = line.BatchNo,
                         Quantity = line.Quantity,
                         UnitPrice = line.Price,
@@ -1109,6 +1111,18 @@ namespace CRM.Core.Services
                     UsdToEur = fx.UsdToEur
                 }
             };
+        }
+
+        private static string? FirstNonEmpty(params string?[] values)
+        {
+            foreach (var value in values)
+            {
+                var text = value?.Trim();
+                if (!string.IsNullOrEmpty(text))
+                    return text;
+            }
+
+            return null;
         }
 
         /// <summary>

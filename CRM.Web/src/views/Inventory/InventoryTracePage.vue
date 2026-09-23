@@ -16,6 +16,18 @@
         <template #default="{ row }">{{ formatTime(row.stockInTime) }}</template>
       </el-table-column>
       <el-table-column prop="stockInCode" :label="t('inventoryTrace.columns.stockInCode')" width="160" />
+      <el-table-column
+        prop="purchasePn"
+        :label="t('inventoryTrace.columns.purchasePn')"
+        min-width="160"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="purchaseBrand"
+        :label="t('inventoryTrace.columns.purchaseBrand')"
+        min-width="120"
+        show-overflow-tooltip
+      />
       <el-table-column prop="quantity" :label="t('inventoryTrace.columns.quantity')" width="100" align="right" />
       <el-table-column
         prop="unitPrice"

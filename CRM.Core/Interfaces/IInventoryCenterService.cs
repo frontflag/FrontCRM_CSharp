@@ -256,6 +256,9 @@ namespace CRM.Core.Interfaces
 
         /// <summary>关联报关单海关状态（<see cref="CRM.Core.Constants.CustomsClearanceStatusCodes"/>）。</summary>
         public short? CustomsClearanceStatus { get; set; }
+
+        /// <summary>库存明细已软删（仅按库存明细编号检索时会出现在列表中）。</summary>
+        public bool IsDeleted { get; set; }
     }
 
     /// <summary>全库库存明细查询条件（字段为空则不作为筛选）。</summary>
@@ -318,6 +321,10 @@ namespace CRM.Core.Interfaces
     {
         public DateTime? StockInTime { get; set; }
         public string? StockInCode { get; set; }
+        /// <summary>物料型号（入库明细采购型号快照，缺省时回退在库明细或采购行 PN）。</summary>
+        public string? PurchasePn { get; set; }
+        /// <summary>品牌（入库明细采购品牌快照，缺省时回退在库明细或采购行品牌）。</summary>
+        public string? PurchaseBrand { get; set; }
         public string? BatchNo { get; set; }
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }

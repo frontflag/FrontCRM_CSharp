@@ -464,7 +464,16 @@
           </div>
         </template>
       <template #col-actions="{ row }">
-        <div @click.stop @dblclick.stop>
+        <div v-if="row.isDeleted" class="soft-deleted-op" @click.stop @dblclick.stop>
+          <el-tooltip
+            :content="t('inventoryStockItemList.messages.softDeletedNoAction')"
+            placement="top"
+            :hide-after="0"
+          >
+            <span class="soft-deleted-op__mark">-</span>
+          </el-tooltip>
+        </div>
+        <div v-else @click.stop @dblclick.stop>
           <div v-if="opColExpanded" class="action-btns">
             <button v-if="canWriteLogisticsData" type="button" class="action-btn action-btn--danger" @click.stop="handleDeleteStockItem(row)">删除</button>
             <button v-if="canForceDelete" type="button" class="action-btn action-btn--danger" @click.stop="handleForceDeleteStockItem(row)">强制删除</button>
@@ -1316,7 +1325,8 @@ function flowPanelRowClassName({ row }: { row: StockItemListRow }) {
     stockItemFlowStore.rowKey(row) === stockItemFlowStore.rowKey(stockItemFlowStore.row)
       ? 'so-item-row--active'
       : ''
-  return [flowActive, 'table-row-pointer'].filter(Boolean).join(' ')
+  const softDeleted = row.isDeleted ? 'list-row--soft-deleted' : ''
+  return [flowActive, softDeleted, 'table-row-pointer'].filter(Boolean).join(' ')
 }
 
 const handleDeleteStockItem = async (row: StockItemListRow) => {
@@ -1915,6 +1925,19 @@ html[data-theme='dark'] .isi-filter-tabs__item:not(.is-active) {
   color: $color-red-brown;
 }
 
+.soft-deleted-op {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.soft-deleted-op__mark {
+  color: var(--crm-text-muted, #8aa0b4);
+  cursor: default;
+  line-height: 1;
+}
+
 .pagination-wrapper {
   margin-top: 12px;
   display: flex;
@@ -2037,5 +2060,26 @@ html[data-theme='dark'] .isi-filter-tabs__item:not(.is-active) {
   background: var(--crm-layer-2, #0d1e35);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   z-index: 10;
+}
+
+.inventory-stock-item-list-page {
+  .el-table__body-wrapper .el-table__body tr.el-table__row.list-row--soft-deleted > td.el-table__cell,
+  .el-table__fixed-body-wrapper .el-table__body tr.el-table__row.list-row--soft-deleted > td.el-table__cell,
+  .el-table__fixed .el-table__body tr.el-table__row.list-row--soft-deleted > td.el-table__cell,
+  .el-table__fixed-right .el-table__body tr.el-table__row.list-row--soft-deleted > td.el-table__cell {
+    color: var(--crm-text-muted);
+
+    .el-link,
+    .el-link.el-link--primary,
+    a,
+    .dock-tier-ccy,
+    .dock-tier-amt-int,
+    .dock-tier-amt-frac,
+    .inv-list-amt,
+    .inv-list-amt-int,
+    .inv-list-amt-frac {
+      color: var(--crm-text-muted) !important;
+    }
+  }
 }
 </style>

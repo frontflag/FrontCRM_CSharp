@@ -63,6 +63,8 @@ export interface InventoryOverview {
 export interface MaterialTrace {
   stockInTime?: string
   stockInCode?: string
+  purchasePn?: string | null
+  purchaseBrand?: string | null
   batchNo?: string
   quantity: number
   unitPrice: number
@@ -194,6 +196,8 @@ export interface StockItemListRow extends StockItemRow {
   customsBrokerName?: string | null
   /** 关联报关单海关状态（0未维护 10放行 100已结关） */
   customsClearanceStatus?: number | null
+  /** 库存明细已软删（仅按库存明细编号检索时出现） */
+  isDeleted?: boolean
 }
 
 /** GET /api/v1/inventory-center/stock-items/{id}/flow-aggregates */

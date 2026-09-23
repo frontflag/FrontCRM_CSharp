@@ -106,7 +106,8 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 WarehouseCode = x.W != null ? x.W.WarehouseCode : null,
                 WarehouseName = x.W != null ? x.W.WarehouseName : null,
                 OutboundStatus = x.Si.StockOutStatus,
-                ProfitOutBizUsd = x.Si.ProfitOutBizUsd
+                ProfitOutBizUsd = x.Si.ProfitOutBizUsd,
+                IsDeleted = x.Si.IsDeleted
             })
             .ToListAsync(cancellationToken);
 
@@ -210,7 +211,8 @@ public sealed class InventoryStockItemEfListQuery : IInventoryStockItemListQuery
                 WarehouseCode = w != null ? w.WarehouseCode : null,
                 WarehouseName = w != null ? w.WarehouseName : null,
                 OutboundStatus = si.StockOutStatus,
-                ProfitOutBizUsd = si.ProfitOutBizUsd
+                ProfitOutBizUsd = si.ProfitOutBizUsd,
+                IsDeleted = si.IsDeleted
             }).ToListAsync(cancellationToken);
 
         await EnrichStockItemListDisplayAsync(rows, cancellationToken);

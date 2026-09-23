@@ -114,14 +114,14 @@ public sealed class StockItemPurchaseIdentityRebucketService : IStockItemPurchas
         foreach (var aggId in affectedAggIds)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            await RecalculateAggregateAsync(aggId, sessionBuckets);
+            await RecalculateAggregateAsync(aggId, sessionBuckets, layers);
             result.StockAggregatesRecalculated++;
         }
 
         foreach (var aggId in affectedAggIds)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await TryRemoveEmptyAggregateAsync(aggId, sessionBuckets))
+            if (await TryRemoveEmptyAggregateAsync(aggId, sessionBuckets, layers))
                 result.StockAggregatesRemoved++;
         }
 
@@ -219,7 +219,10 @@ public sealed class StockItemPurchaseIdentityRebucketService : IStockItemPurchas
         return stock;
     }
 
-    private async Task RecalculateAggregateAsync(string stockAggregateId, List<StockInfo> session)
+    private async Task RecalculateAggregateAsync(
+        string stockAggregateId,
+        List<StockInfo> session,
+        IReadOnlyList<StockItem> sessionLayers)
     {
         var stock = session.FirstOrDefault(s =>
                 string.Equals(s.Id, stockAggregateId, StringComparison.OrdinalIgnoreCase))
@@ -227,7 +230,8 @@ public sealed class StockItemPurchaseIdentityRebucketService : IStockItemPurchas
         if (stock == null)
             return;
 
-        var rows = (await _stockItemRepo.FindAsync(x => x.StockAggregateId == stock.Id)).ToList();
+        var fromStore = await _stockItemRepo.FindAsync(x => x.StockAggregateId == stock.Id);
+        var rows = MergeLayersForAggregate(fromStore, stock.Id, sessionLayers);
         stock.Qty = rows.Sum(x => x.QtyInbound);
         stock.QtyStockOut = rows.Sum(x => x.QtyStockOut);
         stock.QtyOccupy = rows.Sum(x => x.QtyOccupy);
@@ -242,7 +246,10 @@ public sealed class StockItemPurchaseIdentityRebucketService : IStockItemPurchas
     /// 换堆后旧桶已无在库明细、数量全 0：软删汇总行及 stock_extend（对齐库存中心普通删除空堆）。
     /// 仍挂有明细（即使数量为 0）则保留。
     /// </summary>
-    private async Task<bool> TryRemoveEmptyAggregateAsync(string stockAggregateId, List<StockInfo> session)
+    private async Task<bool> TryRemoveEmptyAggregateAsync(
+        string stockAggregateId,
+        List<StockInfo> session,
+        IReadOnlyList<StockItem> sessionLayers)
     {
         var stock = session.FirstOrDefault(s =>
                 string.Equals(s.Id, stockAggregateId, StringComparison.OrdinalIgnoreCase))
@@ -250,7 +257,8 @@ public sealed class StockItemPurchaseIdentityRebucketService : IStockItemPurchas
         if (stock == null || stock.IsDeleted)
             return false;
 
-        var rows = (await _stockItemRepo.FindAsync(x => x.StockAggregateId == stock.Id)).ToList();
+        var fromStore = await _stockItemRepo.FindAsync(x => x.StockAggregateId == stock.Id);
+        var rows = MergeLayersForAggregate(fromStore, stock.Id, sessionLayers);
         if (rows.Count > 0)
             return false;
 
@@ -280,6 +288,41 @@ public sealed class StockItemPurchaseIdentityRebucketService : IStockItemPurchas
             stock.PurchasePn,
             stock.PurchaseBrand);
         return true;
+    }
+
+    /// <summary>
+    /// 库查询看不到尚未 SaveChanges 的 <see cref="StockItem.StockAggregateId"/>。
+    /// 以本轮已改挂的明细覆盖查询结果：新桶计入已挂上的层，旧桶去掉已移走的层。
+    /// </summary>
+    private static List<StockItem> MergeLayersForAggregate(
+        IEnumerable<StockItem> fromStore,
+        string aggregateId,
+        IReadOnlyList<StockItem> sessionLayers)
+    {
+        var agg = aggregateId.Trim();
+        var byId = new Dictionary<string, StockItem>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in fromStore)
+        {
+            var id = row.Id?.Trim();
+            if (string.IsNullOrEmpty(id) || row.IsDeleted)
+                continue;
+            if (!string.Equals(row.StockAggregateId?.Trim(), agg, StringComparison.OrdinalIgnoreCase))
+                continue;
+            byId[id] = row;
+        }
+
+        foreach (var layer in sessionLayers)
+        {
+            var id = layer.Id?.Trim();
+            if (string.IsNullOrEmpty(id) || layer.IsDeleted)
+                continue;
+            if (string.Equals(layer.StockAggregateId?.Trim(), agg, StringComparison.OrdinalIgnoreCase))
+                byId[id] = layer;
+            else
+                byId.Remove(id);
+        }
+
+        return byId.Values.ToList();
     }
 
     private static string Norm(string? v) =>

@@ -8065,7 +8065,8 @@ const enUS = {
       exportConfirmTitle: 'Confirm export',
       exportConfirmMessage: 'Export stock items with the current filters (up to 50,000 rows). Continue?',
       exportSuccess: 'Export succeeded',
-      exportFailed: 'Export failed'
+      exportFailed: 'Export failed',
+      softDeletedNoAction: 'Soft-deleted record, no actions available'
     },
     flowPanel: {
       pickRow: 'On the Flow tab, click a row to see this layer from purchase through stock-out',
@@ -8160,6 +8161,8 @@ const enUS = {
     columns: {
       stockInTime: 'Stock-In Time',
       stockInCode: 'Stock-In Code',
+      purchasePn: 'Material model',
+      purchaseBrand: 'Brand',
       quantity: 'Quantity',
       unitPrice: 'Unit Price',
       purchaseOrderCode: 'PO Code',

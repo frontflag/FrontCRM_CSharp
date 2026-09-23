@@ -8042,7 +8042,8 @@ const zhCN = {
       exportConfirmTitle: '导出确认',
       exportConfirmMessage: '将按当前筛选条件导出库存明细，最多 50000 条，是否继续？',
       exportSuccess: '导出成功',
-      exportFailed: '导出失败'
+      exportFailed: '导出失败',
+      softDeletedNoAction: '软删记录，无法操作'
     },
     flowPanel: {
       pickRow: '在「流程」页签下单击列表行，查看本层从采购到出库的业务链路',
@@ -8137,6 +8138,8 @@ const zhCN = {
     columns: {
       stockInTime: '入库时间',
       stockInCode: '入库单号',
+      purchasePn: '物料型号',
+      purchaseBrand: '品牌',
       quantity: '数量',
       unitPrice: '单价',
       purchaseOrderCode: '采购单号',

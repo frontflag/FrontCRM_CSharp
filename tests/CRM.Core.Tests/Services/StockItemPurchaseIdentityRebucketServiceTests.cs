@@ -178,6 +178,56 @@ public class StockItemPurchaseIdentityRebucketServiceTests
         Assert.Equal("AGG-OLD", staying.StockAggregateId);
     }
 
+    [Fact]
+    public async Task EnsureAggregatesAsync_UncommittedAggregateId_DoesNotDeleteBucketThatReceivedLayer()
+    {
+        var oldBucket = NewBucket("AGG-OLD", "PN-A", "BRAND-OLD", qty: 10);
+        var layer = NewLayer("STK-1", "AGG-OLD", "PN-A", "BRAND-NEW", inbound: 10);
+        _buckets.Add(oldBucket);
+        _layers.Add(layer);
+
+        var committedAgg = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [layer.Id] = layer.StockAggregateId!
+        };
+        _layerRepo.FindAsync(Arg.Any<Expression<Func<StockItem, bool>>>())
+            .Returns(call =>
+            {
+                var pred = call.Arg<Expression<Func<StockItem, bool>>>().Compile();
+                var projected = _layers.Select(src =>
+                {
+                    var copy = NewLayer(
+                        src.Id,
+                        committedAgg[src.Id],
+                        src.PurchasePn ?? "",
+                        src.PurchaseBrand ?? "",
+                        src.QtyInbound);
+                    copy.QtyStockOut = src.QtyStockOut;
+                    copy.QtyOccupy = src.QtyOccupy;
+                    copy.QtySales = src.QtySales;
+                    copy.QtyRepertory = src.QtyRepertory;
+                    copy.QtyRepertoryAvailable = src.QtyRepertoryAvailable;
+                    return copy;
+                });
+                return projected.Where(pred).ToList();
+            });
+
+        var result = await _service.EnsureAggregatesAsync(new[] { layer });
+
+        var created = _buckets.Single(s => s.Id != "AGG-OLD");
+        Assert.Equal(1, result.StockItemsMoved);
+        Assert.Equal(1, result.StockAggregatesCreated);
+        Assert.Equal(1, result.StockAggregatesRemoved);
+        Assert.Equal(created.Id, layer.StockAggregateId);
+        Assert.False(created.IsDeleted);
+        Assert.Equal(10, created.Qty);
+        Assert.Equal(10, created.QtyRepertory);
+        Assert.Equal(10, created.QtyRepertoryAvailable);
+        Assert.True(oldBucket.IsDeleted);
+        Assert.Equal(0, oldBucket.Qty);
+        Assert.Equal(0, oldBucket.QtyRepertory);
+    }
+
     private static StockInfo NewBucket(string id, string pn, string brand, int qty) => new()
     {
         Id = id,
