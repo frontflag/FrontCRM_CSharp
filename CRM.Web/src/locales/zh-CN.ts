@@ -1110,6 +1110,8 @@ const zhCN = {
       companyInfo: '公司信息',
       dictItems: '数据字典',
       aiConfig: 'AI 配置',
+      handbookQa: '培训问答',
+      kbDocuments: '培训教材',
       purchaseParams: '采购参数',
       salesParams: '销售参数',
       financeParams: '财务参数',

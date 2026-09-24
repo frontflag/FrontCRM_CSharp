@@ -1202,7 +1202,7 @@
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessParamsModule('report') || canAccessParamsModule('commission') || canAccessSystemPermission('system.params.risk-alert.read') || canAccessSystemPermission('biz.ai.admin')"
+          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessParamsModule('report') || canAccessParamsModule('commission') || canAccessSystemPermission('system.params.risk-alert.read') || canAccessSystemPermission('biz.ai.admin') || authStore.hasPermission('biz.ai.kb.qa') || authStore.hasPermission('biz.ai.kb.admin')"
           :collapsed="isCollapsed"
           :expanded="openGroups.paramManagement"
           @toggle="toggleGroup('paramManagement')"
@@ -1260,6 +1260,20 @@
               active-class="active"
               exact
             >{{ t('layout.menu.aiConfig') }}</router-link>
+            <router-link
+              v-if="authStore.hasPermission('biz.ai.kb.qa')"
+              to="/knowledge/handbook"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.handbookQa') }}</router-link>
+            <router-link
+              v-if="authStore.hasPermission('biz.ai.kb.admin')"
+              to="/system/kb-documents"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.kbDocuments') }}</router-link>
             <router-link
               v-if="canAccessParamsModule('sales')"
               to="/system/sales-params/refresh-customer"
@@ -3797,6 +3811,8 @@ const pageTitleMap: Record<string, string> = {
   '/system/company-info': 'layout.menu.companyInfo',
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/ai-config': 'layout.menu.aiConfig',
+  '/knowledge/handbook': 'layout.menu.handbookQa',
+  '/system/kb-documents': 'layout.menu.kbDocuments',
   '/ops/user-feedback': 'layout.menu.userFeedback',
   '/ops/user-notices': 'layout.menu.userNotices',
   '/ops/system-errors': 'layout.menu.systemErrors',
@@ -4298,7 +4314,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p === '/system/risk-alert-params' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params') || p.startsWith('/system/report-params') || p.startsWith('/system/commission-params')) {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p === '/system/kb-documents' || p === '/knowledge/handbook' || p === '/system/risk-alert-params' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params') || p.startsWith('/system/report-params') || p.startsWith('/system/commission-params')) {
       openGroups.value.paramManagement = true
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs' || p === '/system/export-logs') {

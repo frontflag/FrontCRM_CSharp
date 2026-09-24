@@ -307,6 +307,7 @@ namespace CRM.API.Extensions
             services.AddHostedService<CRM.API.Services.CommissionDynamicHostedService>();
             services.AddHostedService<CRM.API.Services.CommissionLockHostedService>();
             services.AddHostedService<CRM.API.Services.IndustryNewsHostedService>();
+            services.AddHostedService<CRM.API.Services.KbIngestHostedService>();
 
             return services;
         }

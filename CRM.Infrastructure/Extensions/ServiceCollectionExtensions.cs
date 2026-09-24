@@ -127,6 +127,8 @@ namespace CRM.Infrastructure.Extensions
             services.AddSingleton<IAiSecretResolver, ConfigurationAiSecretResolver>();
             services.AddScoped<IAiLlmProviderFactory, AiLlmProviderFactory>();
             services.AddScoped<IAiOrchestrator, AiOrchestrator>();
+            services.AddSingleton<CRM.Infrastructure.Knowledge.IKbEmbeddingClient, CRM.Infrastructure.Knowledge.OpenAiCompatibleEmbeddingClient>();
+            services.AddScoped<IKbHandbookService, CRM.Infrastructure.Knowledge.KbHandbookService>();
             services.AddScoped<IAiAdminService, AiAdminService>();
             services.AddScoped<IAiEntityParseLogService, AiEntityParseLogService>();
             services.AddScoped<IAiAssistantService, AiAssistantService>();

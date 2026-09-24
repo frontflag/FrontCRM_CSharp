@@ -14,6 +14,7 @@ public static class AiScenarioCodes
     public const string VendorIntelLookup = "vendor.intel.lookup";
     public const string IndustryNewsBriefing = "industry.news.briefing";
     public const string CustomerNewsMonitor = "customer.news.monitor";
+    public const string KnowledgeHandbookQa = "knowledge.handbook.qa";
 }
 
 public static class AiPermissionCodes
@@ -24,6 +25,8 @@ public static class AiPermissionCodes
     public const string CustomerIntelLookup = "biz.ai.customer_intel.lookup";
     public const string VendorIntelLookup = "biz.ai.vendor_intel.lookup";
     public const string IndustryNewsBriefing = "biz.ai.industry_news.briefing";
+    public const string KnowledgeHandbookQa = "biz.ai.kb.qa";
+    public const string KnowledgeHandbookAdmin = "biz.ai.kb.admin";
 }
 
 public static class AiOutputFormatCode

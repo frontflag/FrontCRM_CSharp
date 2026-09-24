@@ -1114,6 +1114,8 @@ const enUS = {
       companyInfo: 'Company Info',
       dictItems: 'Dictionary Items',
       aiConfig: 'AI Configuration',
+      handbookQa: 'Training Q&A',
+      kbDocuments: 'Training handbook',
       purchaseParams: 'Purchase parameters',
       salesParams: 'Sales parameters',
       financeParams: 'Finance parameters',
