@@ -1202,7 +1202,7 @@
         </SidebarMenuGroupFlyout>
 
         <SidebarMenuGroupFlyout
-          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessParamsModule('report') || canAccessParamsModule('commission') || canAccessSystemPermission('system.params.risk-alert.read') || canAccessSystemPermission('biz.ai.admin') || authStore.hasPermission('biz.ai.kb.qa') || authStore.hasPermission('biz.ai.kb.admin')"
+          v-if="canAccessSystemPermission('system.params.company.read') || canAccessSystemPermission('system.params.dict.read') || canAccessParamsModule('sales') || canAccessParamsModule('purchase') || canAccessParamsModule('finance') || canAccessParamsModule('report') || canAccessParamsModule('commission') || canAccessSystemPermission('system.params.risk-alert.read') || canAccessSystemPermission('biz.ai.admin') || authStore.hasSysAdminRole()"
           :collapsed="isCollapsed"
           :expanded="openGroups.paramManagement"
           @toggle="toggleGroup('paramManagement')"
@@ -1261,21 +1261,21 @@
               exact
             >{{ t('layout.menu.aiConfig') }}</router-link>
             <router-link
-              v-if="authStore.hasPermission('biz.ai.kb.qa')"
+              v-if="authStore.hasSysAdminRole()"
               to="/knowledge/handbook"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.handbookQa') }}</router-link>
             <router-link
-              v-if="authStore.hasPermission('biz.ai.kb.qa') || authStore.hasPermission('biz.ai.kb.admin')"
+              v-if="authStore.hasSysAdminRole()"
               to="/knowledge/handbook/read"
               class="submenu-item"
               active-class="active"
               exact
             >{{ t('layout.menu.handbookRead') }}</router-link>
             <router-link
-              v-if="authStore.hasPermission('biz.ai.kb.admin')"
+              v-if="authStore.hasSysAdminRole()"
               to="/system/kb-documents"
               class="submenu-item"
               active-class="active"
