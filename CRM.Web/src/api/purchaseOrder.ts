@@ -121,6 +121,8 @@ export interface PurchaseOrderVendorChangePreviewResult {
   stockInsToSync: number
   paymentsToSync: number
   purchaseInvoicesToSync: number
+  stockItemsToSync?: number
+  customsDeclarationItemsToSync?: number
   allowCompletedParam?: boolean
   completedDocuments?: string[]
   hasCompleted?: boolean

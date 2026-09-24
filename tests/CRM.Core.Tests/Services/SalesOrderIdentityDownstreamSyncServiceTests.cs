@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Sales;
@@ -58,6 +59,7 @@ public class SalesOrderIdentityDownstreamSyncServiceTests
             packingItemRepo,
             packingExtendRepo,
             receivableRepo,
+            new MemoryRepository<CustomsDeclarationItem>(),
             NullLogger<SalesOrderIdentityDownstreamSyncService>.Instance);
 
         var result = await service.ApplyAsync(
@@ -104,6 +106,7 @@ public class SalesOrderIdentityDownstreamSyncServiceTests
             new MemoryRepository<PackingItem>(),
             new MemoryRepository<PackingItemExtend>(),
             new MemoryRepository<FinanceReceivable>(),
+            new MemoryRepository<CustomsDeclarationItem>(),
             NullLogger<SalesOrderIdentityDownstreamSyncService>.Instance);
 
         var first = await service.ApplyAsync(
@@ -117,5 +120,46 @@ public class SalesOrderIdentityDownstreamSyncServiceTests
         Assert.Equal(0, second.StockOutNotifiesUpdated);
         Assert.Equal("NEW", (await notifyRepo.GetByIdAsync("n-1"))!.MaterialName);
         Assert.Equal("PN", (await notifyRepo.GetByIdAsync("n-1"))!.MaterialCode);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_Pn_UpdatesCustomsPurchasePnAndSkipsDeleted()
+    {
+        const string lineId = "line-1";
+        var customsRepo = new MemoryRepository<CustomsDeclarationItem>();
+        var deleted = new CustomsDeclarationItem
+        {
+            Id = "cdi-del",
+            DeclarationId = "cd-1",
+            SellOrderItemId = lineId,
+            PurchasePn = "OLD-PN",
+            IsDeleted = true
+        };
+        await customsRepo.AddAsync(new CustomsDeclarationItem
+        {
+            Id = "cdi-1",
+            DeclarationId = "cd-1",
+            SellOrderItemId = lineId,
+            PurchasePn = "OLD-PN",
+            PurchaseBrand = "OLD-BRAND"
+        });
+        await customsRepo.AddAsync(deleted);
+
+        var service = new SalesOrderIdentityDownstreamSyncService(
+            new MemoryRepository<StockOutRequest>(),
+            new MemoryRepository<PackingItem>(),
+            new MemoryRepository<PackingItemExtend>(),
+            new MemoryRepository<FinanceReceivable>(),
+            customsRepo,
+            NullLogger<SalesOrderIdentityDownstreamSyncService>.Instance);
+
+        var result = await service.ApplyAsync(
+            new[] { new SellOrderItem { Id = lineId, PN = "NEW-PN", Brand = "NEW-BRAND" } },
+            SalesOrderIdentitySnapshotField.Pn);
+
+        Assert.Equal(1, result.CustomsDeclarationItemsUpdated);
+        Assert.Equal("NEW-PN", (await customsRepo.GetByIdAsync("cdi-1"))!.PurchasePn);
+        Assert.Equal("OLD-BRAND", (await customsRepo.GetByIdAsync("cdi-1"))!.PurchaseBrand);
+        Assert.Equal("OLD-PN", deleted.PurchasePn);
     }
 }

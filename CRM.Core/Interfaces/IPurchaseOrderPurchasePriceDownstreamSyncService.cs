@@ -3,7 +3,7 @@ using CRM.Core.Models.Purchase;
 namespace CRM.Core.Interfaces;
 
 /// <summary>
-/// 以采购订单行当前单价 / 币别 / 折算美金为准，无状态门控覆盖下游采购价快照。
+/// 以采购订单行当前单价 / 币别 / 折算美金为准，无状态门控覆盖下游采购价快照（含报关明细原币采购单价与币别，不重算报关费用）。
 /// </summary>
 public interface IPurchaseOrderPurchasePriceDownstreamSyncService
 {
@@ -20,6 +20,7 @@ public class PurchaseOrderPurchasePriceDownstreamSyncResult
     public int StockInItemExtendsUpdated { get; set; }
     public int StockItemsUpdated { get; set; }
     public int StockOutItemExtendsUpdated { get; set; }
+    public int CustomsDeclarationItemsUpdated { get; set; }
     public List<PurchaseOrderPurchasePriceLineChangeDto> LineChanges { get; set; } = new();
     public List<PurchaseOrderInvoiceMatchWarningDto> InvoiceMatchWarnings { get; set; } = new();
     public List<PurchaseOrderPaymentOverWarningDto> PaymentOverWarnings { get; set; } = new();
@@ -31,6 +32,7 @@ public class PurchaseOrderPurchasePriceDownstreamSyncResult
         || StockInItemExtendsUpdated > 0
         || StockItemsUpdated > 0
         || StockOutItemExtendsUpdated > 0
+        || CustomsDeclarationItemsUpdated > 0
         || LineChanges.Count > 0
         || InvoiceMatchWarnings.Count > 0
         || PaymentOverWarnings.Count > 0;

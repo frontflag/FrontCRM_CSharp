@@ -6691,9 +6691,9 @@ const enUS = {
     refreshStatusConfirm:
       'Recalculate line status and progress from outbound / packing / receipt / invoice facts. Customer, part no., brand, quantity and unit price are not changed. Continue?',
     refreshPnConfirm:
-      'Overwrite part-no. on stock-out notices, packing, packing customer P/N and receivables from the current SO lines. Inventory is not re-bucketed and progress is not recalculated. Continue?',
+      'Overwrite part-no. on stock-out notices, packing, packing customer P/N, receivables and customs lines from the current SO lines. Inventory is not re-bucketed and progress is not recalculated. Continue?',
     refreshBrandConfirm:
-      'Overwrite brand on stock-out notices, packing, packing customer brand and receivables from the current SO lines. Inventory is not re-bucketed and progress is not recalculated. Continue?',
+      'Overwrite brand on stock-out notices, packing, packing customer brand, receivables and customs lines from the current SO lines. Inventory is not re-bucketed and progress is not recalculated. Continue?',
     refreshQtyConfirm:
       'Align stock-out notice planned qty with current SO qty (shrink an oversized single not-yet-shipped notice only; split notices are not expanded), then recalculate status. Shipped notice qty and actual outbound qty are not changed. Continue?',
     refreshPriceConfirm:
@@ -6703,7 +6703,7 @@ const enUS = {
     refreshDownstreamSummary:
       'Downstream sales prices: packing {packing}, stock {stock}, outbound lines {outItem}, outbound headers {outHead}, receivables {ar}.',
     refreshIdentitySummary:
-      'Downstream snapshots: stock-out notices {notifies}, packing {packing}, packing extends {packingExt}, receivables {ar}.',
+      'Downstream snapshots: stock-out notices {notifies}, packing {packing}, packing extends {packingExt}, receivables {ar}, customs {customs}.',
     refreshQtySummary: 'Stock-out notice planned qty aligned on {notifies} notice(s). Shipped quantities were not changed.',
     refreshIdentityLine: '{type} {node}: {before} → {after}',
     refreshPriceLine: '{code}: unit price {before} → {after}',
@@ -9942,7 +9942,7 @@ const enUS = {
     refreshing: 'Refreshing…',
     refreshConfirmTitle: 'Confirm refresh',
     refreshConfirm:
-      'This will overwrite purchase-price snapshots on arrival notices, stock-in, inventory, and outbound (including received / requested / written-off / invoice-matched), then recalculate line progress. Payment request / payment rows and purchase-invoice face amounts are not changed. The operator is responsible for the result. Continue?',
+      'This will overwrite purchase-price snapshots on arrival notices, stock-in, inventory, outbound, and customs lines (including received / requested / written-off / invoice-matched), then recalculate line progress. Customs updates original purchase price and currency only; duty and other fees are not recalculated. Payment request / payment rows and purchase-invoice face amounts are not changed. The operator is responsible for the result. Continue?',
     refreshStatusConfirm:
       'Recalculate line status and progress from arrival / stock-in / payment / invoice facts. Vendor, part no., brand, quantity and unit cost are not changed. Continue?',
     refreshPnConfirm:
@@ -9952,11 +9952,11 @@ const enUS = {
     refreshQtyConfirm:
       'Align arrival planned qty with current PO qty (shrink an oversized single batch only; split batches are not expanded), then recalculate totals, GP and status. Posted stock-in / stock / outbound quantities are not changed. Continue?',
     refreshPriceConfirm:
-      'Overwrite purchase-price snapshots on arrival notices, stock-in, inventory, and outbound (including received / requested / written-off / invoice-matched), then recalculate totals, GP and status. Payment request / payment rows and purchase-invoice face amounts are not changed. Continue?',
+      'Overwrite purchase-price snapshots on arrival notices, stock-in, inventory, outbound, and customs lines (including received / requested / written-off / invoice-matched), then recalculate totals, GP and status. Customs updates original purchase price and currency only; duty and other fees are not recalculated. Payment request / payment rows and purchase-invoice face amounts are not changed. Continue?',
     refreshResultEmpty: 'No updates',
     refreshResultTitle: 'Refresh result',
     refreshDownstreamSummary:
-      'Downstream purchase prices: arrival notices {notices}, stock-in lines {stockIn}, stock-in headers {stockInHead}, stock {stock}, outbound lines {outItem}.',
+      'Downstream purchase prices: arrival notices {notices}, stock-in lines {stockIn}, stock-in headers {stockInHead}, stock {stock}, outbound lines {outItem}, customs {customs}.',
     refreshIdentitySummary:
       'Downstream snapshots: arrival notices {notices}, stock-in {stockIn}, stock items {stock} (moved {moved}, new aggregates {buckets}, removed empty {removed}), packing {packing}, customs {customs}.',
     refreshQtySummary: 'Arrival planned qty aligned on {notices} notice(s). Posted quantities were not changed.',

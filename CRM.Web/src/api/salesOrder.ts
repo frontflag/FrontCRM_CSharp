@@ -37,6 +37,7 @@ export interface SalesOrderItemExtendRefreshResult {
   receivablesUpdated?: number
   stockOutNotifiesUpdated?: number
   packingItemsUpdated?: number
+  customsDeclarationItemsUpdated?: number
   identityChanges?: SalesOrderIdentitySnapshotChangeDto[]
   oldCustomerName?: string | null
   newCustomerName?: string | null
@@ -117,6 +118,7 @@ export interface SalesOrderCustomerDownstreamSyncPreview {
   packingItemExtendsToSync: number
   stockOutsToSync: number
   receivablesToSync: number
+  customsDeclarationItemsToSync?: number
   syncItems: SalesOrderCustomerDownstreamSyncPreviewItem[]
 }
 

@@ -25,13 +25,15 @@ public class SalesOrderIdentityDownstreamSyncResult
     public int PackingItemsUpdated { get; set; }
     public int PackingItemExtendsUpdated { get; set; }
     public int ReceivablesUpdated { get; set; }
+    public int CustomsDeclarationItemsUpdated { get; set; }
     public List<SalesOrderIdentitySnapshotChangeDto> Changes { get; set; } = new();
 
     public bool HasUpdates =>
         StockOutNotifiesUpdated > 0
         || PackingItemsUpdated > 0
         || PackingItemExtendsUpdated > 0
-        || ReceivablesUpdated > 0;
+        || ReceivablesUpdated > 0
+        || CustomsDeclarationItemsUpdated > 0;
 }
 
 public class SalesOrderIdentitySnapshotChangeDto

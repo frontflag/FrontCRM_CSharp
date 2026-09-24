@@ -1934,7 +1934,8 @@ function buildRefreshResultHtml(result: PurchaseOrderItemExtendRefreshResult) {
         stockIn: Number(result.stockInItemsUpdated ?? 0),
         stockInHead: Number(result.stockInHeadersUpdated ?? 0),
         stock: Number(result.stockItemsUpdated ?? 0),
-        outItem: Number(result.stockOutItemExtendsUpdated ?? 0)
+        outItem: Number(result.stockOutItemExtendsUpdated ?? 0),
+        customs: Number(result.customsDeclarationItemsUpdated ?? 0)
       })
     )
   } else {
@@ -2146,6 +2147,14 @@ function buildVendorSyncPreviewHtml(preview: PurchaseOrderVendorChangePreviewRes
   if (preview.purchaseInvoicesToSync > 0) {
     lines.push(`<div>未完成进项发票 ${preview.purchaseInvoicesToSync} 张</div>`)
   }
+  if ((preview.stockItemsToSync ?? 0) > 0) lines.push(`<div>库存明细 ${preview.stockItemsToSync} 条</div>`)
+  if ((preview.customsDeclarationItemsToSync ?? 0) > 0) {
+    lines.push(`<div>报关明细 ${preview.customsDeclarationItemsToSync} 条</div>`)
+  }
+  if ((preview.stockItemsToSync ?? 0) > 0) lines.push(`<div>库存明细 ${preview.stockItemsToSync} 条</div>`)
+  if ((preview.customsDeclarationItemsToSync ?? 0) > 0) {
+    lines.push(`<div>报关明细 ${preview.customsDeclarationItemsToSync} 条</div>`)
+  }
   const completedDocs = completedDocumentsOf(preview)
   if (completedDocs.length > 0) {
     lines.push(`<div style="margin-top:8px;color:#b45309;">${escapeVendorSyncHtml(t('purchaseOrderDetail.refreshCompletedWarnLead'))}</div>`)
@@ -2250,7 +2259,7 @@ async function handleRefreshVendor() {
     const headerPart = (p.poVendorNameToSync ?? 0) > 0 ? '采购订单名称快照 1 张，' : ''
     await ElMessageBox.alert(
       result.changed
-        ? `已同步：${headerPart}采购明细 ${p.poItemsToSync} 条，到货通知 ${p.arrivalNoticesToSync} 条，入库单 ${p.stockInsToSync} 张，付款单 ${p.paymentsToSync} 张，进项发票 ${p.purchaseInvoicesToSync} 张。`
+        ? `已同步：${headerPart}采购明细 ${p.poItemsToSync} 条，到货通知 ${p.arrivalNoticesToSync} 条，入库单 ${p.stockInsToSync} 张，付款单 ${p.paymentsToSync} 张，进项发票 ${p.purchaseInvoicesToSync} 张，库存 ${p.stockItemsToSync ?? 0} 条，报关 ${p.customsDeclarationItemsToSync ?? 0} 条。`
         : '供应商信息与主数据一致，无需更新。',
       '刷新供应商完成',
       { confirmButtonText: '知道了' }

@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -22,6 +23,8 @@ public sealed class PurchaseOrderPurchasePriceDownstreamSyncService : IPurchaseO
     private readonly IRepository<StockOutItemExtend> _stockOutItemExtendRepo;
     private readonly IRepository<FinancePayment> _paymentRepo;
     private readonly IRepository<FinancePaymentItem> _payItemRepo;
+    private readonly IRepository<PackingItem> _packingItemRepo;
+    private readonly IRepository<CustomsDeclarationItem> _customsItemRepo;
     private readonly ILogger<PurchaseOrderPurchasePriceDownstreamSyncService> _logger;
 
     public PurchaseOrderPurchasePriceDownstreamSyncService(
@@ -34,6 +37,8 @@ public sealed class PurchaseOrderPurchasePriceDownstreamSyncService : IPurchaseO
         IRepository<StockOutItemExtend> stockOutItemExtendRepo,
         IRepository<FinancePayment> paymentRepo,
         IRepository<FinancePaymentItem> payItemRepo,
+        IRepository<PackingItem> packingItemRepo,
+        IRepository<CustomsDeclarationItem> customsItemRepo,
         ILogger<PurchaseOrderPurchasePriceDownstreamSyncService> logger)
     {
         _notifyRepo = notifyRepo;
@@ -45,6 +50,8 @@ public sealed class PurchaseOrderPurchasePriceDownstreamSyncService : IPurchaseO
         _stockOutItemExtendRepo = stockOutItemExtendRepo;
         _paymentRepo = paymentRepo;
         _payItemRepo = payItemRepo;
+        _packingItemRepo = packingItemRepo;
+        _customsItemRepo = customsItemRepo;
         _logger = logger;
     }
 
@@ -79,6 +86,7 @@ public sealed class PurchaseOrderPurchasePriceDownstreamSyncService : IPurchaseO
             result.StockInItemExtendsUpdated += stockInExtends;
             result.StockItemsUpdated += await SyncStockItemsAsync(chunkList, byLineId, observedOld);
             result.StockOutItemExtendsUpdated += await SyncStockOutItemExtendsAsync(chunkList, byLineId, observedOld);
+            result.CustomsDeclarationItemsUpdated += await SyncCustomsItemsAsync(chunkList, byLineId);
             await CollectPaymentOverWarningsAsync(chunkList, byLineId, result.PaymentOverWarnings);
         }
 
@@ -106,13 +114,14 @@ public sealed class PurchaseOrderPurchasePriceDownstreamSyncService : IPurchaseO
         }
 
         _logger.LogInformation(
-            "PO下游采购价刷新: Lines={Lines} Notices={Notices} StockIn={StockIn} StockInHead={StockInHead} StockItem={StockItem} StockOutExt={StockOutExt} InvoiceWarn={InvoiceWarn} PayWarn={PayWarn}",
+            "PO下游采购价刷新: Lines={Lines} Notices={Notices} StockIn={StockIn} StockInHead={StockInHead} StockItem={StockItem} StockOutExt={StockOutExt} Customs={Customs} InvoiceWarn={InvoiceWarn} PayWarn={PayWarn}",
             result.LineChanges.Count,
             result.ArrivalNoticesUpdated,
             result.StockInItemsUpdated,
             result.StockInHeadersUpdated,
             result.StockItemsUpdated,
             result.StockOutItemExtendsUpdated,
+            result.CustomsDeclarationItemsUpdated,
             result.InvoiceMatchWarnings.Count,
             result.PaymentOverWarnings.Count);
 
@@ -306,6 +315,106 @@ public sealed class PurchaseOrderPurchasePriceDownstreamSyncService : IPurchaseO
         }
 
         return updated;
+    }
+
+    /// <summary>
+    /// 覆盖报关明细原币采购单价与币别。金额由列表按单价×申报数量现算。不重算关税等费用。
+    /// 关联与型号/品牌刷新相同：库存行，以及经装箱明细反查。
+    /// </summary>
+    private async Task<int> SyncCustomsItemsAsync(
+        List<string> lineIds,
+        IReadOnlyDictionary<string, PurchaseOrderItem> byLineId)
+    {
+        var stockItems = (await _stockItemRepo.FindAsync(s =>
+                s.PurchaseOrderItemId != null && lineIds.Contains(s.PurchaseOrderItemId)))
+            .ToList();
+        var poLineByStockItemId = stockItems
+            .Where(s => !string.IsNullOrWhiteSpace(s.Id) && !string.IsNullOrWhiteSpace(s.PurchaseOrderItemId))
+            .GroupBy(s => s.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().PurchaseOrderItemId!.Trim(), StringComparer.OrdinalIgnoreCase);
+        var stockItemIds = poLineByStockItemId.Keys.ToList();
+
+        List<CustomsDeclarationItem> rows;
+        if (stockItemIds.Count == 0)
+            rows = new List<CustomsDeclarationItem>();
+        else
+            rows = (await _customsItemRepo.FindAsync(c =>
+                    c.SourceStockItemId != null && stockItemIds.Contains(c.SourceStockItemId)))
+                .ToList();
+
+        var packingItems = stockItemIds.Count == 0
+            ? new List<PackingItem>()
+            : (await _packingItemRepo.FindAsync(p =>
+                    p.StockItemId != null && stockItemIds.Contains(p.StockItemId)))
+                .ToList();
+        var packingById = packingItems
+            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+            .GroupBy(p => p.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var packingItemIds = packingById.Keys.ToList();
+        if (packingItemIds.Count > 0)
+        {
+            var viaPacking = (await _customsItemRepo.FindAsync(c =>
+                    c.PackingItemId != null && packingItemIds.Contains(c.PackingItemId)))
+                .ToList();
+            var seen = new HashSet<string>(rows.Select(r => r.Id), StringComparer.OrdinalIgnoreCase);
+            foreach (var extra in viaPacking)
+            {
+                if (seen.Add(extra.Id))
+                    rows.Add(extra);
+            }
+        }
+
+        var updated = 0;
+        foreach (var row in rows)
+        {
+            if (row.IsDeleted)
+                continue;
+            if (!TryResolveCustomsPoLineId(row, poLineByStockItemId, packingById, out var lineId)
+                || !byLineId.TryGetValue(lineId, out var poItem))
+                continue;
+
+            if (row.OriginalPurchasePrice == poItem.Cost && row.PurchaseCurrency == poItem.Currency)
+                continue;
+
+            row.OriginalPurchasePrice = poItem.Cost;
+            row.PurchaseCurrency = poItem.Currency;
+            row.ModifyTime = DateTime.UtcNow;
+            await _customsItemRepo.UpdateAsync(row);
+            updated++;
+        }
+
+        return updated;
+    }
+
+    private static bool TryResolveCustomsPoLineId(
+        CustomsDeclarationItem row,
+        IReadOnlyDictionary<string, string> poLineByStockItemId,
+        IReadOnlyDictionary<string, PackingItem> packingById,
+        out string lineId)
+    {
+        lineId = string.Empty;
+        var sourceStockId = row.SourceStockItemId?.Trim();
+        if (!string.IsNullOrEmpty(sourceStockId)
+            && poLineByStockItemId.TryGetValue(sourceStockId, out var fromStock)
+            && !string.IsNullOrWhiteSpace(fromStock))
+        {
+            lineId = fromStock;
+            return true;
+        }
+
+        var packingItemId = row.PackingItemId?.Trim();
+        if (!string.IsNullOrEmpty(packingItemId)
+            && packingById.TryGetValue(packingItemId, out var packing)
+            && !string.IsNullOrWhiteSpace(packing.StockItemId)
+            && poLineByStockItemId.TryGetValue(packing.StockItemId.Trim(), out var fromPacking)
+            && !string.IsNullOrWhiteSpace(fromPacking))
+        {
+            lineId = fromPacking;
+            return true;
+        }
+
+        return false;
     }
 
     private async Task<int> RecalcAffectedStockInHeadersAsync(

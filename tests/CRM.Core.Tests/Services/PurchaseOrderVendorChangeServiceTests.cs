@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -24,6 +25,9 @@ public class PurchaseOrderVendorChangeServiceTests
     private readonly IRepository<FinancePaymentItem> _paymentItemRepo;
     private readonly IRepository<FinancePurchaseInvoice> _purchaseInvoiceRepo;
     private readonly IRepository<FinancePurchaseInvoiceItem> _purchaseInvoiceItemRepo;
+    private readonly IRepository<StockItem> _stockItemRepo;
+    private readonly IRepository<PackingItem> _packingItemRepo;
+    private readonly IRepository<CustomsDeclarationItem> _customsItemRepo;
     private readonly IPurchaseQuoterPoolService _purchaseParams;
     private readonly PurchaseOrderVendorChangeService _service;
 
@@ -39,6 +43,15 @@ public class PurchaseOrderVendorChangeServiceTests
         _paymentItemRepo = Substitute.For<IRepository<FinancePaymentItem>>();
         _purchaseInvoiceRepo = Substitute.For<IRepository<FinancePurchaseInvoice>>();
         _purchaseInvoiceItemRepo = Substitute.For<IRepository<FinancePurchaseInvoiceItem>>();
+        _stockItemRepo = Substitute.For<IRepository<StockItem>>();
+        _packingItemRepo = Substitute.For<IRepository<PackingItem>>();
+        _customsItemRepo = Substitute.For<IRepository<CustomsDeclarationItem>>();
+        _stockItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<StockItem, bool>>>())
+            .Returns(new List<StockItem>());
+        _packingItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<PackingItem, bool>>>())
+            .Returns(new List<PackingItem>());
+        _customsItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<CustomsDeclarationItem, bool>>>())
+            .Returns(new List<CustomsDeclarationItem>());
         _purchaseParams = Substitute.For<IPurchaseQuoterPoolService>();
         _purchaseParams.GetAllowRefreshCompletedBizNodesAsync(Arg.Any<CancellationToken>()).Returns(false);
         _service = new PurchaseOrderVendorChangeService(
@@ -52,6 +65,9 @@ public class PurchaseOrderVendorChangeServiceTests
             _paymentItemRepo,
             _purchaseInvoiceRepo,
             _purchaseInvoiceItemRepo,
+            _stockItemRepo,
+            _packingItemRepo,
+            _customsItemRepo,
             _purchaseParams,
             NullLogger<PurchaseOrderVendorChangeService>.Instance);
     }

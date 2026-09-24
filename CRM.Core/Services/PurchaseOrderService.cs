@@ -876,6 +876,7 @@ namespace CRM.Core.Services
             result.StockInItemExtendsUpdated = priceSync.StockInItemExtendsUpdated;
             result.StockItemsUpdated = priceSync.StockItemsUpdated;
             result.StockOutItemExtendsUpdated = priceSync.StockOutItemExtendsUpdated;
+            result.CustomsDeclarationItemsUpdated = priceSync.CustomsDeclarationItemsUpdated;
             result.PurchasePriceLineChanges = priceSync.LineChanges;
             result.InvoiceMatchWarnings = priceSync.InvoiceMatchWarnings;
             result.PaymentOverWarnings = priceSync.PaymentOverWarnings;
@@ -987,7 +988,7 @@ namespace CRM.Core.Services
                 : string.Join("；", priceSync.LineChanges.Select(c =>
                     $"{c.PurchaseOrderItemCode ?? c.PurchaseOrderItemId}: {c.OldCost}→{c.NewCost}"));
             var desc =
-                $"覆盖下游采购价快照。明细 {lineDesc}。到货通知 {priceSync.ArrivalNoticesUpdated}、入库明细 {priceSync.StockInItemsUpdated}、入库单头 {priceSync.StockInHeadersUpdated}、库存 {priceSync.StockItemsUpdated}、出库扩展 {priceSync.StockOutItemExtendsUpdated}。";
+                $"覆盖下游采购价快照。明细 {lineDesc}。到货通知 {priceSync.ArrivalNoticesUpdated}、入库明细 {priceSync.StockInItemsUpdated}、入库单头 {priceSync.StockInHeadersUpdated}、库存 {priceSync.StockItemsUpdated}、出库扩展 {priceSync.StockOutItemExtendsUpdated}、报关 {priceSync.CustomsDeclarationItemsUpdated}。";
             if (priceSync.InvoiceMatchWarnings.Count > 0 || priceSync.PaymentOverWarnings.Count > 0)
                 desc += $" 超额警告 进项 {priceSync.InvoiceMatchWarnings.Count}、已付 {priceSync.PaymentOverWarnings.Count} 条。";
 
@@ -1000,6 +1001,7 @@ namespace CRM.Core.Services
                 stockInItemExtends = priceSync.StockInItemExtendsUpdated,
                 stockItems = priceSync.StockItemsUpdated,
                 stockOutItemExtends = priceSync.StockOutItemExtendsUpdated,
+                customsDeclarationItems = priceSync.CustomsDeclarationItemsUpdated,
                 invoiceWarnings = priceSync.InvoiceMatchWarnings,
                 paymentWarnings = priceSync.PaymentOverWarnings
             });
@@ -1039,7 +1041,7 @@ namespace CRM.Core.Services
             var newDisplay = FormatVendorLogValue(order.VendorId, order.VendorCode, order.VendorName);
             var preview = apply.Preview;
             var desc =
-                $"将供应商由「{oldDisplay}」更换为「{newDisplay}」。同步明细 {preview.PoItemsToSync}、到货通知 {preview.ArrivalNoticesToSync}、入库单 {preview.StockInsToSync}、付款单 {preview.PaymentsToSync}、进项发票 {preview.PurchaseInvoicesToSync}。";
+                $"将供应商由「{oldDisplay}」更换为「{newDisplay}」。同步明细 {preview.PoItemsToSync}、到货通知 {preview.ArrivalNoticesToSync}、入库单 {preview.StockInsToSync}、付款单 {preview.PaymentsToSync}、进项发票 {preview.PurchaseInvoicesToSync}、库存 {preview.StockItemsToSync}、报关 {preview.CustomsDeclarationItemsToSync}。";
             var extraInfo = JsonSerializer.Serialize(new
             {
                 oldVendorId = before.VendorId,
@@ -1050,7 +1052,9 @@ namespace CRM.Core.Services
                 arrivalNotices = preview.ArrivalNoticesToSync,
                 stockIns = preview.StockInsToSync,
                 payments = preview.PaymentsToSync,
-                purchaseInvoices = preview.PurchaseInvoicesToSync
+                purchaseInvoices = preview.PurchaseInvoicesToSync,
+                stockItems = preview.StockItemsToSync,
+                customsDeclarationItems = preview.CustomsDeclarationItemsToSync
             });
 
             await _logOperationAppend.AppendAsync(

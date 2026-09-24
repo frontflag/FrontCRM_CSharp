@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -21,6 +22,8 @@ public class PurchaseOrderPurchasePriceDownstreamSyncServiceTests
     private readonly List<StockOutItemExtend> _stockOutExtends = new();
     private readonly List<FinancePayment> _payments = new();
     private readonly List<FinancePaymentItem> _payItems = new();
+    private readonly List<PackingItem> _packingItems = new();
+    private readonly List<CustomsDeclarationItem> _customsItems = new();
     private readonly PurchaseOrderPurchasePriceDownstreamSyncService _service;
 
     public PurchaseOrderPurchasePriceDownstreamSyncServiceTests()
@@ -34,6 +37,8 @@ public class PurchaseOrderPurchasePriceDownstreamSyncServiceTests
         var stockOutExtendRepo = Substitute.For<IRepository<StockOutItemExtend>>();
         var paymentRepo = Substitute.For<IRepository<FinancePayment>>();
         var payItemRepo = Substitute.For<IRepository<FinancePaymentItem>>();
+        var packingItemRepo = Substitute.For<IRepository<PackingItem>>();
+        var customsItemRepo = Substitute.For<IRepository<CustomsDeclarationItem>>();
 
         Bind(notifyRepo, _notices);
         Bind(stockInRepo, _stockIns);
@@ -44,6 +49,8 @@ public class PurchaseOrderPurchasePriceDownstreamSyncServiceTests
         Bind(stockOutExtendRepo, _stockOutExtends);
         Bind(paymentRepo, _payments);
         Bind(payItemRepo, _payItems);
+        Bind(packingItemRepo, _packingItems);
+        Bind(customsItemRepo, _customsItems);
 
         _service = new PurchaseOrderPurchasePriceDownstreamSyncService(
             notifyRepo,
@@ -55,6 +62,8 @@ public class PurchaseOrderPurchasePriceDownstreamSyncServiceTests
             stockOutExtendRepo,
             paymentRepo,
             payItemRepo,
+            packingItemRepo,
+            customsItemRepo,
             NullLogger<PurchaseOrderPurchasePriceDownstreamSyncService>.Instance);
     }
 
@@ -319,6 +328,85 @@ public class PurchaseOrderPurchasePriceDownstreamSyncServiceTests
         Assert.Equal(60m, _stockInItems[0].Amount);
         Assert.Equal(5m, _stockInItems[1].Price);
         Assert.Equal(65m, _stockIns[0].TotalAmount);
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WhenCustomsSnapshotDiffers_ShouldOverwritePriceAndCurrency()
+    {
+        var item = NewPoItem(cost: 17.40m, convert: 17.40m, qty: 1000m);
+        _stockItems.Add(new StockItem
+        {
+            Id = "STK-CUSTOMS",
+            PurchaseOrderItemId = item.Id,
+            PurchasePrice = 17.40m,
+            PurchaseCurrency = 2,
+            PurchasePriceUsd = 17.40m,
+            QtyInbound = 1000
+        });
+        _packingItems.Add(new PackingItem
+        {
+            Id = "PK-1",
+            PackingId = "PKH-1",
+            StockItemId = "STK-CUSTOMS"
+        });
+        _customsItems.Add(new CustomsDeclarationItem
+        {
+            Id = "CDI-STOCK",
+            DeclarationId = "CD-1",
+            SourceStockItemId = "STK-CUSTOMS",
+            OriginalPurchasePrice = 19.50m,
+            PurchaseCurrency = 2,
+            DeclareQty = 1000,
+            DutyAmount = 8m,
+            CostUsd = 19.50m
+        });
+        _customsItems.Add(new CustomsDeclarationItem
+        {
+            Id = "CDI-PACK",
+            DeclarationId = "CD-1",
+            PackingItemId = "PK-1",
+            OriginalPurchasePrice = 19.50m,
+            PurchaseCurrency = 1,
+            DeclareQty = 10
+        });
+        _customsItems.Add(new CustomsDeclarationItem
+        {
+            Id = "CDI-DELETED",
+            DeclarationId = "CD-1",
+            SourceStockItemId = "STK-CUSTOMS",
+            OriginalPurchasePrice = 19.50m,
+            PurchaseCurrency = 2,
+            IsDeleted = true
+        });
+        _customsItems.Add(new CustomsDeclarationItem
+        {
+            Id = "CDI-SAME",
+            DeclarationId = "CD-1",
+            SourceStockItemId = "STK-CUSTOMS",
+            OriginalPurchasePrice = 17.40m,
+            PurchaseCurrency = 2
+        });
+        _customsItems.Add(new CustomsDeclarationItem
+        {
+            Id = "CDI-OTHER",
+            DeclarationId = "CD-2",
+            SourceStockItemId = "STK-OTHER",
+            OriginalPurchasePrice = 9m,
+            PurchaseCurrency = 2
+        });
+
+        var result = await _service.ApplyAsync(new[] { item });
+
+        Assert.Equal(2, result.CustomsDeclarationItemsUpdated);
+        Assert.Equal(17.40m, _customsItems[0].OriginalPurchasePrice);
+        Assert.Equal((short)2, _customsItems[0].PurchaseCurrency);
+        Assert.Equal(8m, _customsItems[0].DutyAmount);
+        Assert.Equal(19.50m, _customsItems[0].CostUsd);
+        Assert.Equal(17.40m, _customsItems[1].OriginalPurchasePrice);
+        Assert.Equal((short)2, _customsItems[1].PurchaseCurrency);
+        Assert.Equal(19.50m, _customsItems[2].OriginalPurchasePrice);
+        Assert.Equal(17.40m, _customsItems[3].OriginalPurchasePrice);
+        Assert.Equal(9m, _customsItems[4].OriginalPurchasePrice);
     }
 
     private static PurchaseOrderItem NewPoItem(decimal cost, decimal convert, decimal qty) => new()

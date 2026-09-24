@@ -1,4 +1,5 @@
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Sales;
@@ -16,6 +17,7 @@ public sealed class SalesOrderIdentityDownstreamSyncService : ISalesOrderIdentit
     private readonly IRepository<PackingItem> _packingItemRepo;
     private readonly IRepository<PackingItemExtend> _packingItemExtendRepo;
     private readonly IRepository<FinanceReceivable> _receivableRepo;
+    private readonly IRepository<CustomsDeclarationItem> _customsItemRepo;
     private readonly ILogger<SalesOrderIdentityDownstreamSyncService> _logger;
 
     public SalesOrderIdentityDownstreamSyncService(
@@ -23,12 +25,14 @@ public sealed class SalesOrderIdentityDownstreamSyncService : ISalesOrderIdentit
         IRepository<PackingItem> packingItemRepo,
         IRepository<PackingItemExtend> packingItemExtendRepo,
         IRepository<FinanceReceivable> receivableRepo,
+        IRepository<CustomsDeclarationItem> customsItemRepo,
         ILogger<SalesOrderIdentityDownstreamSyncService> logger)
     {
         _notifyRepo = notifyRepo;
         _packingItemRepo = packingItemRepo;
         _packingItemExtendRepo = packingItemExtendRepo;
         _receivableRepo = receivableRepo;
+        _customsItemRepo = customsItemRepo;
         _logger = logger;
     }
 
@@ -59,16 +63,19 @@ public sealed class SalesOrderIdentityDownstreamSyncService : ISalesOrderIdentit
             result.PackingItemExtendsUpdated += await SyncPackingItemExtendsAsync(
                 chunkList, byLineId, field, result.Changes);
             result.ReceivablesUpdated += await SyncReceivablesAsync(chunkList, byLineId, field, result.Changes);
+            result.CustomsDeclarationItemsUpdated += await SyncCustomsItemsAsync(
+                chunkList, byLineId, field, result.Changes);
         }
 
         _logger.LogInformation(
-            "SO下游身份快照刷新: Field={Field} Lines={Lines} Notifies={Notifies} Packing={Packing} PackingExtend={PackingExtend} Receivable={Receivable}",
+            "SO下游身份快照刷新: Field={Field} Lines={Lines} Notifies={Notifies} Packing={Packing} PackingExtend={PackingExtend} Receivable={Receivable} Customs={Customs}",
             field,
             byLineId.Count,
             result.StockOutNotifiesUpdated,
             result.PackingItemsUpdated,
             result.PackingItemExtendsUpdated,
-            result.ReceivablesUpdated);
+            result.ReceivablesUpdated,
+            result.CustomsDeclarationItemsUpdated);
 
         return result;
     }
@@ -221,6 +228,77 @@ public sealed class SalesOrderIdentityDownstreamSyncService : ISalesOrderIdentit
             else
                 row.Brand = target;
             await _receivableRepo.UpdateAsync(row);
+            updated++;
+        }
+
+        return updated;
+    }
+
+    private async Task<int> SyncCustomsItemsAsync(
+        List<string> lineIds,
+        IReadOnlyDictionary<string, SellOrderItem> byLineId,
+        SalesOrderIdentitySnapshotField field,
+        List<SalesOrderIdentitySnapshotChangeDto> changes)
+    {
+        var direct = (await _customsItemRepo.FindAsync(c =>
+                c.SellOrderItemId != null && lineIds.Contains(c.SellOrderItemId)))
+            .ToList();
+        var packingItems = (await _packingItemRepo.FindAsync(p =>
+                !p.IsDeleted
+                && p.SellOrderItemId != null
+                && lineIds.Contains(p.SellOrderItemId)))
+            .ToList();
+        var packingById = packingItems
+            .Where(p => !string.IsNullOrWhiteSpace(p.Id))
+            .GroupBy(p => p.Id.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+        var packingItemIds = packingById.Keys.ToList();
+        var rows = direct;
+        if (packingItemIds.Count > 0)
+        {
+            var viaPacking = (await _customsItemRepo.FindAsync(c =>
+                    c.PackingItemId != null && packingItemIds.Contains(c.PackingItemId)))
+                .ToList();
+            var seen = new HashSet<string>(rows.Select(r => r.Id), StringComparer.OrdinalIgnoreCase);
+            foreach (var extra in viaPacking)
+            {
+                if (seen.Add(extra.Id))
+                    rows.Add(extra);
+            }
+        }
+
+        var updated = 0;
+        foreach (var row in rows)
+        {
+            if (row.IsDeleted)
+                continue;
+
+            string? lineId = row.SellOrderItemId?.Trim();
+            if (string.IsNullOrEmpty(lineId))
+            {
+                var packingItemId = row.PackingItemId?.Trim();
+                if (!string.IsNullOrEmpty(packingItemId)
+                    && packingById.TryGetValue(packingItemId, out var packing))
+                    lineId = packing.SellOrderItemId?.Trim();
+            }
+
+            if (string.IsNullOrEmpty(lineId) || !byLineId.TryGetValue(lineId, out var item))
+                continue;
+
+            var target = field == SalesOrderIdentitySnapshotField.Pn
+                ? Clip(item.PN, TextMax)
+                : Clip(item.Brand, TextMax);
+            var current = field == SalesOrderIdentitySnapshotField.Pn ? row.PurchasePn : row.PurchaseBrand;
+            if (TextEquals(current, target))
+                continue;
+
+            Remember(changes, "customsItem", row.Id, null, current, target);
+            if (field == SalesOrderIdentitySnapshotField.Pn)
+                row.PurchasePn = target;
+            else
+                row.PurchaseBrand = target;
+            row.ModifyTime = DateTime.UtcNow;
+            await _customsItemRepo.UpdateAsync(row);
             updated++;
         }
 

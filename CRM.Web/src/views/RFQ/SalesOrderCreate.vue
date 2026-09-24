@@ -916,6 +916,7 @@ const customerChangeTipLines = computed(() => {
   if (p.packingsToSync > 0) lines.push(`· 装箱单 ${p.packingsToSync} 张`)
   if (p.packingItemExtendsToSync > 0) lines.push(`· 装箱明细扩展 ${p.packingItemExtendsToSync} 行`)
   if (p.stockOutsToSync > 0) lines.push(`· 未完结出库单 ${p.stockOutsToSync} 张`)
+  if ((p.customsDeclarationItemsToSync ?? 0) > 0) lines.push(`· 报关明细 ${p.customsDeclarationItemsToSync} 条`)
   return lines
 })
 

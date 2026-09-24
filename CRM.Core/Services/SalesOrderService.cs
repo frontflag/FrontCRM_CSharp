@@ -1229,6 +1229,7 @@ namespace CRM.Core.Services
                 result.PackingItemsUpdated = identitySync.PackingItemsUpdated;
                 result.PackingItemExtendsUpdated = identitySync.PackingItemExtendsUpdated;
                 result.ReceivablesUpdated = identitySync.ReceivablesUpdated;
+                result.CustomsDeclarationItemsUpdated = identitySync.CustomsDeclarationItemsUpdated;
                 result.IdentityChanges = identitySync.Changes;
             }
             else if (facet == SalesOrderRefreshFacet.Qty)
@@ -1405,6 +1406,7 @@ namespace CRM.Core.Services
                 || result.PackingItemsUpdated > 0
                 || result.PackingItemExtendsUpdated > 0
                 || result.ReceivablesUpdated > 0
+                || result.CustomsDeclarationItemsUpdated > 0
                 || (identitySync?.HasUpdates ?? false);
             if (!hasWork)
                 return;
@@ -1428,9 +1430,9 @@ namespace CRM.Core.Services
             var desc = facet switch
             {
                 SalesOrderRefreshFacet.Pn =>
-                    $"覆盖下游物料型号快照。出库通知 {result.StockOutNotifiesUpdated}、装箱 {result.PackingItemsUpdated}、装箱扩展 {result.PackingItemExtendsUpdated}、应收 {result.ReceivablesUpdated}。",
+                    $"覆盖下游物料型号快照。出库通知 {result.StockOutNotifiesUpdated}、装箱 {result.PackingItemsUpdated}、装箱扩展 {result.PackingItemExtendsUpdated}、应收 {result.ReceivablesUpdated}、报关 {result.CustomsDeclarationItemsUpdated}。",
                 SalesOrderRefreshFacet.Brand =>
-                    $"覆盖下游品牌快照。出库通知 {result.StockOutNotifiesUpdated}、装箱 {result.PackingItemsUpdated}、装箱扩展 {result.PackingItemExtendsUpdated}、应收 {result.ReceivablesUpdated}。",
+                    $"覆盖下游品牌快照。出库通知 {result.StockOutNotifiesUpdated}、装箱 {result.PackingItemsUpdated}、装箱扩展 {result.PackingItemExtendsUpdated}、应收 {result.ReceivablesUpdated}、报关 {result.CustomsDeclarationItemsUpdated}。",
                 SalesOrderRefreshFacet.Qty =>
                     $"按销售行数量对齐出库通知计划量（仅收缩超量单条未出库通知），并重算进度。出库通知 {result.StockOutNotifiesUpdated} 条。不改已出库通知与实出数量。",
                 _ =>
@@ -1444,6 +1446,7 @@ namespace CRM.Core.Services
                 packingItems = result.PackingItemsUpdated,
                 packingItemExtends = result.PackingItemExtendsUpdated,
                 receivables = result.ReceivablesUpdated,
+                customsDeclarationItems = result.CustomsDeclarationItemsUpdated,
                 identityChanges = result.IdentityChanges,
                 changedItems = result.ChangedItems,
                 changedFields = result.ChangedFieldsCount

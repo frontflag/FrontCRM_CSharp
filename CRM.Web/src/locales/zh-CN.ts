@@ -6673,9 +6673,9 @@ const zhCN = {
     refreshStatusConfirm:
       '将按当前出库、装箱、收款、开票事实重算本单各行状态与进度，不改客户、型号、品牌、数量和单价。是否继续？',
     refreshPnConfirm:
-      '将按本单各行当前物料型号覆盖出库通知、装箱、装箱客户料号和应收上的型号。不改库存分堆，也不重算进度。是否继续？',
+      '将按本单各行当前物料型号覆盖出库通知、装箱、装箱客户料号、应收和报关明细上的型号。不改库存分堆，也不重算进度。是否继续？',
     refreshBrandConfirm:
-      '将按本单各行当前品牌覆盖出库通知、装箱、装箱客户品牌和应收上的品牌。不改库存分堆，也不重算进度。是否继续？',
+      '将按本单各行当前品牌覆盖出库通知、装箱、装箱客户品牌、应收和报关明细上的品牌。不改库存分堆，也不重算进度。是否继续？',
     refreshQtyConfirm:
       '将按本单各行当前销售数量对齐出库通知计划量（只收缩超量的单条未出库通知，不会把分批通知扩成整单），并重算状态。已出库通知数量与实出不会改。是否继续？',
     refreshPriceConfirm:
@@ -6684,7 +6684,7 @@ const zhCN = {
     refreshResultTitle: '刷新结果',
     refreshDownstreamSummary: '下游销售价：装箱 {packing}，库存 {stock}，出库明细 {outItem}，出库单头 {outHead}，应收 {ar}。',
     refreshIdentitySummary:
-      '下游快照：出库通知 {notifies}，装箱 {packing}，装箱扩展 {packingExt}，应收 {ar}。',
+      '下游快照：出库通知 {notifies}，装箱 {packing}，装箱扩展 {packingExt}，应收 {ar}，报关 {customs}。',
     refreshQtySummary: '出库通知计划量已对齐 {notifies} 条。已出库通知与实出数量未改。',
     refreshIdentityLine: '{type} {node}：{before} → {after}',
     refreshPriceLine: '{code}：单价 {before} → {after}',
@@ -9923,7 +9923,7 @@ const zhCN = {
     refreshing: '刷新中…',
     refreshConfirmTitle: '刷新确认',
     refreshConfirm:
-      '将按当前采购单价覆盖到货通知、入库、库存、出库上的采购价快照（含已入库 / 已请款 / 已核销 / 已进项匹配），并重算明细执行状态。请款与付款流水、进项发票票面不会改。数据由操作人核对，是否继续？',
+      '将按当前采购单价覆盖到货通知、入库、库存、出库和报关明细上的采购价快照（含已入库 / 已请款 / 已核销 / 已进项匹配），并重算明细执行状态。报关只改原币采购单价和币别，不重算关税等费用。请款与付款流水、进项发票票面不会改。数据由操作人核对，是否继续？',
     refreshStatusConfirm:
       '将按当前到货、入库、付款、进项事实重算本单各行状态与进度，不改供应商、型号、品牌、数量和单价。是否继续？',
     refreshPnConfirm:
@@ -9933,11 +9933,11 @@ const zhCN = {
     refreshQtyConfirm:
       '将按本单各行当前采购数量对齐到货计划量（只收缩超量的单批次，不会把分批到货扩成整单），并重算总额、利润与状态。不会改已经入库、出库、付款的实绩数量。是否继续？',
     refreshPriceConfirm:
-      '将按当前采购单价覆盖到货通知、入库、库存、出库上的采购价快照（含已入库 / 已请款 / 已核销 / 已进项匹配），并重算总额、利润与状态。请款与付款流水、进项发票票面不会改。数据由操作人核对，是否继续？',
+      '将按当前采购单价覆盖到货通知、入库、库存、出库和报关明细上的采购价快照（含已入库 / 已请款 / 已核销 / 已进项匹配），并重算总额、利润与状态。报关只改原币采购单价和币别，不重算关税等费用。请款与付款流水、进项发票票面不会改。数据由操作人核对，是否继续？',
     refreshResultEmpty: '无更新数据',
     refreshResultTitle: '刷新结果',
     refreshDownstreamSummary:
-      '下游采购价：到货通知 {notices}，入库明细 {stockIn}，入库单头 {stockInHead}，库存 {stock}，出库明细 {outItem}。',
+      '下游采购价：到货通知 {notices}，入库明细 {stockIn}，入库单头 {stockInHead}，库存 {stock}，出库明细 {outItem}，报关 {customs}。',
     refreshIdentitySummary:
       '下游快照：到货通知 {notices}，入库明细 {stockIn}，库存明细 {stock}（换堆 {moved}，新建汇总 {buckets}，删除空汇总 {removed}），装箱 {packing}，报关 {customs}。',
     refreshQtySummary: '到货计划量已对齐 {notices} 条通知。入库/库存/出库实绩数量未改。',

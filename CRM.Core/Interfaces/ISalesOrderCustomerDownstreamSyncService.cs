@@ -51,6 +51,7 @@ public class SalesOrderCustomerDownstreamSyncPreviewResult
     public int PackingItemExtendsToSync { get; set; }
     public int StockOutsToSync { get; set; }
     public int ReceivablesToSync { get; set; }
+    public int CustomsDeclarationItemsToSync { get; set; }
     public List<SalesOrderCustomerDownstreamSyncPreviewItem> SyncItems { get; set; } = new();
 }
 

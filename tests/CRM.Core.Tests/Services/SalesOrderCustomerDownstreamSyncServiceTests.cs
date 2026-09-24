@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
@@ -23,6 +24,7 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
     private readonly IRepository<SellInvoiceItem> _sellInvoiceItemRepo;
     private readonly IRepository<StockOutItem> _stockOutItemRepo;
     private readonly IRepository<CustomerInfo> _customerRepo;
+    private readonly IRepository<CustomsDeclarationItem> _customsItemRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly SalesOrderCustomerDownstreamSyncService _service;
 
@@ -39,6 +41,9 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
         _sellInvoiceItemRepo = Substitute.For<IRepository<SellInvoiceItem>>();
         _stockOutItemRepo = Substitute.For<IRepository<StockOutItem>>();
         _customerRepo = Substitute.For<IRepository<CustomerInfo>>();
+        _customsItemRepo = Substitute.For<IRepository<CustomsDeclarationItem>>();
+        _customsItemRepo.FindAsync(Arg.Any<System.Linq.Expressions.Expression<Func<CustomsDeclarationItem, bool>>>())
+            .Returns(new List<CustomsDeclarationItem>());
         _unitOfWork = Substitute.For<IUnitOfWork>();
         _unitOfWork.SaveChangesAsync().Returns(1);
         var salesParams = Substitute.For<ISalesParamsService>();
@@ -55,6 +60,7 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
             _sellInvoiceItemRepo,
             _stockOutItemRepo,
             _customerRepo,
+            _customsItemRepo,
             _unitOfWork,
             salesParams,
             NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);
@@ -644,6 +650,7 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
             _sellInvoiceItemRepo,
             _stockOutItemRepo,
             _customerRepo,
+            _customsItemRepo,
             _unitOfWork,
             salesParams,
             NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);
@@ -703,6 +710,7 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
             _sellInvoiceItemRepo,
             _stockOutItemRepo,
             _customerRepo,
+            _customsItemRepo,
             _unitOfWork,
             salesParams,
             NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);
@@ -759,6 +767,7 @@ public class SalesOrderCustomerDownstreamSyncServiceTests
             _sellInvoiceItemRepo,
             _stockOutItemRepo,
             _customerRepo,
+            _customsItemRepo,
             _unitOfWork,
             salesParams,
             NullLogger<SalesOrderCustomerDownstreamSyncService>.Instance);

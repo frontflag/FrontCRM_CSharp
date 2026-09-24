@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Customer;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
@@ -26,6 +27,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
     private readonly IRepository<SellInvoiceItem> _sellInvoiceItemRepo;
     private readonly IRepository<StockOutItem> _stockOutItemRepo;
     private readonly IRepository<CustomerInfo> _customerRepo;
+    private readonly IRepository<CustomsDeclarationItem> _customsItemRepo;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ISalesParamsService _salesParams;
     private readonly ILogger<SalesOrderCustomerDownstreamSyncService> _logger;
@@ -42,6 +44,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         IRepository<SellInvoiceItem> sellInvoiceItemRepo,
         IRepository<StockOutItem> stockOutItemRepo,
         IRepository<CustomerInfo> customerRepo,
+        IRepository<CustomsDeclarationItem> customsItemRepo,
         IUnitOfWork unitOfWork,
         ISalesParamsService salesParams,
         ILogger<SalesOrderCustomerDownstreamSyncService> logger)
@@ -57,6 +60,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         _sellInvoiceItemRepo = sellInvoiceItemRepo;
         _stockOutItemRepo = stockOutItemRepo;
         _customerRepo = customerRepo;
+        _customsItemRepo = customsItemRepo;
         _unitOfWork = unitOfWork;
         _salesParams = salesParams;
         _logger = logger;
@@ -140,6 +144,13 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             await _receivableRepo.UpdateAsync(receivable);
         }
 
+        foreach (var customs in bundle.SyncCustomsItems)
+        {
+            customs.CustomerId = targetCustomerId;
+            customs.ModifyTime = now;
+            await _customsItemRepo.UpdateAsync(customs);
+        }
+
         if (bundle.PackingItemIdsForExtendSync.Count > 0)
         {
             foreach (var chunk in bundle.PackingItemIdsForExtendSync.Chunk(200))
@@ -164,7 +175,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             await _unitOfWork.SaveChangesAsync();
 
         _logger.LogInformation(
-            "SO同步客户: SalesOrderId={SalesOrderId} Code={Code} CustomerId={CustomerId} HeaderName={HeaderName} Notifies={Notifies} Packings={Packings} Extends={Extends} StockOuts={StockOuts} Receivables={Receivables} Actor={Actor}",
+            "SO同步客户: SalesOrderId={SalesOrderId} Code={Code} CustomerId={CustomerId} HeaderName={HeaderName} Notifies={Notifies} Packings={Packings} Extends={Extends} StockOuts={StockOuts} Receivables={Receivables} Customs={Customs} Actor={Actor}",
             orderEntity.Id,
             orderEntity.SellOrderCode,
             targetCustomerId,
@@ -174,6 +185,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             bundle.PackingItemIdsForExtendSync.Count,
             bundle.SyncStockOuts.Count,
             bundle.SyncReceivables.Count,
+            bundle.SyncCustomsItems.Count,
             actingUserId ?? "(null)");
 
         return new SalesOrderCustomerDownstreamSyncApplyResult { Preview = preview, Applied = true };
@@ -203,6 +215,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             PackingItemExtendsToSync = bundle.PackingItemIdsForExtendSync.Count,
             StockOutsToSync = bundle.SyncStockOuts.Count,
             ReceivablesToSync = bundle.SyncReceivables.Count,
+            CustomsDeclarationItemsToSync = bundle.SyncCustomsItems.Count,
             CompletedDocuments = bundle.CompletedDocuments.ToList(),
             AllowCompletedParam = allowRefreshCompleted
         };
@@ -234,7 +247,8 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             || preview.PackingsToSync > 0
             || preview.PackingItemExtendsToSync > 0
             || preview.StockOutsToSync > 0
-            || preview.ReceivablesToSync > 0;
+            || preview.ReceivablesToSync > 0
+            || preview.CustomsDeclarationItemsToSync > 0;
 
         if (!hasWork)
         {
@@ -450,6 +464,7 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         bundle.SyncPackings.Clear();
         bundle.SyncStockOuts.Clear();
         bundle.SyncReceivables.Clear();
+        bundle.SyncCustomsItems.Clear();
         bundle.PackingItemIdsForExtendSync.Clear();
         bundle.BlockingDocuments.Clear();
         bundle.CompletedDocuments.Clear();
@@ -571,6 +586,13 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
                 }
             }
         }
+
+        foreach (var customs in bundle.CustomsItems)
+        {
+            if (customs.IsDeleted || CustomerIdsMatch(targetId, customs.CustomerId))
+                continue;
+            bundle.SyncCustomsItems.Add(customs);
+        }
     }
 
     private async Task<CustomerSyncBundle> LoadBundleAsync(
@@ -654,6 +676,32 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
 
         var sellInvoices = await LoadMismatchSellInvoicesForOrderAsync(targetCustomerId, lineIds);
 
+        var lineIdList = lineIds.ToList();
+        var packingItemIdList = packingItems
+            .Select(p => p.Id)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var customsItems = new List<CustomsDeclarationItem>();
+        if (lineIdList.Count > 0)
+        {
+            customsItems.AddRange(await _customsItemRepo.FindAsync(c =>
+                c.SellOrderItemId != null && lineIdList.Contains(c.SellOrderItemId)));
+        }
+
+        if (packingItemIdList.Count > 0)
+        {
+            var viaPacking = (await _customsItemRepo.FindAsync(c =>
+                c.PackingItemId != null && packingItemIdList.Contains(c.PackingItemId))).ToList();
+            var seen = new HashSet<string>(customsItems.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+            foreach (var extra in viaPacking)
+            {
+                if (seen.Add(extra.Id))
+                    customsItems.Add(extra);
+            }
+        }
+
         return new CustomerSyncBundle
         {
             Order = order,
@@ -667,7 +715,8 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
             Packings = packings,
             StockOuts = stockOuts,
             Receivables = receivables,
-            SellInvoices = sellInvoices
+            SellInvoices = sellInvoices,
+            CustomsItems = customsItems
         };
     }
 
@@ -755,6 +804,8 @@ public sealed class SalesOrderCustomerDownstreamSyncService : ISalesOrderCustome
         public List<Packing> SyncPackings { get; } = new();
         public List<StockOut> SyncStockOuts { get; } = new();
         public List<FinanceReceivable> SyncReceivables { get; } = new();
+        public List<CustomsDeclarationItem> CustomsItems { get; set; } = new();
+        public List<CustomsDeclarationItem> SyncCustomsItems { get; } = new();
         public List<string> PackingItemIdsForExtendSync { get; } = new();
         public List<string> BlockingDocuments { get; } = new();
         public List<string> CompletedDocuments { get; } = new();

@@ -27,6 +27,7 @@ public class SalesOrderItemExtendRefreshResult
 
     public int StockOutNotifiesUpdated { get; set; }
     public int PackingItemsUpdated { get; set; }
+    public int CustomsDeclarationItemsUpdated { get; set; }
     public List<SalesOrderIdentitySnapshotChangeDto> IdentityChanges { get; set; } = new();
     public string? OldCustomerName { get; set; }
     public string? NewCustomerName { get; set; }

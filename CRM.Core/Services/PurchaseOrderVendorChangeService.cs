@@ -1,5 +1,6 @@
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Models.Customs;
 using CRM.Core.Models.Finance;
 using CRM.Core.Models.Inventory;
 using CRM.Core.Models.Purchase;
@@ -29,6 +30,9 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
     private readonly IRepository<FinancePaymentItem> _paymentItemRepo;
     private readonly IRepository<FinancePurchaseInvoice> _purchaseInvoiceRepo;
     private readonly IRepository<FinancePurchaseInvoiceItem> _purchaseInvoiceItemRepo;
+    private readonly IRepository<StockItem> _stockItemRepo;
+    private readonly IRepository<PackingItem> _packingItemRepo;
+    private readonly IRepository<CustomsDeclarationItem> _customsItemRepo;
     private readonly IPurchaseQuoterPoolService _purchaseParams;
     private readonly ILogger<PurchaseOrderVendorChangeService> _logger;
 
@@ -43,6 +47,9 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         IRepository<FinancePaymentItem> paymentItemRepo,
         IRepository<FinancePurchaseInvoice> purchaseInvoiceRepo,
         IRepository<FinancePurchaseInvoiceItem> purchaseInvoiceItemRepo,
+        IRepository<StockItem> stockItemRepo,
+        IRepository<PackingItem> packingItemRepo,
+        IRepository<CustomsDeclarationItem> customsItemRepo,
         IPurchaseQuoterPoolService purchaseParams,
         ILogger<PurchaseOrderVendorChangeService> logger)
     {
@@ -56,6 +63,9 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         _paymentItemRepo = paymentItemRepo;
         _purchaseInvoiceRepo = purchaseInvoiceRepo;
         _purchaseInvoiceItemRepo = purchaseInvoiceItemRepo;
+        _stockItemRepo = stockItemRepo;
+        _packingItemRepo = packingItemRepo;
+        _customsItemRepo = customsItemRepo;
         _purchaseParams = purchaseParams;
         _logger = logger;
     }
@@ -146,10 +156,24 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             await _purchaseInvoiceRepo.UpdateAsync(invoice);
         }
 
+        foreach (var layer in bundle.SyncStockItems)
+        {
+            layer.VendorId = targetId;
+            layer.ModifyTime = DateTime.UtcNow;
+            await _stockItemRepo.UpdateAsync(layer);
+        }
+
+        foreach (var customs in bundle.SyncCustomsItems)
+        {
+            customs.VendorId = targetId;
+            customs.ModifyTime = DateTime.UtcNow;
+            await _customsItemRepo.UpdateAsync(customs);
+        }
+
         order.ModifyTime = DateTime.UtcNow;
 
         _logger.LogInformation(
-            "PO同步供应商: PurchaseOrderId={PurchaseOrderId} Code={Code} OldVendorId={OldVendorId} NewVendorId={NewVendorId} HeaderName={HeaderName} Items={Items} Notices={Notices} StockIns={StockIns} Payments={Payments} Invoices={Invoices} Actor={Actor}",
+            "PO同步供应商: PurchaseOrderId={PurchaseOrderId} Code={Code} OldVendorId={OldVendorId} NewVendorId={NewVendorId} HeaderName={HeaderName} Items={Items} Notices={Notices} StockIns={StockIns} Payments={Payments} Invoices={Invoices} StockItems={StockItems} Customs={Customs} Actor={Actor}",
             order.Id,
             order.PurchaseOrderCode,
             oldVendorId ?? "(null)",
@@ -160,6 +184,8 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             bundle.SyncStockIns.Count,
             bundle.SyncPayments.Count,
             bundle.SyncPurchaseInvoices.Count,
+            bundle.SyncStockItems.Count,
+            bundle.SyncCustomsItems.Count,
             actingUserId ?? "(null)");
 
         return new PurchaseOrderVendorChangeApplyResult { Preview = preview, Applied = true };
@@ -210,6 +236,8 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             StockInsToSync = bundle.SyncStockIns.Count,
             PaymentsToSync = bundle.SyncPayments.Count,
             PurchaseInvoicesToSync = bundle.SyncPurchaseInvoices.Count,
+            StockItemsToSync = bundle.SyncStockItems.Count,
+            CustomsDeclarationItemsToSync = bundle.SyncCustomsItems.Count,
             AllowCompletedParam = allowRefreshCompleted,
             CompletedDocuments = bundle.CompletedDocuments.ToList()
         };
@@ -229,7 +257,9 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             || preview.ArrivalNoticesToSync > 0
             || preview.StockInsToSync > 0
             || preview.PaymentsToSync > 0
-            || preview.PurchaseInvoicesToSync > 0;
+            || preview.PurchaseInvoicesToSync > 0
+            || preview.StockItemsToSync > 0
+            || preview.CustomsDeclarationItemsToSync > 0;
 
         if (!hasWork)
         {
@@ -256,6 +286,8 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         bundle.SyncStockIns.Clear();
         bundle.SyncPayments.Clear();
         bundle.SyncPurchaseInvoices.Clear();
+        bundle.SyncStockItems.Clear();
+        bundle.SyncCustomsItems.Clear();
         bundle.BlockingDocuments.Clear();
         bundle.CompletedDocuments.Clear();
 
@@ -374,6 +406,20 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             if (!idMatch || !nameMatch)
                 bundle.SyncPurchaseInvoices.Add(invoice);
         }
+
+        foreach (var layer in bundle.StockItems)
+        {
+            if (!VendorIdsMatch(targetVendorId, layer.VendorId))
+                bundle.SyncStockItems.Add(layer);
+        }
+
+        foreach (var customs in bundle.CustomsItems)
+        {
+            if (customs.IsDeleted)
+                continue;
+            if (!VendorIdsMatch(targetVendorId, customs.VendorId))
+                bundle.SyncCustomsItems.Add(customs);
+        }
     }
 
     private async Task<VendorChangeBundle> LoadBundleAsync(string purchaseOrderId, CancellationToken cancellationToken)
@@ -425,6 +471,49 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
 
         var purchaseInvoices = await LoadPurchaseInvoicesAsync(order.PurchaseOrderCode, stockInIds, cancellationToken);
 
+        var poLineIdList = poItemIds.ToList();
+        var stockItems = poLineIdList.Count == 0
+            ? new List<StockItem>()
+            : (await _stockItemRepo.FindAsync(s =>
+                s.PurchaseOrderItemId != null && poLineIdList.Contains(s.PurchaseOrderItemId)))
+                .ToList();
+        var stockItemIds = stockItems
+            .Select(s => s.Id)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var packingItems = stockItemIds.Count == 0
+            ? new List<PackingItem>()
+            : (await _packingItemRepo.FindAsync(p =>
+                p.StockItemId != null && stockItemIds.Contains(p.StockItemId)))
+                .ToList();
+        var packingItemIds = packingItems
+            .Select(p => p.Id)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var customsItems = new List<CustomsDeclarationItem>();
+        if (stockItemIds.Count > 0)
+        {
+            customsItems.AddRange(await _customsItemRepo.FindAsync(c =>
+                c.SourceStockItemId != null && stockItemIds.Contains(c.SourceStockItemId)));
+        }
+
+        if (packingItemIds.Count > 0)
+        {
+            var viaPacking = (await _customsItemRepo.FindAsync(c =>
+                c.PackingItemId != null && packingItemIds.Contains(c.PackingItemId))).ToList();
+            var seen = new HashSet<string>(customsItems.Select(c => c.Id), StringComparer.OrdinalIgnoreCase);
+            foreach (var extra in viaPacking)
+            {
+                if (seen.Add(extra.Id))
+                    customsItems.Add(extra);
+            }
+        }
+
         return new VendorChangeBundle
         {
             Order = order,
@@ -432,7 +521,9 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
             Notices = notices,
             StockIns = stockIns,
             Payments = payments,
-            PurchaseInvoices = purchaseInvoices
+            PurchaseInvoices = purchaseInvoices,
+            StockItems = stockItems,
+            CustomsItems = customsItems
         };
     }
 
@@ -556,6 +647,10 @@ public sealed class PurchaseOrderVendorChangeService : IPurchaseOrderVendorChang
         public List<FinancePayment> SyncPayments { get; } = new();
         public List<FinancePurchaseInvoice> PurchaseInvoices { get; set; } = new();
         public List<FinancePurchaseInvoice> SyncPurchaseInvoices { get; } = new();
+        public List<StockItem> StockItems { get; set; } = new();
+        public List<StockItem> SyncStockItems { get; } = new();
+        public List<CustomsDeclarationItem> CustomsItems { get; set; } = new();
+        public List<CustomsDeclarationItem> SyncCustomsItems { get; } = new();
         public List<string> BlockingDocuments { get; } = new();
         public List<string> CompletedDocuments { get; } = new();
     }
