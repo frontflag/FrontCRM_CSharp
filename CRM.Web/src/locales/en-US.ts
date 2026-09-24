@@ -445,6 +445,12 @@ const enUS = {
       title: 'Declaration line items',
       search: 'Search',
       reset: 'Reset',
+      export: 'Export',
+      exportConfirmTitle: 'Export',
+      exportConfirmMessage: 'Export all declaration lines matching the current search, up to 50,000 rows?',
+      exportSuccess: 'Exported {count} rows',
+      exportTruncated: 'Only the first 50,000 rows were exported',
+      exportFailed: 'Export failed',
       columnSettings: 'Column settings',
       count: '{count} rows',
       filterDecCode: 'Declaration code',
@@ -6033,7 +6039,8 @@ const enUS = {
       optional: 'Optional',
       dateCode: 'Required',
       pickDeliveryDate: 'Select delivery date',
-      lineRemark: 'Line remarks'
+      lineRemark: 'Line remarks',
+      currency: 'Currency'
     },
     orderTypes: { normal: 'Customer-order purchase', urgent: 'Stocking purchase', sample: 'Sample purchase' },
     productKinds: { spot: 'Spot', futures: 'Futures', backlog: 'Backlog', sample: 'Sample' },
@@ -6049,6 +6056,7 @@ const enUS = {
       brand: 'Enter brand',
       customerPo: 'Enter customer PO no.',
       qty: 'Enter quantity',
+      unitPrice: 'Enter a sell unit price greater than 0 and select a currency',
       dateCode: 'Select date code requirement',
       deliveryDate: 'Select delivery date',
       type: 'Select order type',
@@ -6089,6 +6097,7 @@ const enUS = {
       customerMpn: 'Customer part no.'
     },
     purchaseQuotePrefix: 'Purchase quote',
+    purchaseQuoteShort: 'Quote',
     unknownCustomer: 'Unknown customer',
     customerFallback: 'Customer'
   },

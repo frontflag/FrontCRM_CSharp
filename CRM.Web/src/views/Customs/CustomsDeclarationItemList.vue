@@ -2,8 +2,19 @@
   <!-- 业务列表页：结构对齐《业务列表规范》《列表搜索栏规范》；表格见 CrmDataTable + 全局 crm-unified-list.scss -->
   <div class="finance-page customs-declaration-item-list-page">
     <div class="page-header-row">
-      <h1 class="finance-list-page-title">{{ t('customsPages.items.title') }}</h1>
-      <div class="count-badge">{{ t('customsPages.items.count', { count: listTotal }) }}</div>
+      <div class="page-header-main">
+        <h1 class="finance-list-page-title">{{ t('customsPages.items.title') }}</h1>
+        <div class="count-badge">{{ t('customsPages.items.count', { count: listTotal }) }}</div>
+      </div>
+      <button
+        v-if="canExportDeclarationItems"
+        type="button"
+        class="btn-export"
+        :disabled="exporting || loading"
+        @click="() => void handleExport()"
+      >
+        {{ t('customsPages.items.export') }}
+      </button>
     </div>
 
     <div class="search-bar">
@@ -264,11 +275,17 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
+import * as XLSX from 'xlsx'
 import CrmDataTable from '@/components/CrmDataTable.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
-import { fetchCustomsDeclarationItems, type CustomsDeclarationItemListItemDto } from '@/api/customs'
+import {
+  fetchCustomsDeclarationItems,
+  fetchCustomsDeclarationItemsForExport,
+  type CustomsDeclarationItemListItemDto
+} from '@/api/customs'
+import { withExportTimestamp } from '@/utils/exportFileName'
 import { useAuthStore } from '@/stores/auth'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
@@ -288,6 +305,17 @@ const authStore = useAuthStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const loading = ref(false)
+const exporting = ref(false)
+const canExportDeclarationItems = computed(() => {
+  const codes = authStore.user?.roleCodes ?? []
+  if (codes.length > 0) {
+    return codes.some((code) => {
+      const role = String(code).toUpperCase()
+      return role === 'SYS_ADMIN' || role === 'SYS_MANAGER'
+    })
+  }
+  return authStore.user?.isSysAdmin === true || authStore.user?.isSysManager === true
+})
 const allRows = ref<CustomsDeclarationItemListItemDto[]>([])
 const dataTableRef = ref<{ openColumnSettings?: () => void } | null>(null)
 const rowDensityToggleAnchorEl = ref<HTMLElement | null>(null)
@@ -551,22 +579,117 @@ function resetFilters() {
   handleSearch()
 }
 
+function buildListParams(includeTake: boolean): Record<string, unknown> {
+  const params: Record<string, unknown> = {}
+  if (includeTake) params.take = 500
+  if (filters.declarationCode.trim()) params.declarationCode = filters.declarationCode.trim()
+  if (filters.warehouseEntryNo.trim()) params.warehouseEntryNo = filters.warehouseEntryNo.trim()
+  if (filters.packingCode.trim()) params.packingCode = filters.packingCode.trim()
+  if (filters.purchasePn.trim()) params.purchasePn = filters.purchasePn.trim()
+  if (filters.customer.trim()) params.customer = filters.customer.trim()
+  if (filters.salesUserId.trim()) params.salesUserId = filters.salesUserId.trim()
+  if (filters.sellOrderItemCode.trim()) params.sellOrderItemCode = filters.sellOrderItemCode.trim()
+  if (filters.stockOutRequestId.trim()) params.stockOutRequestId = filters.stockOutRequestId.trim()
+  if (!maskPurchaseSensitiveFields.value && filters.purchaseOrderItemCode.trim()) {
+    params.purchaseOrderItemCode = filters.purchaseOrderItemCode.trim()
+  }
+  return params
+}
+
+function exportCell(row: CustomsDeclarationItemListItemDto, key: string): string | number {
+  switch (key) {
+    case 'declareDate':
+      return row.declareDate ? formatDisplayDate(row.declareDate) : ''
+    case 'declarationCode':
+      return row.declarationCode || ''
+    case 'warehouseEntryNo':
+      return row.warehouseEntryNo?.trim() || ''
+    case 'packingCode':
+      return row.packingCode?.trim() || ''
+    case 'customerName':
+      return row.customerName || ''
+    case 'salesUserName':
+      return row.salesUserName || ''
+    case 'purchasePn':
+      return row.purchasePn || ''
+    case 'purchaseBrand':
+      return row.purchaseBrand || ''
+    case 'declareQty':
+      return row.declareQty
+    case 'purchaseOrderItemCode':
+      return row.purchaseOrderItemCode || ''
+    case 'originalPurchasePrice':
+      return row.originalPurchasePrice == null
+        ? ''
+        : `${formatUnitPriceNumber(row.originalPurchasePrice)} ${listAmountCurrencyIso(row.purchaseCurrency)}`
+    case 'originalPurchaseAmount':
+      return row.originalPurchaseAmount == null
+        ? ''
+        : `${formatTotalAmountNumber(row.originalPurchaseAmount)} ${listAmountCurrencyIso(row.purchaseCurrency)}`
+    case 'declareUnitPrice':
+      return Number(row.declareUnitPrice)
+    case 'dutyAmount':
+      return Number(row.dutyAmount)
+    case 'vatAmount':
+      return Number(row.vatAmount)
+    case 'customsPaymentGoods':
+      return Number(row.customsPaymentGoods)
+    case 'customsAgencyFee':
+      return Number(row.customsAgencyFee)
+    case 'otherFee':
+      return Number(row.otherFee)
+    case 'inspectionFee':
+      return Number(row.inspectionFee)
+    case 'totalValueTax':
+      return Number(row.totalValueTax)
+    case 'taxIncludedUnitPrice':
+      return Number(row.taxIncludedUnitPrice)
+    case 'createTime': {
+      const parts = row.createTime ? formatDisplayDateTime2DigitYearParts(row.createTime) : null
+      return parts ? `${parts.date} ${parts.time}` : ''
+    }
+    case 'createUserDisplay':
+      return row.createUserDisplay || ''
+    default:
+      return ''
+  }
+}
+
+async function handleExport() {
+  if (!canExportDeclarationItems.value || exporting.value) return
+  try {
+    await ElMessageBox.confirm(
+      t('customsPages.items.exportConfirmMessage'),
+      t('customsPages.items.exportConfirmTitle'),
+      { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
+    )
+  } catch {
+    return
+  }
+  exporting.value = true
+  try {
+    const { items, truncated } = await fetchCustomsDeclarationItemsForExport(buildListParams(false))
+    const columns = tableColumns.value
+    const header = columns.map((col) => col.label)
+    const body = items.map((row) => columns.map((col) => exportCell(row, col.key)))
+    const sheet = XLSX.utils.aoa_to_sheet([header, ...body])
+    sheet['!cols'] = header.map((label) => ({ wch: Math.max(12, (label ?? '').length + 4) }))
+    const book = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(book, sheet, '报关明细')
+    XLSX.writeFile(book, withExportTimestamp('报关明细.xlsx'))
+    if (truncated) ElMessage.warning(t('customsPages.items.exportTruncated'))
+    else ElMessage.success(t('customsPages.items.exportSuccess', { count: items.length }))
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : t('customsPages.items.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
+
 async function load() {
   loading.value = true
   try {
-    const params: Record<string, unknown> = { take: 500 }
-    if (filters.declarationCode.trim()) params.declarationCode = filters.declarationCode.trim()
-    if (filters.warehouseEntryNo.trim()) params.warehouseEntryNo = filters.warehouseEntryNo.trim()
-    if (filters.packingCode.trim()) params.packingCode = filters.packingCode.trim()
-    if (filters.purchasePn.trim()) params.purchasePn = filters.purchasePn.trim()
-    if (filters.customer.trim()) params.customer = filters.customer.trim()
-    if (filters.salesUserId.trim()) params.salesUserId = filters.salesUserId.trim()
-    if (filters.sellOrderItemCode.trim()) params.sellOrderItemCode = filters.sellOrderItemCode.trim()
-    if (filters.stockOutRequestId.trim()) params.stockOutRequestId = filters.stockOutRequestId.trim()
-    if (!maskPurchaseSensitiveFields.value && filters.purchaseOrderItemCode.trim()) {
-      params.purchaseOrderItemCode = filters.purchaseOrderItemCode.trim()
-    }
-    allRows.value = await fetchCustomsDeclarationItems(params)
+    allRows.value = await fetchCustomsDeclarationItems(buildListParams(true))
     clampPage()
   } catch (e: unknown) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
@@ -593,6 +716,13 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.page-header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
 .count-badge {

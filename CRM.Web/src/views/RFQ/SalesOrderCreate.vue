@@ -293,27 +293,30 @@
                       />
                     </el-form-item>
                   </el-col>
-                  <el-col :span="8">
-                    <el-form-item :label="t('salesOrderCreate.fields.purchasePrice')" label-width="96px">
-                      <div class="material-card-purchase-quote-text">
-                        <template v-if="formData.items[index].purchasePriceDisplay">
-                          <span>{{ formatUnitPriceNumber(formData.items[index].purchasePriceDisplay) }}</span>
-                          <span class="material-card-purchase-quote-ccy">{{ currencyCode(formData.items[index].purchaseQuoteCurrency) }}</span>
-                        </template>
-                        <span v-else>—</span>
-                      </div>
-                    </el-form-item>
-                  </el-col>
                 </el-row>
                 <el-row :gutter="16">
                   <el-col :span="8">
-                    <el-form-item :label="t('salesOrderCreate.fields.unitPrice')" :prop="'items.' + index + '.price'" label-width="100px">
-                      <SettlementCurrencyAmountInput
-                        v-model="formData.items[index].price"
-                        v-model:currency="formData.items[index].currency"
-                        :min="0"
-                        :precision="6"
-                      />
+                    <el-form-item
+                      :label="t('salesOrderCreate.fields.unitPrice')"
+                      :prop="'items.' + index + '.price'"
+                      :rules="sellPriceRules(index)"
+                      label-width="100px"
+                    >
+                      <div class="sell-price-with-quote">
+                        <SettlementCurrencyAmountInput
+                          v-model="formData.items[index].price"
+                          v-model:currency="formData.items[index].currency"
+                          :min="0"
+                          :precision="6"
+                          :placeholder="t('salesOrderCreate.placeholders.currency')"
+                          @update:currency="formRef?.validateField('items.' + index + '.price')"
+                        />
+                        <span v-if="showPurchaseQuoteRef(index)" class="material-card-purchase-quote-inline">
+                          <span>{{ t('salesOrderCreate.purchaseQuoteShort') }}</span>
+                          <span>{{ formatUnitPriceNumber(formData.items[index].purchasePriceDisplay) }}</span>
+                          <span class="material-card-purchase-quote-ccy">{{ currencyCode(formData.items[index].purchaseQuoteCurrency) }}</span>
+                        </span>
+                      </div>
                     </el-form-item>
                   </el-col>
                   <el-col :span="8">
@@ -334,8 +337,13 @@
                   <el-col :span="8">
                     <el-form-item :label="t('salesOrderCreate.fields.lineTotal')" label-width="100px">
                       <div class="total-inline">
-                        <span>{{ formatTotalAmountNumber(lineLineTotal(index)) }}</span>
-                        <span class="ccy-tag">{{ currencyCode(formData.items[index].currency) }}</span>
+                        <template v-if="lineLineTotal(index) == null">
+                          <span>—</span>
+                        </template>
+                        <template v-else>
+                          <span>{{ formatTotalAmountNumber(lineLineTotal(index)) }}</span>
+                          <span class="ccy-tag">{{ currencyCode(formData.items[index].currency ?? undefined) }}</span>
+                        </template>
                       </div>
                     </el-form-item>
                   </el-col>
@@ -390,7 +398,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { ArrowLeft, Check, Delete, Plus } from '@element-plus/icons-vue'
@@ -523,8 +531,8 @@ type OrderLineDraft = {
   brand: string
   brandId?: number
   customerPo: string
-  price: number
-  currency: number
+  price: number | null
+  currency: number | null
   purchasePriceDisplay: number
   /** 采购报价展示用币别（可与销售结算币别不同） */
   purchaseQuoteCurrency: number
@@ -592,10 +600,43 @@ const formRules = computed<FormRules>(() => ({
   paymentTermsLabel: [{ required: true, message: t('salesOrderCreate.validation.paymentTermsLabel'), trigger: 'change' }]
 }))
 
+function lineSellPriceReady(it: OrderLineDraft | undefined) {
+  return !!it && it.price != null && Number(it.price) > 0 && it.currency != null && it.currency >= 1
+}
+
 function lineLineTotal(index: number) {
   const it = formData.value.items[index]
-  return (it?.qty || 0) * (it?.price || 0)
+  if (!lineSellPriceReady(it)) return null
+  return (it.qty || 0) * Number(it.price)
 }
+
+function showPurchaseQuoteRef(index: number) {
+  const it = formData.value.items[index]
+  return !!it?.quoteId || (it?.purchasePriceDisplay ?? 0) > 0
+}
+
+function sellPriceRules(index: number) {
+  return [
+    {
+      validator: (_rule: unknown, value: unknown, callback: (e?: Error) => void) => {
+        const it = formData.value.items[index]
+        const priceOk = value != null && value !== '' && Number(value) > 0
+        const ccyOk = it?.currency != null && it.currency >= 1
+        if (!priceOk || !ccyOk) callback(new Error(t('salesOrderCreate.validation.unitPrice')))
+        else callback()
+      },
+      trigger: 'change'
+    }
+  ]
+}
+
+watch(
+  () => formData.value.items.map((it) => it.currency).join(','),
+  () => {
+    const picked = formData.value.items.find((it) => it.currency != null && it.currency >= 1)
+    if (picked?.currency != null) formData.value.currency = picked.currency
+  }
+)
 
 function onSalesUserChange(payload: { id: string; label: string }) {
   formData.value.salesUserName = payload?.label || ''
@@ -1447,10 +1488,8 @@ onMounted(async () => {
         brandId: undefined,
         customerPo: '',
         qty: Math.max(1, Number(first?.quantity) || reqQty),
-        price: purchase,
-        currency: first
-          ? mapQuoteCurrencyToOrderCurrency(first.currency ?? first.Currency ?? 0)
-          : formData.value.currency,
+        price: null,
+        currency: null,
         purchasePriceDisplay: purchase,
         purchaseQuoteCurrency: first
           ? mapQuoteCurrencyToOrderCurrency(first.currency ?? first.Currency ?? 0)
@@ -1471,7 +1510,8 @@ onMounted(async () => {
     if (lines.length) {
       hasQuotePrefill.value = true
       formData.value.items = lines
-      formData.value.currency = lines[0].currency ?? formData.value.currency
+      const picked = lines.find((it) => it.currency != null && it.currency >= 1)
+      if (picked?.currency != null) formData.value.currency = picked.currency
       await resolveBrandIdsForItems(formData.value.items, { silent: true })
     } else {
       addItem()
@@ -1508,8 +1548,8 @@ function resolveSubmitSalesUserId(): string | undefined {
 }
 
 const handleSubmit = async () => {
-  const firstLineCur = formData.value.items[0]?.currency
-  const headerCurrency = firstLineCur ?? formData.value.currency
+  const picked = formData.value.items.find((it) => it.currency != null && it.currency >= 1)
+  const headerCurrency = picked?.currency ?? formData.value.currency
 
   if (editId.value) {
     await runValidatedFormSave(formRef, {
@@ -1860,17 +1900,45 @@ const handleSubmit = async () => {
     min-height: 52px;
   }
 
-  /** 采购报价：纯文本展示（与「销售总额」同类，无输入框） */
-  .material-card-purchase-quote-text {
+  /** 采购报价：紧挨销售单价，避免与单价分列后被忽略 */
+  .sell-price-with-quote {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+
+    :deep(.settlement-currency-amount) {
+      flex: 0 1 auto;
+      width: auto;
+      min-width: 0;
+      gap: 6px;
+    }
+
+    /* 6 位整数 + 小数点 + 6 位小数，另加输入框内边距 */
+    :deep(.settlement-currency-amount__num) {
+      flex: 0 0 auto;
+      width: calc(13ch + 22px);
+      max-width: 100%;
+    }
+
+    :deep(.settlement-currency-amount__ccy) {
+      width: 96px;
+    }
+  }
+
+  .material-card-purchase-quote-inline {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-height: 32px;
+    gap: 4px;
+    min-width: 0;
+    font-size: 12px;
     line-height: 32px;
-    font-size: 13px;
-    font-weight: 400;
-    color: $text-primary;
+    color: $text-secondary;
+    white-space: nowrap;
   }
+
   .material-card-purchase-quote-ccy {
     font-size: 12px;
     color: $text-muted;

@@ -11,8 +11,9 @@
       @update:model-value="emit('update:modelValue', $event)"
     />
     <el-select
-      :model-value="currency"
+      :model-value="currency ?? undefined"
       :disabled="currencyDisabled"
+      :placeholder="placeholder"
       :size="size"
       class="settlement-currency-amount__ccy"
       @update:model-value="emit('update:currency', $event as number)"
@@ -34,21 +35,24 @@ withDefaults(
   defineProps<{
     /** 金额 */
     modelValue: number | null | undefined
-    /** 结算币别编码（与 SETTLEMENT_CURRENCY_OPTIONS / 后端 short 一致） */
-    currency: number
+    /** 结算币别编码（与 SETTLEMENT_CURRENCY_OPTIONS / 后端 short 一致）；空表示未选 */
+    currency: number | null | undefined
     min?: number
     max?: number
     precision?: number
     /** 与新建销售订单「销售单价」一致时设为 false */
     controls?: boolean
     currencyDisabled?: boolean
+    /** 币别未选时的占位 */
+    placeholder?: string
     /** 表格内等场景使用 small；不传则沿用 Element Plus 默认 */
     size?: 'large' | 'default' | 'small'
   }>(),
   {
     precision: 2,
     controls: false,
-    currencyDisabled: false
+    currencyDisabled: false,
+    placeholder: ''
   }
 )
 

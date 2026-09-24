@@ -769,6 +769,17 @@ export async function fetchCustomsDeclarationItems(
   return apiClient.get<CustomsDeclarationItemListItemDto[]>('/api/v1/customs-declaration-items', { params })
 }
 
+export async function fetchCustomsDeclarationItemsForExport(
+  params: Record<string, unknown>
+): Promise<{ items: CustomsDeclarationItemListItemDto[]; truncated: boolean }> {
+  const raw = await apiClient.get<unknown>('/api/v1/customs-declaration-items/export', { params })
+  const body = (raw ?? {}) as { items?: CustomsDeclarationItemListItemDto[]; truncated?: boolean }
+  return {
+    items: Array.isArray(body.items) ? body.items : [],
+    truncated: body.truncated === true
+  }
+}
+
 export interface StockTransferPaged {
   items: StockTransferListItemDto[]
   total: number

@@ -896,9 +896,6 @@ namespace CRM.Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreateTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<long?>("CreateUserId")
-                        .HasColumnType("bigint");
-
                     b.Property<string>("CustomerId")
                         .HasMaxLength(36)
                         .HasColumnType("character varying(36)")

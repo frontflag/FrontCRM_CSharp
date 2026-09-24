@@ -70,6 +70,12 @@ public sealed class CustomsDeclarationItemListItemDto
     public string? CreateUserDisplay { get; set; }
 }
 
+public sealed class CustomsDeclarationItemExportResultDto
+{
+    public List<CustomsDeclarationItemListItemDto> Items { get; set; } = new();
+    public bool Truncated { get; set; }
+}
+
 public sealed class CustomsDeclarationDetailViewDto
 {
     public string Id { get; set; } = string.Empty;

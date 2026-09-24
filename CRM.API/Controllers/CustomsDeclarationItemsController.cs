@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using CRM.API.Models.DTOs;
 using CRM.API.Utilities;
 using CRM.Core.Interfaces;
@@ -80,8 +81,50 @@ public class CustomsDeclarationItemsController : ControllerBase
         }
     }
 
+    private const int ListTakeCap = 1000;
+    private const int ExportTakeCap = 50_000;
+
+    [HttpGet("export")]
+    public async Task<IActionResult> ExportList(
+        [FromQuery] string? declarationCode,
+        [FromQuery] string? warehouseEntryNo,
+        [FromQuery] string? packingCode,
+        [FromQuery] string? purchasePn,
+        [FromQuery] string? customer,
+        [FromQuery] string? salesUserId,
+        [FromQuery] string? sellOrderItemCode,
+        [FromQuery] string? stockOutRequestId,
+        [FromQuery] string? purchaseOrderItemCode)
+    {
+        if (!await CanExportAsync())
+            return StatusCode(403, ApiResponse<object>.Fail("当前账号无权导出报关明细", 403));
+
+        return await QueryListAsync(
+            declarationCode,
+            warehouseEntryNo,
+            packingCode,
+            purchasePn,
+            customer,
+            salesUserId,
+            sellOrderItemCode,
+            stockOutRequestId,
+            purchaseOrderItemCode,
+            ExportTakeCap,
+            detectTruncation: true,
+            wrapExport: true);
+    }
+
+    private async Task<bool> CanExportAsync()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userId))
+            return false;
+        var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
+        return summary != null && (summary.IsSysAdmin || summary.IsSysManager);
+    }
+
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<CustomsDeclarationItemListItemDto>>>> GetList(
+    public Task<IActionResult> GetList(
         [FromQuery] string? declarationCode,
         [FromQuery] string? warehouseEntryNo,
         [FromQuery] string? packingCode,
@@ -92,13 +135,41 @@ public class CustomsDeclarationItemsController : ControllerBase
         [FromQuery] string? stockOutRequestId,
         [FromQuery] string? purchaseOrderItemCode,
         [FromQuery] int take = 500)
+        => QueryListAsync(
+            declarationCode,
+            warehouseEntryNo,
+            packingCode,
+            purchasePn,
+            customer,
+            salesUserId,
+            sellOrderItemCode,
+            stockOutRequestId,
+            purchaseOrderItemCode,
+            Math.Clamp(take, 1, ListTakeCap),
+            detectTruncation: false,
+            wrapExport: false);
+
+    private async Task<IActionResult> QueryListAsync(
+        string? declarationCode,
+        string? warehouseEntryNo,
+        string? packingCode,
+        string? purchasePn,
+        string? customer,
+        string? salesUserId,
+        string? sellOrderItemCode,
+        string? stockOutRequestId,
+        string? purchaseOrderItemCode,
+        int take,
+        bool detectTruncation,
+        bool wrapExport)
     {
         try
         {
             if (!await CustomsModuleAccessHttp.CanAccessAsync(_rbacService, User))
-                return StatusCode(403, ApiResponse<List<CustomsDeclarationItemListItemDto>>.Fail("当前账号无权访问报关模块", 403));
+                return StatusCode(403, ApiResponse<object>.Fail("当前账号无权访问报关模块", 403));
 
-            var n = Math.Clamp(take, 1, 1000);
+            var n = Math.Max(1, take);
+            var probe = detectTruncation ? n + 1 : n;
             var decQ = (declarationCode ?? string.Empty).Trim();
             var entryQ = (warehouseEntryNo ?? string.Empty).Trim();
             var packingQ = (packingCode ?? string.Empty).Trim();
@@ -135,6 +206,8 @@ public class CustomsDeclarationItemsController : ControllerBase
                 from c in cj.DefaultIfEmpty()
                 join u in _db.Users.AsNoTracking() on i.SalesUserId equals u.Id into uj
                 from u in uj.DefaultIfEmpty()
+                join creator in _db.Users.AsNoTracking() on d.CreateByUserId equals creator.Id into creatorj
+                from creator in creatorj.DefaultIfEmpty()
                 where string.IsNullOrEmpty(decQ) || EF.Functions.ILike(d.DeclarationCode, $"%{decQ}%")
                 where string.IsNullOrEmpty(entryQ)
                       || EF.Functions.ILike(d.WarehouseEntryNo ?? "", $"%{entryQ}%")
@@ -148,9 +221,12 @@ public class CustomsDeclarationItemsController : ControllerBase
                       || (i.CustomerId != null && i.CustomerId == custQ)
                       || (c != null && c.OfficialName != null && EF.Functions.ILike(c.OfficialName, $"%{custQ}%"))
                 orderby d.CreateTime descending, i.LineNo, i.CreateTime descending
-                select new { i, d, c, u };
+                select new { i, d, c, u, creator };
 
-            var rows = await query.Take(n).ToListAsync();
+            var rows = await query.Take(probe).ToListAsync();
+            var truncated = detectTruncation && rows.Count > n;
+            if (truncated)
+                rows = rows.Take(n).ToList();
             var layerIds = rows
                 .Select(x => x.i.SourceStockItemId)
                 .Where(id => !string.IsNullOrWhiteSpace(id))
@@ -244,17 +320,26 @@ public class CustomsDeclarationItemsController : ControllerBase
                     TotalValueTax = x.i.TotalValueTax,
                     TaxIncludedUnitPrice = x.i.TaxIncludedUnitPrice,
                     CreateTime = x.i.CreateTime,
-                    CreateByUserId = null,
-                    CreateUserDisplay = x.i.CreateUserId.HasValue ? x.i.CreateUserId.Value.ToString() : null
+                    CreateByUserId = string.IsNullOrWhiteSpace(x.d.CreateByUserId) ? null : x.d.CreateByUserId.Trim(),
+                    CreateUserDisplay = x.creator != null && !string.IsNullOrWhiteSpace(x.creator.UserName)
+                        ? x.creator.UserName.Trim()
+                        : null
                 };
             }).ToList();
+
+            if (wrapExport)
+            {
+                return Ok(ApiResponse<CustomsDeclarationItemExportResultDto>.Ok(
+                    new CustomsDeclarationItemExportResultDto { Items = list, Truncated = truncated },
+                    "OK"));
+            }
 
             return Ok(ApiResponse<List<CustomsDeclarationItemListItemDto>>.Ok(list, "OK"));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "获取报关明细列表失败");
-            return StatusCode(500, ApiResponse<List<CustomsDeclarationItemListItemDto>>.Fail(ex.Message, 500));
+            _logger.LogError(ex, wrapExport ? "导出报关明细失败" : "获取报关明细列表失败");
+            return StatusCode(500, ApiResponse<object>.Fail(ex.Message, 500));
         }
     }
 }

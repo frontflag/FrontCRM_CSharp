@@ -443,6 +443,12 @@ const zhCN = {
       title: '报关明细',
       search: '查询',
       reset: '重置',
+      export: '导出',
+      exportConfirmTitle: '导出确认',
+      exportConfirmMessage: '将按当前搜索条件导出全部报关明细，最多 50000 条，是否继续？',
+      exportSuccess: '已导出 {count} 条',
+      exportTruncated: '已导出前 50000 条，其余记录未包含',
+      exportFailed: '导出失败',
       columnSettings: '列设置',
       count: '{count} 条',
       filterDecCode: '报关编号',
@@ -6025,7 +6031,8 @@ const zhCN = {
       optional: '选填',
       dateCode: '必选',
       pickDeliveryDate: '选择交期',
-      lineRemark: '行备注'
+      lineRemark: '行备注',
+      currency: '币别'
     },
     orderTypes: { normal: '客单采购', urgent: '备货采购', sample: '样品采购' },
     productKinds: { spot: '现货', futures: '期货', backlog: '排单', sample: '样品' },
@@ -6042,6 +6049,7 @@ const zhCN = {
       brand: '请输入品牌',
       customerPo: '请输入客户订单号',
       qty: '请输入数量',
+      unitPrice: '请填写大于 0 的销售单价并选择币别',
       dateCode: '请选择生产日期要求',
       deliveryDate: '请选择交期',
       type: '请选择订单类型',
@@ -6080,6 +6088,7 @@ const zhCN = {
       customerMpn: '客户物料型号'
     },
     purchaseQuotePrefix: '采购报价',
+    purchaseQuoteShort: '报价',
     unknownCustomer: '未知客户',
     customerFallback: '客户'
   },

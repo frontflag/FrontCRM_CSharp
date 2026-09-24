@@ -1610,6 +1610,8 @@ namespace CRM.Infrastructure.Data
             {
                 entity.ToTable("customs_declaration_item");
                 entity.HasKey(e => e.Id);
+                // 创建人在报关单头 create_by_user_id；本表 bigint CreateUserId 已删除。
+                entity.Ignore(e => e.CreateUserId);
                 entity.Property(e => e.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
                 entity.HasQueryFilter(e => !e.IsDeleted);
                 entity.Property(e => e.Id).HasColumnName("CustomsDeclarationItemId");
