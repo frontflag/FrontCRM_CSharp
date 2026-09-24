@@ -108,7 +108,17 @@ public static class SalesAnalyticsScopeValidator
         if (level == SalesAnalyticsViewLevels.Personal)
         {
             if (summary.SaleDataScope == 1 || BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
-                resolvedUser = summary.UserId;
+            {
+                if (!AnalyticsPersonalRoster.CanPickOtherUsers(summary))
+                    resolvedUser = summary.UserId;
+                else if (!string.IsNullOrWhiteSpace(salesUserId))
+                {
+                    var uid = salesUserId.Trim();
+                    if (allowedUserIds.Count > 0 && !allowedUserIds.Contains(uid))
+                        return new ValidationResult { Ok = false, Error = "无权查看该业务员数据" };
+                    resolvedUser = uid;
+                }
+            }
             else if (!string.IsNullOrWhiteSpace(salesUserId))
             {
                 var uid = salesUserId.Trim();

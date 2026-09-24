@@ -44,6 +44,10 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
         var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
         var allowedUserIds = await SalesAnalyticsScopeValidator.BuildAllowedSalesUserIdsAsync(
             _dataPermission, summary, cancellationToken);
+        var roster = AnalyticsPersonalRoster.Resolve(
+            summary, departments, userDepartments, new short[] { 1 });
+        if (roster != null)
+            allowedUserIds = roster;
 
         var validation = SalesAnalyticsScopeValidator.Validate(
             summary,
@@ -144,7 +148,8 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
         HashSet<string> allowedUserIds,
         CancellationToken cancellationToken)
     {
-        if (summary.SaleDataScope == 1 || BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
+        if ((summary.SaleDataScope == 1 || BusinessDepartmentRules.UseSellOrderAssistorOnlyScope(summary))
+            && !AnalyticsPersonalRoster.CanPickOtherUsers(summary))
             return Array.Empty<SalesAnalyticsSalesUserOptionDto>();
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -167,12 +172,12 @@ public sealed class SalesAnalyticsService : ISalesAnalyticsService
         }
 
         return (await _userRepo.GetAllAsync())
-            .Where(u => ids.Contains(u.Id))
-            .OrderBy(u => u.RealName ?? u.UserName)
+            .Where(u => ids.Contains(u.Id) && u.Status != UserAccountStatus.Frozen)
+            .OrderBy(u => u.UserName ?? u.RealName)
             .Select(u => new SalesAnalyticsSalesUserOptionDto
             {
                 Id = u.Id,
-                Name = u.RealName ?? u.UserName ?? u.Id
+                Name = u.UserName ?? u.RealName ?? u.Id
             })
             .ToList();
     }

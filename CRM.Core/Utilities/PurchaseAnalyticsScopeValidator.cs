@@ -111,7 +111,17 @@ public static class PurchaseAnalyticsScopeValidator
         if (level == SalesAnalyticsViewLevels.Personal)
         {
             if (summary.PurchaseDataScope == 1 || BusinessDepartmentRules.UsePurchaseOrderAssistorOnlyScope(summary))
-                resolvedUser = summary.UserId;
+            {
+                if (!AnalyticsPersonalRoster.CanPickOtherUsers(summary))
+                    resolvedUser = summary.UserId;
+                else if (!string.IsNullOrWhiteSpace(purchaseUserId))
+                {
+                    var uid = purchaseUserId.Trim();
+                    if (allowedUserIds.Count > 0 && !allowedUserIds.Contains(uid))
+                        return new ValidationResult { Ok = false, Error = "无权查看该采购员数据" };
+                    resolvedUser = uid;
+                }
+            }
             else if (!string.IsNullOrWhiteSpace(purchaseUserId))
             {
                 var uid = purchaseUserId.Trim();

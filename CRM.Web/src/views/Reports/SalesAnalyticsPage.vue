@@ -305,7 +305,7 @@ const showDepartmentSelect = computed(() => {
 const showSalesUserSelect = computed(() => {
   const ctx = scopeContext.value
   if (!ctx) return false
-  return viewLevel.value === 'personal' && (ctx.allowedSalesUsers?.length ?? 0) > 1
+  return viewLevel.value === 'personal' && (ctx.allowedSalesUsers?.length ?? 0) > 0
 })
 
 const pieBreakdownKeys = new Set(['pipelineStage', 'currency'])

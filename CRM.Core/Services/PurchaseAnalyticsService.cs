@@ -44,6 +44,10 @@ public sealed class PurchaseAnalyticsService : IPurchaseAnalyticsService
         var userDepartments = (await _userDepartmentRepo.GetAllAsync()).ToList();
         var allowedUserIds = await PurchaseAnalyticsScopeValidator.BuildAllowedPurchaseUserIdsAsync(
             _dataPermission, summary, cancellationToken);
+        var roster = AnalyticsPersonalRoster.Resolve(
+            summary, departments, userDepartments, new short[] { 2, 3 });
+        if (roster != null)
+            allowedUserIds = roster;
 
         var validation = PurchaseAnalyticsScopeValidator.Validate(
             summary,
@@ -173,22 +177,24 @@ public sealed class PurchaseAnalyticsService : IPurchaseAnalyticsService
         }
 
         return (await _userRepo.GetAllAsync())
-            .Where(u => ids.Contains(u.Id) && u.Status != UserAccountStatus.Disabled)
-            .OrderBy(u => u.RealName ?? u.UserName)
+            .Where(u => ids.Contains(u.Id)
+                && u.Status != UserAccountStatus.Disabled
+                && u.Status != UserAccountStatus.Frozen)
+            .OrderBy(u => u.UserName ?? u.RealName)
             .Select(u => new PurchaseAnalyticsPurchaseUserOptionDto
             {
                 Id = u.Id,
-                Name = u.RealName ?? u.UserName ?? u.Id
+                Name = u.UserName ?? u.RealName ?? u.Id
             })
             .ToList();
     }
 
     private static bool CanSelectPurchaseUser(UserPermissionSummaryDto summary)
     {
+        if (summary.IsSysAdmin || summary.IsSysManager || AnalyticsPersonalRoster.IsDepartmentDirector(summary))
+            return true;
         if (BusinessDepartmentRules.UsePurchaseOrderAssistorOnlyScope(summary))
             return false;
-        if (summary.IsSysAdmin || summary.PurchaseDataScope is 0 or 2 or 3)
-            return true;
-        return false;
+        return summary.PurchaseDataScope is 0 or 2 or 3;
     }
 }
