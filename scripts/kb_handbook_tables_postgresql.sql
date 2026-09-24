@@ -148,3 +148,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "UX_kb_embedding_profile_singleton"
 
 CREATE INDEX IF NOT EXISTS "IX_kb_chunk_embedding_hnsw"
     ON public.kb_chunk USING hnsw (embedding vector_cosine_ops);
+
+-- 已按旧脚本建成 varchar(200) 的库：标题可能超过 200 字，扩成 text。已是 text 时再执行无影响。
+ALTER TABLE public.kb_chunk ALTER COLUMN chapter_title TYPE text;
+ALTER TABLE public.kb_chunk ALTER COLUMN section_title TYPE text;
+ALTER TABLE public.kb_chunk ALTER COLUMN heading TYPE text;

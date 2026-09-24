@@ -1185,6 +1185,12 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '培训问答', permission: 'biz.ai.kb.qa' }
       },
       {
+        path: 'knowledge/handbook/read',
+        name: 'HandbookRead',
+        component: () => import('@/views/Knowledge/HandbookReadPage.vue'),
+        meta: { requiresAuth: true, title: '教材浏览', permissions: ['biz.ai.kb.qa', 'biz.ai.kb.admin'] }
+      },
+      {
         path: 'system/kb-documents',
         name: 'KbDocuments',
         component: () => import('@/views/System/KbDocumentPage.vue'),

@@ -38,6 +38,20 @@
             </svg>
             {{ t('dashboard.quickSystemSettings') }}
           </router-link>
+          <router-link
+            v-if="canOpenHandbook"
+            to="/knowledge/handbook/read"
+            class="quick-link quick-link--amber"
+            target="_blank"
+            rel="noopener"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 10L12 5 2 10l10 5 10-5z" />
+              <path d="M6 12v5c0 1.2 2.7 3 6 3s6-1.8 6-3v-5" />
+              <path d="M22 10v6" />
+            </svg>
+            {{ t('dashboard.quickHandbook') }}
+          </router-link>
         </div>
     </div>
 
@@ -120,6 +134,13 @@ const canCreateVendor = computed(
   () =>
     authStore.hasPermission('vendor.write') &&
     !authStore.isIdentityBlockedForPermission('vendor.write')
+)
+
+const canOpenHandbook = computed(
+  () =>
+    (authStore.hasPermission('biz.ai.kb.qa') || authStore.hasPermission('biz.ai.kb.admin')) &&
+    !authStore.isIdentityBlockedForPermission('biz.ai.kb.qa') &&
+    !authStore.isIdentityBlockedForPermission('biz.ai.kb.admin')
 )
 
 /** null=未返回；失败当未验证，仍显示引导 */
@@ -228,10 +249,10 @@ onActivated(() => {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  background: rgba(0, 212, 255, 0.06);
+  border: none;
+  background: transparent;
   color: rgba(80, 187, 227, 0.9);
   text-decoration: none;
   font-family: 'Noto Sans SC', sans-serif;
@@ -244,10 +265,15 @@ onActivated(() => {
     stroke: currentColor;
   }
   &:hover {
-    background: rgba(0, 212, 255, 0.15);
-    border-color: rgba(0, 212, 255, 0.5);
+    background: transparent;
     color: #00d4ff;
-    transform: translateY(-1px);
+  }
+}
+
+.quick-link--amber {
+  color: #d97706;
+  &:hover {
+    color: #b45309;
   }
 }
 

@@ -1115,6 +1115,7 @@ const enUS = {
       dictItems: 'Dictionary Items',
       aiConfig: 'AI Configuration',
       handbookQa: 'Training Q&A',
+      handbookRead: 'Handbook',
       kbDocuments: 'Training handbook',
       purchaseParams: 'Purchase parameters',
       salesParams: 'Sales parameters',
@@ -2088,6 +2089,7 @@ const enUS = {
     quickVendorManagement: 'Vendor management',
     quickNewVendor: 'New vendor',
     quickSystemSettings: 'System settings',
+    quickHandbook: 'Training handbook',
     incentive: {
       title: 'Personal commission',
       titleWithSpan: 'Personal commission ({span})',

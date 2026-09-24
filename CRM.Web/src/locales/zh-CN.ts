@@ -1111,6 +1111,7 @@ const zhCN = {
       dictItems: '数据字典',
       aiConfig: 'AI 配置',
       handbookQa: '培训问答',
+      handbookRead: '教材浏览',
       kbDocuments: '培训教材',
       purchaseParams: '采购参数',
       salesParams: '销售参数',
@@ -2082,6 +2083,7 @@ const zhCN = {
     quickVendorManagement: '供应商管理',
     quickNewVendor: '新建供应商',
     quickSystemSettings: '系统设置',
+    quickHandbook: '培训教材',
     incentive: {
       title: '个人提成',
       titleWithSpan: '个人提成（{span}）',

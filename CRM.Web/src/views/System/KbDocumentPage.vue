@@ -18,10 +18,11 @@
       <el-table-column label="启用" width="80">
         <template #default="{ row }">{{ row.isActive ? '是' : '' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="160">
+      <el-table-column label="操作" width="210">
         <template #default="{ row }">
           <el-button link type="primary" :disabled="row.isActive" @click="activate(row)">启用</el-button>
           <el-button link @click="openChunks(row.versionId)">切块</el-button>
+          <el-button v-if="row.status === 2" link type="primary" @click="openReader(row.versionId)">浏览</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -92,6 +93,10 @@ async function activate(row: KbDocumentVersion) {
   } catch (e) {
     error.value = e instanceof Error ? e.message : '启用失败'
   }
+}
+
+async function openReader(versionId: string) {
+  window.open(`/knowledge/handbook/read?version=${encodeURIComponent(versionId)}`, '_blank', 'noopener')
 }
 
 async function openChunks(versionId: string) {

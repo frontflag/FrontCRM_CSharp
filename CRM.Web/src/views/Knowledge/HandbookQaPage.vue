@@ -9,6 +9,11 @@
     <el-alert v-if="error" :title="error" type="error" show-icon />
     <div v-if="result" class="answer">
       <pre>{{ result.answer }}</pre>
+      <ul v-if="result.covered && result.citations?.length" class="refs">
+        <li v-for="item in result.citations" :key="item.anchor">
+          <a :href="readHref(item)" target="_blank" rel="noopener">{{ item.heading || item.anchor }}</a>
+        </li>
+      </ul>
       <p v-if="result.versionNo">教材版本 {{ result.versionNo }}<span v-if="result.fromCache"> · 缓存</span></p>
       <el-collapse v-if="result.citations?.length">
         <el-collapse-item v-for="(item, index) in result.citations" :key="index" :title="item.heading || '摘录'">
@@ -21,12 +26,17 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { knowledgeBaseApi, type KbAskResult } from '@/api/knowledgeBase'
+import { knowledgeBaseApi, type KbAskResult, type KbCitation } from '@/api/knowledgeBase'
 
 const question = ref('')
 const loading = ref(false)
 const error = ref('')
 const result = ref<KbAskResult | null>(null)
+
+function readHref(item: KbCitation) {
+  const version = result.value?.versionId ? `?version=${encodeURIComponent(result.value.versionId)}` : ''
+  return `/knowledge/handbook/read${version}#${item.anchor}`
+}
 
 async function ask() {
   error.value = ''
@@ -47,4 +57,6 @@ async function ask() {
 .hint { color: #666; }
 .actions { margin: 12px 0; }
 .answer pre { white-space: pre-wrap; }
+.refs { padding-left: 18px; }
+.refs a { color: #1d4ed8; }
 </style>

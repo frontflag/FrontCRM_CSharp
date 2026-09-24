@@ -1268,6 +1268,13 @@
               exact
             >{{ t('layout.menu.handbookQa') }}</router-link>
             <router-link
+              v-if="authStore.hasPermission('biz.ai.kb.qa') || authStore.hasPermission('biz.ai.kb.admin')"
+              to="/knowledge/handbook/read"
+              class="submenu-item"
+              active-class="active"
+              exact
+            >{{ t('layout.menu.handbookRead') }}</router-link>
+            <router-link
               v-if="authStore.hasPermission('biz.ai.kb.admin')"
               to="/system/kb-documents"
               class="submenu-item"
@@ -3812,6 +3819,7 @@ const pageTitleMap: Record<string, string> = {
   '/system/dict-items': 'layout.menu.dictItems',
   '/system/ai-config': 'layout.menu.aiConfig',
   '/knowledge/handbook': 'layout.menu.handbookQa',
+  '/knowledge/handbook/read': 'layout.menu.handbookRead',
   '/system/kb-documents': 'layout.menu.kbDocuments',
   '/ops/user-feedback': 'layout.menu.userFeedback',
   '/ops/user-notices': 'layout.menu.userNotices',
@@ -4314,7 +4322,7 @@ watch(
     if (p.startsWith('/system/')) {
       openGroups.value.systemManagement = true
     }
-    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p === '/system/kb-documents' || p === '/knowledge/handbook' || p === '/system/risk-alert-params' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params') || p.startsWith('/system/report-params') || p.startsWith('/system/commission-params')) {
+    if (p === '/system/company-info' || p === '/system/dict-items' || p === '/system/ai-config' || p === '/system/kb-documents' || p === '/knowledge/handbook' || p === '/knowledge/handbook/read' || p === '/system/risk-alert-params' || p.startsWith('/system/sales-params') || p.startsWith('/system/purchase-params') || p.startsWith('/system/finance-params') || p.startsWith('/system/report-params') || p.startsWith('/system/commission-params')) {
       openGroups.value.paramManagement = true
     }
     if (p === '/system/login-logs' || p === '/system/operation-logs' || p === '/system/export-logs') {

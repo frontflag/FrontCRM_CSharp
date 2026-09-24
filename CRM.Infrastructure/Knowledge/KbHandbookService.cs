@@ -54,6 +54,20 @@ public sealed class KbHandbookService : IKbHandbookService
         throw new InvalidOperationException("当前账号无权使用培训问答。");
     }
 
+    private async Task EnsureReadAsync(string? userId)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new InvalidOperationException("未登录。");
+        var summary = await _rbac.GetUserPermissionSummaryAsync(userId.Trim());
+        if (summary.IsSysAdmin)
+            return;
+        if (summary.PermissionCodes.Any(c =>
+                string.Equals(c, KbHandbookCodes.AskPermission, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(c, KbHandbookCodes.AdminPermission, StringComparison.OrdinalIgnoreCase)))
+            return;
+        throw new InvalidOperationException("当前账号无权浏览培训教材。");
+    }
+
     public async Task<KbImportResultDto> EnqueueDocxAsync(
         string storagePath,
         string fileName,
@@ -231,6 +245,62 @@ public sealed class KbHandbookService : IKbHandbookService
         return rows;
     }
 
+    public async Task<KbHandbookReaderDto> GetReaderAsync(
+        string userId,
+        string? versionId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureReadAsync(userId);
+        var conn = await OpenAsync(cancellationToken);
+        string id;
+        int versionNo;
+        string title;
+        if (string.IsNullOrWhiteSpace(versionId))
+        {
+            await using var activeCmd = conn.CreateCommand();
+            activeCmd.CommandText = """
+                SELECT v.id, v.version_no, d.title
+                FROM kb_document_version v
+                JOIN kb_document d ON d.id = v.document_id
+                WHERE v.is_active = true AND v.status = 2 AND v.is_deleted = false AND d.is_deleted = false
+                ORDER BY v."modify_time" DESC NULLS LAST
+                LIMIT 1
+                """;
+            await using var activeReader = await activeCmd.ExecuteReaderAsync(cancellationToken);
+            if (!await activeReader.ReadAsync(cancellationToken))
+                throw new InvalidOperationException("还没有启用的教材版本。");
+            id = activeReader.GetString(0);
+            versionNo = activeReader.GetInt32(1);
+            title = activeReader.GetString(2);
+        }
+        else
+        {
+            await using var verCmd = conn.CreateCommand();
+            verCmd.CommandText = """
+                SELECT v.id, v.version_no, d.title
+                FROM kb_document_version v
+                JOIN kb_document d ON d.id = v.document_id
+                WHERE v.id = @id AND v.status = 2 AND v.is_deleted = false AND d.is_deleted = false
+                """;
+            verCmd.Parameters.Add(P("@id", versionId.Trim()));
+            await using var verReader = await verCmd.ExecuteReaderAsync(cancellationToken);
+            if (!await verReader.ReadAsync(cancellationToken))
+                throw new InvalidOperationException("教材版本不存在或尚未就绪。");
+            id = verReader.GetString(0);
+            versionNo = verReader.GetInt32(1);
+            title = verReader.GetString(2);
+        }
+
+        var pieces = await LoadPiecesAsync(conn, id, cancellationToken);
+        return new KbHandbookReaderDto
+        {
+            VersionId = id,
+            VersionNo = versionNo,
+            Title = title,
+            Chapters = BuildChapters(pieces)
+        };
+    }
+
     public async Task<KbAskResultDto> AskAsync(string userId, string question, CancellationToken cancellationToken = default)
     {
         await EnsurePermissionAsync(userId, KbHandbookCodes.AskPermission, cancellationToken);
@@ -261,6 +331,7 @@ public sealed class KbHandbookService : IKbHandbookService
         if (cached != null)
         {
             cached.DocumentTitle = title;
+            cached.VersionId = versionId;
             cached.VersionNo = versionNo;
             cached.FromCache = true;
             return cached;
@@ -278,8 +349,8 @@ public sealed class KbHandbookService : IKbHandbookService
                 Covered = false,
                 Answer = Uncovered,
                 DocumentTitle = title,
-                VersionNo = versionNo,
-                Citations = hits.Take(1).Select(ToCitation).ToList()
+                VersionId = versionId,
+                VersionNo = versionNo
             };
             await WriteCacheAsync(conn, versionId, questionHash, normalized, missed, hits.FirstOrDefault()?.Distance, cancellationToken);
             return missed;
@@ -321,8 +392,8 @@ public sealed class KbHandbookService : IKbHandbookService
                 Covered = false,
                 Answer = Uncovered,
                 DocumentTitle = title,
-                VersionNo = versionNo,
-                Citations = selected.Select(ToCitation).ToList()
+                VersionId = versionId,
+                VersionNo = versionNo
             };
             await WriteCacheAsync(conn, versionId, questionHash, normalized, missed, hits[0].Distance, cancellationToken);
             return missed;
@@ -336,8 +407,9 @@ public sealed class KbHandbookService : IKbHandbookService
             Covered = true,
             Answer = text,
             DocumentTitle = title,
+            VersionId = versionId,
             VersionNo = versionNo,
-            Citations = selected.Select(ToCitation).ToList()
+            Citations = DedupeCitations(selected)
         };
         await WriteCacheAsync(conn, versionId, questionHash, normalized, result, hits[0].Distance, cancellationToken);
         return result;
@@ -473,7 +545,8 @@ public sealed class KbHandbookService : IKbHandbookService
     {
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-            SELECT id, heading, content, chapter_no, (embedding <=> CAST(@q AS vector))
+            SELECT id, heading, content, chapter_no, chapter_title, section_no, section_title,
+                   (embedding <=> CAST(@q AS vector))
             FROM kb_chunk
             WHERE document_version_id = @ver AND embedding IS NOT NULL
             ORDER BY embedding <=> CAST(@q AS vector)
@@ -490,7 +563,10 @@ public sealed class KbHandbookService : IKbHandbookService
                 reader.GetString(1),
                 reader.GetString(2),
                 reader.IsDBNull(3) ? null : reader.GetString(3),
-                reader.GetDouble(4)));
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                reader.GetDouble(7)));
         }
 
         return hits;
@@ -527,11 +603,17 @@ public sealed class KbHandbookService : IKbHandbookService
         await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
         if (!await reader.ReadAsync(cancellationToken))
             return null;
+        var covered = reader.GetBoolean(0);
+        var answer = reader.GetString(1);
+        var ids = reader.IsDBNull(2) ? "[]" : reader.GetString(2);
+        await reader.DisposeAsync();
         return new KbAskResultDto
         {
-            Covered = reader.GetBoolean(0),
-            Answer = reader.GetString(1),
-            Citations = new List<KbCitationDto>()
+            Covered = covered,
+            Answer = answer,
+            Citations = covered
+                ? await LoadCachedCitationsAsync(conn, ids, cancellationToken)
+                : new List<KbCitationDto>()
         };
     }
 
@@ -544,7 +626,7 @@ public sealed class KbHandbookService : IKbHandbookService
         double? topDistance,
         CancellationToken cancellationToken)
     {
-        var ids = JsonSerializer.Serialize(result.Citations.Select(c => c.Heading).ToList());
+        var ids = JsonSerializer.Serialize(result.Citations.Select(c => c.ChunkId).Where(id => id.Length > 0).ToList());
         await ExecAsync(conn, null, """
             INSERT INTO kb_ask_cache (
                 id, document_version_id, question_sha256, question_norm, covered, answer, chunk_ids, top_distance, expire_time)
@@ -641,12 +723,193 @@ public sealed class KbHandbookService : IKbHandbookService
 
     private static KbCitationDto ToCitation(Hit hit) => new()
     {
+        ChunkId = hit.Id,
         Heading = hit.Heading,
+        ChapterNo = hit.ChapterNo,
+        SectionNo = hit.SectionNo,
+        Anchor = HandbookAnchor.Section(hit.ChapterNo, hit.Heading, hit.SectionNo, hit.SectionTitle),
         Excerpt = hit.Content.Length <= 240 ? hit.Content : hit.Content[..240],
         Distance = hit.Distance
     };
 
+    private static List<KbCitationDto> DedupeCitations(IEnumerable<Hit> hits) =>
+        hits.GroupBy(h => HandbookAnchor.Section(h.ChapterNo, h.Heading, h.SectionNo, h.SectionTitle))
+            .Select(group => ToCitation(group.OrderBy(h => h.Distance).First()))
+            .ToList();
+
+    private static async Task<List<KbCitationDto>> LoadCachedCitationsAsync(
+        DbConnection conn, string json, CancellationToken cancellationToken)
+    {
+        List<string>? ids;
+        try
+        {
+            ids = JsonSerializer.Deserialize<List<string>>(json);
+        }
+        catch (JsonException)
+        {
+            return new List<KbCitationDto>();
+        }
+
+        var parsed = (ids ?? new List<string>())
+            .Where(id => Guid.TryParse(id, out _))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(5)
+            .ToList();
+        if (parsed.Count == 0)
+            return new List<KbCitationDto>();
+
+        await using var cmd = conn.CreateCommand();
+        var names = new List<string>();
+        for (var i = 0; i < parsed.Count; i++)
+        {
+            var name = "@c" + i;
+            names.Add(name);
+            cmd.Parameters.Add(P(name, parsed[i]));
+        }
+
+        cmd.CommandText = $"""
+            SELECT id, heading, left(content, 240), chapter_no, chapter_title, section_no, section_title
+            FROM kb_chunk
+            WHERE id IN ({string.Join(", ", names)})
+            """;
+        var found = new Dictionary<string, KbCitationDto>(StringComparer.OrdinalIgnoreCase);
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var hit = new Hit(
+                reader.GetString(0),
+                reader.GetString(1),
+                reader.IsDBNull(2) ? "" : reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6),
+                0);
+            found[hit.Id] = ToCitation(hit);
+        }
+
+        return parsed.Where(found.ContainsKey).Select(id => found[id]).ToList();
+    }
+
+    private static async Task<List<Piece>> LoadPiecesAsync(DbConnection conn, string versionId, CancellationToken cancellationToken)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            SELECT chunk_index, chapter_no, chapter_title, section_no, section_title, heading, content
+            FROM kb_chunk
+            WHERE document_version_id = @id
+            ORDER BY chunk_index
+            """;
+        cmd.Parameters.Add(P("@id", versionId));
+        var rows = new List<Piece>();
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new Piece(
+                reader.GetInt32(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2),
+                reader.IsDBNull(3) ? null : reader.GetString(3),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.GetString(5),
+                reader.GetString(6)));
+        }
+
+        return rows;
+    }
+
+    private static List<KbHandbookChapterDto> BuildChapters(IReadOnlyList<Piece> pieces)
+    {
+        var chapters = new List<KbHandbookChapterDto>();
+        KbHandbookChapterDto? chapter = null;
+        KbHandbookSectionDto? section = null;
+        var sectionParts = new List<string>();
+        string? sectionAnchor = null;
+
+        void FlushSection()
+        {
+            if (section == null || chapter == null)
+                return;
+            section.Content = HandbookSectionText.Merge(sectionParts);
+            chapter.Sections.Add(section);
+            section = null;
+            sectionParts.Clear();
+        }
+
+        foreach (var piece in pieces)
+        {
+            var chapterAnchor = HandbookAnchor.Chapter(piece.ChapterNo, piece.Heading);
+            if (chapter == null || chapter.Anchor != chapterAnchor)
+            {
+                FlushSection();
+                chapter = new KbHandbookChapterDto
+                {
+                    Anchor = chapterAnchor,
+                    Title = ChapterLabel(piece)
+                };
+                chapters.Add(chapter);
+            }
+
+            var anchor = HandbookAnchor.Section(piece.ChapterNo, piece.Heading, piece.SectionNo, piece.SectionTitle);
+            if (section == null || anchor != sectionAnchor)
+            {
+                FlushSection();
+                sectionAnchor = anchor;
+                section = new KbHandbookSectionDto
+                {
+                    Anchor = anchor,
+                    Title = SectionLabel(piece)
+                };
+            }
+
+            sectionParts.Add(piece.Content);
+        }
+
+        FlushSection();
+        return chapters;
+    }
+
+    private static string ChapterLabel(Piece piece)
+    {
+        if (HandbookAnchor.IsAppendix(piece.Heading))
+            return TrimLabel(string.IsNullOrEmpty(piece.ChapterNo) ? "附录" : "附录 " + piece.ChapterNo + " " + (piece.ChapterTitle ?? ""));
+        if (!string.IsNullOrEmpty(piece.ChapterNo))
+            return TrimLabel("第" + piece.ChapterNo + "章 " + (piece.ChapterTitle ?? ""));
+        return TrimLabel(string.IsNullOrEmpty(piece.ChapterTitle) ? "前言" : piece.ChapterTitle);
+    }
+
+    private static string SectionLabel(Piece piece)
+    {
+        if (!string.IsNullOrEmpty(piece.SectionNo))
+            return TrimLabel((piece.SectionNo + " " + (piece.SectionTitle ?? "")).Trim());
+        if (!string.IsNullOrEmpty(piece.SectionTitle))
+            return TrimLabel(piece.SectionTitle);
+        return "正文";
+    }
+
+    private static string TrimLabel(string text)
+    {
+        var value = text.Trim();
+        return value.Length <= 42 ? value : value[..42] + "…";
+    }
+
     private sealed record EmbeddingProfile(string ProviderCode, string Model, string BaseUrl, string ApiKey);
     private sealed record ChunkRow(string Id, string Content);
-    private sealed record Hit(string Id, string Heading, string Content, string? ChapterNo, double Distance);
+    private sealed record Hit(
+        string Id,
+        string Heading,
+        string Content,
+        string? ChapterNo,
+        string? ChapterTitle,
+        string? SectionNo,
+        string? SectionTitle,
+        double Distance);
+    private sealed record Piece(
+        int ChunkIndex,
+        string? ChapterNo,
+        string? ChapterTitle,
+        string? SectionNo,
+        string? SectionTitle,
+        string Heading,
+        string Content);
 }

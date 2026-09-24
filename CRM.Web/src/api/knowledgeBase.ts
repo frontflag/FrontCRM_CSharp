@@ -24,7 +24,11 @@ export type KbChunkListItem = {
 }
 
 export type KbCitation = {
+  chunkId: string
   heading: string
+  chapterNo?: string | null
+  sectionNo?: string | null
+  anchor: string
   excerpt: string
   distance: number
 }
@@ -33,9 +37,29 @@ export type KbAskResult = {
   covered: boolean
   answer: string
   documentTitle?: string | null
+  versionId?: string | null
   versionNo?: number | null
   fromCache: boolean
   citations: KbCitation[]
+}
+
+export type KbHandbookSection = {
+  anchor: string
+  title: string
+  content: string
+}
+
+export type KbHandbookChapter = {
+  anchor: string
+  title: string
+  sections: KbHandbookSection[]
+}
+
+export type KbHandbookReader = {
+  versionId: string
+  versionNo: number
+  title: string
+  chapters: KbHandbookChapter[]
 }
 
 export type KbImportResult = {
@@ -68,5 +92,8 @@ export const knowledgeBaseApi = {
   },
   ask(question: string) {
     return apiClient.post<KbAskResult>(`${base}/ask`, { question }, { timeout: 180000 })
+  },
+  reader(versionId?: string) {
+    return apiClient.get<KbHandbookReader>(`${base}/reader`, { params: versionId ? { versionId } : {} })
   }
 }

@@ -15,6 +15,11 @@ public interface IKbHandbookService
 
     Task<KbAskResultDto> AskAsync(string userId, string question, CancellationToken cancellationToken = default);
 
+    Task<KbHandbookReaderDto> GetReaderAsync(
+        string userId,
+        string? versionId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<KbDocumentVersionDto>> ListVersionsAsync(
         string documentCode,
         CancellationToken cancellationToken = default);

@@ -114,6 +114,22 @@ public class KnowledgeBaseController : ControllerBase
         }
     }
 
+    [HttpGet("reader")]
+    public async Task<ActionResult<ApiResponse<KbHandbookReaderDto>>> Reader(
+        [FromQuery] string? versionId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _kb.GetReaderAsync(UserId ?? "", versionId, cancellationToken);
+            return Ok(ApiResponse<KbHandbookReaderDto>.Ok(result));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<KbHandbookReaderDto>.Fail(ex.Message));
+        }
+    }
+
     [HttpPost("ask")]
     public async Task<ActionResult<ApiResponse<KbAskResultDto>>> Ask(
         [FromBody] KbAskRequest request,
