@@ -6364,6 +6364,8 @@ const enUS = {
       stationEmpty: 'Not started',
       stationActive: 'In progress',
       stationDone: 'Completed',
+      stationCancelled: 'Cancelled',
+      stationFailed: 'Failed',
       stockingUsageStatus: 'Used',
       writeOffStatus: 'Written off',
       stations: {

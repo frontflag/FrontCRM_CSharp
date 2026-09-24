@@ -3,6 +3,8 @@
 // 「进行中」圆圈与状态文字共用色
 $flow-status-active: #00a0dc;
 $flow-status-done: #67c23a;
+$flow-status-cancelled: #909399;
+$flow-status-failed: #c95745;
 
 .so-item-flow-root {
   min-width: 0;
@@ -97,6 +99,16 @@ $flow-status-done: #67c23a;
     border-color: $flow-status-done;
     background: $flow-status-done;
   }
+
+  &--cancelled {
+    border-color: $flow-status-cancelled;
+    background: $flow-status-cancelled;
+  }
+
+  &--failed {
+    border-color: $flow-status-failed;
+    background: $flow-status-failed;
+  }
 }
 
 .so-item-flow-station__body {
@@ -138,6 +150,14 @@ $flow-status-done: #67c23a;
 
   &--done {
     color: $flow-status-done;
+  }
+
+  &--cancelled {
+    color: $flow-status-cancelled;
+  }
+
+  &--failed {
+    color: $flow-status-failed;
   }
 
   &--empty {

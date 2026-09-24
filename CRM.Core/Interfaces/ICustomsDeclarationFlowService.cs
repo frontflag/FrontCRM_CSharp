@@ -38,6 +38,10 @@ public sealed class CustomsDeclarationFlowDocDto
     public decimal? Qty { get; set; }
     public bool IsDeleted { get; set; }
     public string? SalesOrderId { get; set; }
+    /// <summary>销售明细收款进度：0 待收款，1 部分收款，2 收款完成。</summary>
+    public short? ReceiptProgressStatus { get; set; }
+    /// <summary>销售明细开票进度：0 待开票，1 部分开票，2 开票完成。</summary>
+    public short? InvoiceProgressStatus { get; set; }
     /// <summary>仅报关当前站：报关公司名称（非 vendorId）。</summary>
     public string? BrokerName { get; set; }
     public short? StockOutType { get; set; }

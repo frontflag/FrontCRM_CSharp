@@ -181,7 +181,7 @@ public class CustomsDeclarationItemsController : ControllerBase
             var poItemQ = (purchaseOrderItemCode ?? string.Empty).Trim();
             var mask511 = await PurchaseMaskHttp.ShouldMaskPurchase511Async(_rbacService, User);
 
-            var iq = _db.CustomsDeclarationItems.AsNoTracking();
+            var iq = _db.CustomsDeclarationItems.AsNoTracking().Where(i => !i.IsDeleted);
             if (!string.IsNullOrEmpty(pnQ))
                 iq = iq.Where(i => i.PurchasePn != null && EF.Functions.ILike(i.PurchasePn, $"%{pnQ}%"));
             if (!string.IsNullOrEmpty(soLineQ))
@@ -201,7 +201,7 @@ public class CustomsDeclarationItemsController : ControllerBase
 
             var query =
                 from i in iq
-                join d in _db.CustomsDeclarations.AsNoTracking() on i.DeclarationId equals d.Id
+                join d in _db.CustomsDeclarations.AsNoTracking().Where(d => !d.IsDeleted) on i.DeclarationId equals d.Id
                 join c in _db.Customers.AsNoTracking().IgnoreQueryFilters() on i.CustomerId equals c.Id into cj
                 from c in cj.DefaultIfEmpty()
                 join u in _db.Users.AsNoTracking() on i.SalesUserId equals u.Id into uj

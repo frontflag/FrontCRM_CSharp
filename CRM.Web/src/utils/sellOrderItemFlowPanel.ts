@@ -11,7 +11,7 @@ import {
   listAmountCurrencyIso
 } from '@/utils/moneyFormat'
 
-export type FlowStationStatus = 'empty' | 'active' | 'done'
+export type FlowStationStatus = 'empty' | 'active' | 'done' | 'cancelled' | 'failed'
 
 export type FlowStationKey =
   | 'sellOrderItem'

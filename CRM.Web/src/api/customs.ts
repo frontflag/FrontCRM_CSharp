@@ -350,6 +350,8 @@ export interface CustomsDeclarationFlowDocDto {
   qty?: number | null
   isDeleted?: boolean
   salesOrderId?: string | null
+  receiptProgressStatus?: number | null
+  invoiceProgressStatus?: number | null
   brokerName?: string | null
   stockOutType?: number | null
   stockInType?: number | null

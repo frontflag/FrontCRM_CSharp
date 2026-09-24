@@ -15,16 +15,6 @@ function dash(v?: string | null) {
   return s || '—'
 }
 
-function stationStatusFromCards(cards: FlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
-}
-
-function buildStation(key: FlowStationKey, titleKey: string, cards: FlowCard[]): FlowStation {
-  return { key, titleKey, stationStatus: stationStatusFromCards(cards), cards }
-}
-
 function salesSorStatusText(status?: number | null, t?: TFunc): string {
   const n = Number(status)
   if (n === STOCK_OUT_REQUEST_STATUS.PendingCustoms)
@@ -72,9 +62,130 @@ function isSalesNotifyFinal(doc: CustomsDeclarationFlowDocDto) {
   )
 }
 
-function isStockOutFinal(status?: number | null) {
+type DocOutcome = 'active' | 'done' | 'cancelled' | 'failed'
+
+/**
+ * 已删除不参与完成判断；全部删除为已取消。
+ * 还有进行中则进行中；全部已取消为已取消；完成与已取消混在一起为已完成。
+ * 质检：未通过优先于已通过。
+ */
+function stationStatusFromDocs(
+  docs: CustomsDeclarationFlowDocDto[] | null | undefined,
+  classify: (doc: CustomsDeclarationFlowDocDto) => DocOutcome,
+  failedBeatsDone = false
+): FlowStationStatus {
+  const rows = docs ?? []
+  if (rows.length === 0) return 'empty'
+  const live = rows.filter((d) => !d.isDeleted)
+  if (live.length === 0) return 'cancelled'
+  const outcomes = live.map(classify)
+  if (outcomes.some((o) => o === 'active')) return 'active'
+  if (failedBeatsDone && outcomes.some((o) => o === 'failed')) return 'failed'
+  if (outcomes.every((o) => o === 'cancelled')) return 'cancelled'
+  if (outcomes.some((o) => o === 'failed')) return 'failed'
+  return 'done'
+}
+
+function sellLineOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  if (Number(doc.status) === 1) return 'cancelled'
+  if (Number(doc.receiptProgressStatus) === 2 && Number(doc.invoiceProgressStatus) === 2) return 'done'
+  return 'active'
+}
+
+function notifyOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  const s = Number(doc.status)
+  if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return 'done'
+  if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return 'cancelled'
+  return 'active'
+}
+
+function pendlistOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  const s = Number(doc.status)
+  if (s === CUSTOMS_PENDLIST_STATUS.Closed) return 'done'
+  if (s === CUSTOMS_PENDLIST_STATUS.Cancelled) return 'cancelled'
+  return 'active'
+}
+
+function packingOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  const s = Number(doc.status)
+  if (s >= 100) return 'done'
+  if (s === -1) return 'cancelled'
+  return 'active'
+}
+
+function declarationOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  const s = Number(doc.status)
+  if (s === 3) return 'done'
+  if (s === -1) return 'cancelled'
+  return 'active'
+}
+
+function stockOutOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  const s = Number(doc.status)
+  if (s === 4) return 'done'
+  if (s === 3) return 'cancelled'
+  return 'active'
+}
+
+function arrivalOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  return Number(doc.status) >= 100 ? 'done' : 'active'
+}
+
+function qcOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  const s = Number(doc.status)
+  if (s === 100) return 'done'
+  if (s === -1) return 'failed'
+  return 'active'
+}
+
+function stockInOutcome(doc: CustomsDeclarationFlowDocDto): DocOutcome {
+  const s = Number(doc.status)
+  if (s === 2) return 'done'
+  if (s === 3) return 'cancelled'
+  return 'active'
+}
+
+function stockOutStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
   const s = Number(status)
-  return s === 2 || s === 3 || s === 4 || s === 100 || s === -1
+  if (s === 0) return t('stockOutList.status.draft')
+  if (s === 1) return t('stockOutList.status.pending')
+  if (s === 2) return t('stockOutList.status.done')
+  if (s === 3) return t('stockOutList.status.cancelled')
+  if (s === 4) return t('stockOutList.status.finished')
+  return Number.isFinite(s) ? String(s) : '—'
+}
+
+function arrivalStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const keyMap: Record<number, string> = {
+    1: 'new',
+    10: 'notArrived',
+    20: 'pendingQc',
+    30: 'qcDone',
+    100: 'stocked'
+  }
+  const k = keyMap[Number(status)]
+  return k ? t(`arrivalNoticeList.status.${k}`) : t('arrivalNoticeList.statusUnknown')
+}
+
+function qcStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const s = Number(status)
+  if (s === -1) return t('qcList.qcStatus.failed')
+  if (s === 10) return t('qcList.qcStatus.partial')
+  if (s === 100) return t('qcList.qcStatus.passed')
+  return t('qcList.qcStatus.unknown')
+}
+
+function stockInStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const s = Number(status)
+  if (s === 0) return t('stockInList.status.draft')
+  if (s === 1) return t('stockInList.status.pending')
+  if (s === 2) return t('stockInList.status.done')
+  if (s === 3) return t('stockInList.status.cancelled')
+  return Number.isFinite(s) ? String(s) : '—'
 }
 
 function priceText(doc?: CustomsDeclarationFlowDocDto | null) {
@@ -225,8 +336,8 @@ export function buildCustomsDeclarationFlowStations(
 
   const stockOutCards = mapDocs(aggregates.stockOuts, (d) =>
     toCard(d, {
-      statusText: d.status == null ? '—' : String(d.status),
-      isFinal: isStockOutFinal(d.status),
+      statusText: stockOutStatusLabel(d.status, t),
+      isFinal: Number(d.status) === 4,
       personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
       showCustomer: true,
       qtyLabelKey: `${F}.fields.customsOutQty`,
@@ -236,7 +347,7 @@ export function buildCustomsDeclarationFlowStations(
 
   const arrivalCards = mapDocs(aggregates.arrivals, (d) =>
     toCard(d, {
-      statusText: d.status == null ? '—' : String(d.status),
+      statusText: arrivalStatusLabel(d.status, t),
       isFinal: Number(d.status) >= 100,
       personRoleKey: 'salesOrderItemList.flowPanel.role.purchaser',
       showCustomer: true,
@@ -247,7 +358,7 @@ export function buildCustomsDeclarationFlowStations(
 
   const qcCards = mapDocs(aggregates.qcs, (d) =>
     toCard(d, {
-      statusText: d.status == null ? '—' : String(d.status),
+      statusText: qcStatusLabel(d.status, t),
       isFinal: Number(d.status) === 100 || Number(d.status) === -1,
       personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
       qtyLabelKey: `${F}.fields.qcQty`
@@ -256,7 +367,7 @@ export function buildCustomsDeclarationFlowStations(
 
   const stockInCards = mapDocs(aggregates.stockIns, (d) =>
     toCard(d, {
-      statusText: d.status == null ? '—' : String(d.status),
+      statusText: stockInStatusLabel(d.status, t),
       isFinal: Number(d.status) === 100 || Number(d.status) === 2,
       personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
       qtyLabelKey: `${F}.fields.customsInQty`,
@@ -264,17 +375,43 @@ export function buildCustomsDeclarationFlowStations(
     })
   )
 
+  const place = (
+    key: FlowStationKey,
+    titleKey: string,
+    cards: FlowCard[],
+    docs: CustomsDeclarationFlowDocDto[] | null | undefined,
+    classify: (doc: CustomsDeclarationFlowDocDto) => DocOutcome,
+    failedBeatsDone = false
+  ): FlowStation => ({
+    key,
+    titleKey,
+    stationStatus: stationStatusFromDocs(docs, classify, failedBeatsDone),
+    cards
+  })
+
   return [
-    buildStation('sellOrderItem', `${ST}.sellOrderItem`, sellCards),
-    buildStation('stockOutNotify', `${ST}.salesStockOutNotify`, salesNotifyCards),
-    buildStation('pendlist', `${ST}.pendlist`, pendlistCards),
-    buildStation('customsStockOutNotify', `${ST}.customsStockOutNotify`, customsNotifyCards),
-    buildStation('packing', `${ST}.packing`, packingCards),
-    buildStation('customsDeclaration', `${ST}.declaration`, declarationCards),
-    buildStation('stockOut', `${ST}.stockOut`, stockOutCards),
-    buildStation('arrivalNotify', `${ST}.arrival`, arrivalCards),
-    buildStation('qc', `${ST}.qc`, qcCards),
-    buildStation('customsStockIn', `${ST}.stockIn`, stockInCards)
+    place('sellOrderItem', `${ST}.sellOrderItem`, sellCards, aggregates.sellOrderItems, sellLineOutcome),
+    place('stockOutNotify', `${ST}.salesStockOutNotify`, salesNotifyCards, aggregates.salesStockOutNotifies, notifyOutcome),
+    place('pendlist', `${ST}.pendlist`, pendlistCards, aggregates.pendlists, pendlistOutcome),
+    place(
+      'customsStockOutNotify',
+      `${ST}.customsStockOutNotify`,
+      customsNotifyCards,
+      aggregates.customsStockOutNotifies,
+      notifyOutcome
+    ),
+    place('packing', `${ST}.packing`, packingCards, aggregates.packing ? [aggregates.packing] : [], packingOutcome),
+    place(
+      'customsDeclaration',
+      `${ST}.declaration`,
+      declarationCards,
+      aggregates.declaration ? [aggregates.declaration] : [],
+      declarationOutcome
+    ),
+    place('stockOut', `${ST}.stockOut`, stockOutCards, aggregates.stockOuts, stockOutOutcome),
+    place('arrivalNotify', `${ST}.arrival`, arrivalCards, aggregates.arrivals, arrivalOutcome),
+    place('qc', `${ST}.qc`, qcCards, aggregates.qcs, qcOutcome, true),
+    place('customsStockIn', `${ST}.stockIn`, stockInCards, aggregates.stockIns, stockInOutcome)
   ]
 }
 

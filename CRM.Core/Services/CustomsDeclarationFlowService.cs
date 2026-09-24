@@ -17,6 +17,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
     private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
     private readonly IRepository<SellOrder> _sellOrderRepo;
     private readonly IRepository<SellOrderItem> _sellOrderItemRepo;
+    private readonly IRepository<SellOrderItemExtend> _sellOrderItemExtendRepo;
     private readonly IRepository<CustomerInfo> _customerRepo;
     private readonly IRepository<User> _userRepo;
     private readonly IRepository<PackingItem> _packingItemRepo;
@@ -35,6 +36,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         IRepository<StockOutRequest> stockOutRequestRepo,
         IRepository<SellOrder> sellOrderRepo,
         IRepository<SellOrderItem> sellOrderItemRepo,
+        IRepository<SellOrderItemExtend> sellOrderItemExtendRepo,
         IRepository<CustomerInfo> customerRepo,
         IRepository<User> userRepo,
         IRepository<PackingItem> packingItemRepo,
@@ -52,6 +54,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         _stockOutRequestRepo = stockOutRequestRepo;
         _sellOrderRepo = sellOrderRepo;
         _sellOrderItemRepo = sellOrderItemRepo;
+        _sellOrderItemExtendRepo = sellOrderItemExtendRepo;
         _customerRepo = customerRepo;
         _userRepo = userRepo;
         _packingItemRepo = packingItemRepo;
@@ -101,6 +104,10 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
             ? new List<SellOrderItem>()
             : (await _sellOrderItemRepo.FindIgnoreFiltersAsync(l => sellLineIds.Contains(l.Id))).ToList();
         var sellById = sellLines.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
+        var sellExtends = sellLineIds.Count == 0
+            ? new List<SellOrderItemExtend>()
+            : (await _sellOrderItemExtendRepo.FindIgnoreFiltersAsync(e => sellLineIds.Contains(e.Id))).ToList();
+        var sellExtendById = sellExtends.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
         var sellOrderIds = DistinctIds(sellLines.Select(l => l.SellOrderId));
         var sellOrders = sellOrderIds.Count == 0
@@ -211,6 +218,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
             if (string.IsNullOrEmpty(lineId) || !seenSell.Add(lineId))
                 continue;
             sellById.TryGetValue(lineId, out var line);
+            sellExtendById.TryGetValue(lineId, out var lineExtend);
             var so = ResolveSellOrder(line, soById);
             var party = ResolveParty(item, so, customerById, users);
             dto.SellOrderItems.Add(new CustomsDeclarationFlowDocDto
@@ -226,6 +234,8 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
                 UnitPrice = line?.Price,
                 Currency = line?.Currency,
                 Qty = line?.Qty,
+                ReceiptProgressStatus = lineExtend?.ReceiptProgressStatus,
+                InvoiceProgressStatus = lineExtend?.InvoiceProgressStatus,
                 IsDeleted = line == null || line.IsDeleted,
                 SalesOrderId = so?.Id ?? line?.SellOrderId
             });

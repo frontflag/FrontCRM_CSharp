@@ -224,6 +224,8 @@ function showsOutType(key: FlowStationKey) {
 function stationStatusLabel(status: FlowStationStatus) {
   if (status === 'active') return t('salesOrderItemList.flowPanel.stationActive')
   if (status === 'done') return t('salesOrderItemList.flowPanel.stationDone')
+  if (status === 'cancelled') return t('salesOrderItemList.flowPanel.stationCancelled')
+  if (status === 'failed') return t('salesOrderItemList.flowPanel.stationFailed')
   return t('salesOrderItemList.flowPanel.stationEmpty')
 }
 

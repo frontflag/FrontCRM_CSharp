@@ -6352,6 +6352,8 @@ const zhCN = {
       stationEmpty: '未开始',
       stationActive: '进行中',
       stationDone: '已完成',
+      stationCancelled: '已取消',
+      stationFailed: '未通过',
       stockingUsageStatus: '已使用',
       writeOffStatus: '已核销',
       stations: {
