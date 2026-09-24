@@ -225,6 +225,7 @@ import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
+import { flowStationBadgeLabel } from '@/utils/flowStationBadge'
 import {
   buildStockItemFlowStations,
   formatStockItemFlowCardDate,
@@ -261,9 +262,7 @@ const stations = computed(() =>
 )
 
 function stationStatusLabel(status: FlowStationStatus) {
-  if (status === 'done') return t('inventoryStockItemList.flowPanel.stationDone')
-  if (status === 'active') return t('inventoryStockItemList.flowPanel.stationActive')
-  return t('inventoryStockItemList.flowPanel.stationEmpty')
+  return flowStationBadgeLabel(status, t as (key: string, ...args: unknown[]) => string)
 }
 
 function toRouteLocation(route: FlowDocRoute) {

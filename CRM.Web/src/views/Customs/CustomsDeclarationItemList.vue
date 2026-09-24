@@ -98,6 +98,8 @@
       :data="pagedRows"
       v-loading="loading"
       class="data-table"
+      :row-class-name="flowRowClassName"
+      @row-click="onRowClick"
       @row-dblclick="onRowDblClick"
     >
       <template #col-declareDate="{ row }">
@@ -272,9 +274,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, inject, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Setting } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
@@ -287,6 +289,10 @@ import {
 } from '@/api/customs'
 import { withExportTimestamp } from '@/utils/exportFileName'
 import { useAuthStore } from '@/stores/auth'
+import { useCustomsDeclarationFlowPanelStore } from '@/stores/customsDeclarationFlowPanel'
+import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
+import { useListRightOpsPanelInteraction } from '@/composables/useListRightOpsPanelInteraction'
+import { resetListRightPanelOnReload } from '@/composables/useListRightPanelReset'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import { estimateListColumnHeaderMinWidth } from '@/utils/listColumnHeaderWidth'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
@@ -300,8 +306,11 @@ import {
 } from '@/utils/moneyFormat'
 
 const { t } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const workspaceLayout = inject(WorkspaceLayoutKey, null)
+const flowStore = useCustomsDeclarationFlowPanelStore()
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
 
 const loading = ref(false)
@@ -696,6 +705,32 @@ async function load() {
   } finally {
     loading.value = false
   }
+  resetListRightPanelOnReload(flowStore)
+}
+
+const { onOpsPanelRowClick } = useListRightOpsPanelInteraction({
+  workspaceLayout,
+  isActiveRoute: () => route.name === 'CustomsDeclarationItemList',
+  hasSelectedRow: () => !!flowStore.row,
+  setRowOnly: (row) => flowStore.setRowOnly(row, 'item'),
+  selectRow: (row) =>
+    flowStore.selectRow(row, t('customsPages.items.flowPanel.loadFailed'), 'item'),
+  loadSelected: () => {
+    void flowStore.loadSelected(t('customsPages.items.flowPanel.loadFailed'))
+  },
+  dataTabIds: ['r-flow']
+})
+
+async function onRowClick(row: CustomsDeclarationItemListItemDto) {
+  await onOpsPanelRowClick(row as unknown as Record<string, unknown>)
+}
+
+function flowRowClassName({ row }: { row: CustomsDeclarationItemListItemDto }) {
+  const active =
+    flowStore.row && flowStore.rowKey(flowStore.row) === String(row.id ?? '').trim()
+      ? 'so-item-row--active'
+      : ''
+  return [active, 'table-row-pointer'].filter(Boolean).join(' ')
 }
 
 function onRowDblClick(row: CustomsDeclarationItemListItemDto) {

@@ -2,12 +2,24 @@ import type { PurchaseOrderDetailTabAggregates } from '@/api/purchaseOrder'
 import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
 import {
+  arrivalOutcome,
+  foldFlowCards,
+  paymentOutcome,
+  poItemOutcome,
+  prOutcome,
+  purchaseInvoiceOutcome,
+  qcOutcome,
+  stockInOutcome,
+  type FlowDocOutcome,
+  type FlowStationBadge
+} from '@/utils/flowStationBadge'
+import {
   formatTotalAmountNumber,
   formatUnitPriceWithCurrencyCodeSuffix,
   listAmountCurrencyIso
 } from '@/utils/moneyFormat'
 
-export type FlowStationStatus = 'empty' | 'active' | 'done'
+export type FlowStationStatus = FlowStationBadge
 
 export type PoFlowStationKey =
   | 'purchaseRequisition'
@@ -31,6 +43,8 @@ export interface PoFlowCard {
   docRoute?: FlowDocRoute
   statusText: string
   isFinal: boolean
+  outcome?: FlowDocOutcome
+  isDeleted?: boolean
   createdAt?: string | null
   showVendor: boolean
   vendorId?: string | null
@@ -69,7 +83,6 @@ const PO_ITEM_STATUS_TEXT: Record<number, string> = {
   [-2]: '取消'
 }
 
-const FINANCE_PAYMENT_STATUS_CANCELLED = -2
 const FINANCE_PAYMENT_STATUS_COMPLETED = 100
 
 function dash(v?: string | null) {
@@ -86,9 +99,7 @@ function sortByCreatedAsc<T>(items: T[], getTime: (x: T) => string | null | unde
 }
 
 function stationStatusFromCards(cards: PoFlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
+  return foldFlowCards(cards)
 }
 
 function formatAmountWithCurrency(amount: unknown, currency?: number): string {
@@ -112,19 +123,9 @@ function prStatusLabel(v: unknown, t: TFunc): string {
   return Number.isFinite(s) ? String(s) : '—'
 }
 
-function isPrFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3
-}
-
 function poItemStatusLabel(v: unknown): string {
   const s = Number(v)
   return Number.isFinite(s) ? (PO_ITEM_STATUS_TEXT[s] ?? String(s)) : '—'
-}
-
-function isPoItemFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === -1 || s === -2
 }
 
 function paymentStatusLabel(v: unknown): string {
@@ -140,11 +141,6 @@ function paymentStatusLabel(v: unknown): string {
   return Number.isFinite(s) ? (map[s] ?? String(s)) : '—'
 }
 
-function isPaymentRequestFinal(v: unknown) {
-  const s = Number(v)
-  return s === FINANCE_PAYMENT_STATUS_COMPLETED || s === -1
-}
-
 function arrivalStatusLabel(v: unknown, t: TFunc): string {
   const keyMap: Record<number, string> = {
     1: 'new',
@@ -157,21 +153,12 @@ function arrivalStatusLabel(v: unknown, t: TFunc): string {
   return k ? t(`arrivalNoticeList.status.${k}`) : t('arrivalNoticeList.statusUnknown')
 }
 
-function isArrivalFinal(v: unknown) {
-  return Number(v) === 100
-}
-
 function qcStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === -1) return t('qcList.qcStatus.failed')
   if (s === 10) return t('qcList.qcStatus.partial')
   if (s === 100) return t('qcList.qcStatus.passed')
   return t('qcList.qcStatus.unknown')
-}
-
-function isQcFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === -1
 }
 
 function stockInStatusLabel(v: unknown, t: TFunc): string {
@@ -183,21 +170,10 @@ function stockInStatusLabel(v: unknown, t: TFunc): string {
   return Number.isFinite(s) ? String(s) : '—'
 }
 
-function isStockInFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3
-}
-
 function purchaseInvoiceStatusLabel(confirmStatus: unknown, redInvoiceStatus: unknown): string {
   const red = Number(redInvoiceStatus)
   if (Number.isFinite(red) && red > 0) return '红冲'
   return Number(confirmStatus) === 1 ? '已认证' : '未认证'
-}
-
-function isPurchaseInvoiceFinal(confirmStatus: unknown, redInvoiceStatus: unknown) {
-  const red = Number(redInvoiceStatus)
-  if (Number.isFinite(red) && red > 0) return true
-  return Number(confirmStatus) === 1
 }
 
 function buildStation(
@@ -282,7 +258,8 @@ export function buildPurchaseOrderItemFlowStations(
       docNo: dash(x.billCode),
       docRoute: !mask ? { name: 'PurchaseRequisitionDetail', params: { id: x.id } } : undefined,
       statusText: prStatusLabel(x.status, t),
-      isFinal: isPrFinal(x.status),
+      isFinal: prOutcome(x.status) === 'done',
+      outcome: prOutcome(x.status),
       createdAt: x.createTime,
       showVendor: true,
       vendorId: lineVendorId,
@@ -318,7 +295,8 @@ export function buildPurchaseOrderItemFlowStations(
               }
             : undefined,
         statusText: poItemStatusLabel(status),
-        isFinal: isPoItemFinal(status),
+        isFinal: poItemOutcome(status) === 'done',
+        outcome: poItemOutcome(status),
         createdAt: (row.orderCreateTime ?? row.createTime ?? null) as string | null,
         showVendor: true,
       vendorId: lineVendorId,
@@ -342,7 +320,7 @@ export function buildPurchaseOrderItemFlowStations(
     (aggregates?.payments ?? []).filter((x) => !x.isDeleted),
     (x) => x.createTime
   )
-  const requestPayments = payments.filter((x) => Number(x.status) !== FINANCE_PAYMENT_STATUS_CANCELLED)
+  const requestPayments = payments
   const paidPayments = payments.filter((x) => Number(x.status) === FINANCE_PAYMENT_STATUS_COMPLETED)
 
   // 3. 申请付款
@@ -352,7 +330,8 @@ export function buildPurchaseOrderItemFlowStations(
       docNo: dash(x.financePaymentCode),
       docRoute: !mask ? { name: 'FinancePaymentDetail', params: { id: x.id } } : undefined,
       statusText: paymentStatusLabel(x.status),
-      isFinal: isPaymentRequestFinal(x.status),
+      isFinal: paymentOutcome(x.status) === 'done',
+      outcome: paymentOutcome(x.status),
       createdAt: x.createTime,
       showVendor: true,
       vendorId: lineVendorId,
@@ -378,6 +357,7 @@ export function buildPurchaseOrderItemFlowStations(
       docRoute: !mask ? { name: 'FinancePaymentDetail', params: { id: x.id } } : undefined,
       statusText: paymentStatusLabel(x.status),
       isFinal: true,
+      outcome: 'done',
       createdAt: x.paymentDate ?? x.createTime,
       showVendor: true,
       vendorId: lineVendorId,
@@ -401,7 +381,8 @@ export function buildPurchaseOrderItemFlowStations(
       docNo: dash(x.noticeCode),
       docRoute: !mask ? { name: 'ArrivalNoticeList', query: { noticeId: x.id } } : undefined,
       statusText: arrivalStatusLabel(x.status, t),
-      isFinal: isArrivalFinal(x.status),
+      isFinal: arrivalOutcome(x.status) === 'done',
+      outcome: arrivalOutcome(x.status),
       createdAt: x.createTime,
       showVendor: true,
       vendorId: lineVendorId,
@@ -431,7 +412,8 @@ export function buildPurchaseOrderItemFlowStations(
             }
           : undefined,
       statusText: qcStatusLabel(x.status, t),
-      isFinal: isQcFinal(x.status),
+      isFinal: qcOutcome(x.status) === 'done',
+      outcome: qcOutcome(x.status),
       createdAt: x.createTime,
       showVendor: true,
       vendorId: lineVendorId,
@@ -453,7 +435,8 @@ export function buildPurchaseOrderItemFlowStations(
       docNo: dash(x.stockInCode),
       docRoute: !mask ? { name: 'StockInDetail', params: { id: x.id } } : undefined,
       statusText: stockInStatusLabel(x.status, t),
-      isFinal: isStockInFinal(x.status),
+      isFinal: stockInOutcome(x.status) === 'done',
+      outcome: stockInOutcome(x.status),
       createdAt: x.createTime ?? x.stockInDate,
       showVendor: true,
       vendorId: lineVendorId,
@@ -476,7 +459,8 @@ export function buildPurchaseOrderItemFlowStations(
       docNo: dash(x.invoiceNo),
       docRoute: !mask ? { name: 'FinancePurchaseInvoiceDetail', params: { id: x.id } } : undefined,
       statusText: purchaseInvoiceStatusLabel(x.confirmStatus, x.redInvoiceStatus),
-      isFinal: isPurchaseInvoiceFinal(x.confirmStatus, x.redInvoiceStatus),
+      isFinal: purchaseInvoiceOutcome(x.confirmStatus, x.redInvoiceStatus) === 'done',
+      outcome: purchaseInvoiceOutcome(x.confirmStatus, x.redInvoiceStatus),
       createdAt: x.createTime,
       showVendor: true,
       vendorId: lineVendorId,

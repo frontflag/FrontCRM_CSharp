@@ -3,15 +3,28 @@ import { packingStatusLabel } from '@/api/packing'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { StockInTypeCode } from '@/constants/stockInType'
 import { StockOutTypeCode } from '@/constants/stockOutType'
-import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
 import { formatDisplayDate2DigitYear } from '@/utils/displayDateTime'
+import {
+  foldFlowCards,
+  packingOutcome,
+  poItemOutcome,
+  prOutcome,
+  qcOutcome,
+  salesInvoiceOutcome,
+  sellLineOutcome,
+  stockInOutcome,
+  stockOutNotifyOutcome,
+  stockOutOutcome,
+  type FlowDocOutcome,
+  type FlowStationBadge
+} from '@/utils/flowStationBadge'
 import {
   formatTotalAmountNumber,
   formatUnitPriceWithCurrencyCodeSuffix,
   listAmountCurrencyIso
 } from '@/utils/moneyFormat'
 
-export type FlowStationStatus = 'empty' | 'active' | 'done' | 'cancelled' | 'failed'
+export type FlowStationStatus = FlowStationBadge
 
 export type FlowStationKey =
   | 'sellOrderItem'
@@ -44,6 +57,8 @@ export interface FlowCard {
   docRoute?: FlowDocRoute
   statusText: string
   isFinal: boolean
+  outcome?: FlowDocOutcome
+  isDeleted?: boolean
   createdAt?: string | null
   showCustomer: boolean
   customerId?: string | null
@@ -111,9 +126,7 @@ function sortByCreatedAsc<T>(items: T[], getTime: (x: T) => string | null | unde
 }
 
 function stationStatusFromCards(cards: FlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
+  return foldFlowCards(cards)
 }
 
 function formatAmountWithCurrency(amount: unknown, currency?: number): string {
@@ -137,19 +150,9 @@ function prStatusLabel(v: unknown, t: TFunc): string {
   return Number.isFinite(s) ? String(s) : '—'
 }
 
-function isPrFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3
-}
-
 function poItemStatusLabel(v: unknown): string {
   const s = Number(v)
   return Number.isFinite(s) ? (PO_ITEM_STATUS_TEXT[s] ?? String(s)) : '—'
-}
-
-function isPoItemFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === -1 || s === -2
 }
 
 function qcStatusLabel(v: unknown, t: TFunc): string {
@@ -160,11 +163,6 @@ function qcStatusLabel(v: unknown, t: TFunc): string {
   return t('qcList.qcStatus.unknown')
 }
 
-function isQcFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === -1
-}
-
 function stockInStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === 0) return t('stockInList.status.draft')
@@ -172,11 +170,6 @@ function stockInStatusLabel(v: unknown, t: TFunc): string {
   if (s === 2) return t('stockInList.status.done')
   if (s === 3) return t('stockInList.status.cancelled')
   return Number.isFinite(s) ? String(s) : '—'
-}
-
-function isStockInFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3
 }
 
 function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
@@ -189,15 +182,6 @@ function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   return t('stockOutNotifyList.status.unknown')
 }
 
-function isStockOutNotifyFinal(v: unknown) {
-  const s = Number(v)
-  return s === STOCK_OUT_REQUEST_STATUS.StockedOut || s === STOCK_OUT_REQUEST_STATUS.Cancelled
-}
-
-function isPackingFinal(v: unknown) {
-  return Number(v) === 100
-}
-
 function stockOutStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === 0) return t('stockOutList.status.draft')
@@ -208,11 +192,6 @@ function stockOutStatusLabel(v: unknown, t: TFunc): string {
   return Number.isFinite(s) ? String(s) : '—'
 }
 
-function isStockOutFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3 || s === 4
-}
-
 function invoiceStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === 1) return t('salesOrderDetailView.invSt1')
@@ -221,17 +200,6 @@ function invoiceStatusLabel(v: unknown, t: TFunc): string {
   if (s === 101) return t('salesOrderDetailView.invSt101')
   if (s === -1) return t('salesOrderDetailView.invStNeg1')
   return Number.isFinite(s) ? String(s) : '—'
-}
-
-function isInvoiceFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === 101 || s === -1
-}
-
-function isSalesOrderFinal(v: unknown) {
-  const s = Number(v)
-  // 常见：取消 / 关闭类；具体以 translate 文案为准，终态取负值或 100+ 关闭
-  return s < 0 || s === 100 || s === 110 || s === 120
 }
 
 function buildStation(
@@ -292,7 +260,8 @@ export function buildSellOrderItemFlowStations(
       const itemId = String(row.sellOrderItemId ?? row.id ?? '').trim()
       const orderId = String(row.sellOrderId ?? '').trim()
       const code = String(row.sellOrderItemCode ?? '').trim() || '—'
-      const status = Number(row.orderStatus)
+      const itemStatus = Number(row.itemStatus ?? row.status)
+      const lineOutcome = sellLineOutcome(itemStatus, row.receiptProgressStatus, row.invoiceProgressStatus)
       cards.push({
         id: itemId || 'soi',
         docNo: code,
@@ -300,8 +269,9 @@ export function buildSellOrderItemFlowStations(
           orderId && !mask
             ? { name: 'SalesOrderDetail', params: { id: orderId } }
             : undefined,
-        statusText: Number.isFinite(status) ? translateSalesOrderStatus(status, t) : '—',
-        isFinal: isSalesOrderFinal(status),
+        statusText: itemStatus === 1 ? '已取消' : '正常',
+        isFinal: lineOutcome === 'done',
+        outcome: lineOutcome,
         createdAt: (row.orderCreateTime ?? row.createTime ?? null) as string | null,
         showCustomer: true,
         customerId: lineCustomerId,
@@ -327,7 +297,8 @@ export function buildSellOrderItemFlowStations(
       docNo: dash(x.billCode),
       docRoute: !mask ? { name: 'PurchaseRequisitionDetail', params: { id: x.id } } : undefined,
       statusText: prStatusLabel(x.status, t),
-      isFinal: isPrFinal(x.status),
+      isFinal: prOutcome(x.status) === 'done',
+      outcome: prOutcome(x.status),
       createdAt: x.createTime,
       showCustomer: false,
       personRoleKey: 'salesOrderItemList.flowPanel.role.purchaser',
@@ -353,7 +324,8 @@ export function buildSellOrderItemFlowStations(
             }
           : undefined,
       statusText: poItemStatusLabel(x.itemStatus),
-      isFinal: isPoItemFinal(x.itemStatus),
+      isFinal: poItemOutcome(x.itemStatus) === 'done',
+      outcome: poItemOutcome(x.itemStatus),
       createdAt: x.createTime,
       showCustomer: false,
       personRoleKey: 'salesOrderItemList.flowPanel.role.purchaser',
@@ -379,7 +351,8 @@ export function buildSellOrderItemFlowStations(
             }
           : undefined,
       statusText: qcStatusLabel(x.status, t),
-      isFinal: isQcFinal(x.status),
+      isFinal: qcOutcome(x.status) === 'done',
+      outcome: qcOutcome(x.status),
       createdAt: x.createTime,
       showCustomer: false,
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
@@ -398,7 +371,8 @@ export function buildSellOrderItemFlowStations(
       docNo: dash(x.stockInCode),
       docRoute: !mask ? { name: 'StockInDetail', params: { id: x.id } } : undefined,
       statusText: stockInStatusLabel(x.status, t),
-      isFinal: isStockInFinal(x.status),
+      isFinal: stockInOutcome(x.status) === 'done',
+      outcome: stockInOutcome(x.status),
       createdAt: x.createTime ?? x.stockInDate,
       showCustomer: false,
       personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
@@ -422,7 +396,8 @@ export function buildSellOrderItemFlowStations(
       docNo: dash(x.requestCode),
       docRoute: !mask ? { name: 'StockOutNotifyDetail', params: { id: x.id } } : undefined,
       statusText: stockOutNotifyStatusLabel(x.status, t),
-      isFinal: isStockOutNotifyFinal(x.status),
+      isFinal: stockOutNotifyOutcome(x.status) === 'done',
+      outcome: stockOutNotifyOutcome(x.status),
       createdAt: x.createTime ?? x.requestDate,
       showCustomer: true,
       customerId: lineCustomerId,
@@ -454,6 +429,7 @@ export function buildSellOrderItemFlowStations(
             : undefined,
         statusText: t('salesOrderItemList.flowPanel.stockingUsageStatus'),
         isFinal: true,
+        outcome: 'done',
         createdAt: x.purchaseOrderCreateTime,
         showCustomer: false,
         personRoleKey: 'salesOrderItemList.flowPanel.role.purchaser',
@@ -473,7 +449,8 @@ export function buildSellOrderItemFlowStations(
       docNo: dash(x.code),
       docRoute: !mask ? { name: 'PackingDetail', params: { id: x.id } } : undefined,
       statusText: packingStatusLabel(Number(x.status)),
-      isFinal: isPackingFinal(x.status),
+      isFinal: packingOutcome(x.status) === 'done',
+      outcome: packingOutcome(x.status),
       createdAt: x.createTime,
       showCustomer: true,
       customerId: lineCustomerId,
@@ -500,7 +477,8 @@ export function buildSellOrderItemFlowStations(
       docNo: dash(x.stockOutCode),
       docRoute: !mask ? { name: 'StockOutDetail', params: { id: x.id } } : undefined,
       statusText: stockOutStatusLabel(x.status, t),
-      isFinal: isStockOutFinal(x.status),
+      isFinal: stockOutOutcome(x.status) === 'done',
+      outcome: stockOutOutcome(x.status),
       createdAt: x.createTime ?? x.stockOutDate,
       showCustomer: true,
       customerId: lineCustomerId,
@@ -533,6 +511,7 @@ export function buildSellOrderItemFlowStations(
             : undefined,
         statusText: t('salesOrderItemList.flowPanel.writeOffStatus'),
         isFinal: true,
+        outcome: 'done',
         createdAt: x.createTime,
         showCustomer: true,
         customerId: lineCustomerId,
@@ -556,7 +535,8 @@ export function buildSellOrderItemFlowStations(
       docNo: dash(x.invoiceCode || x.invoiceNo),
       docRoute: !mask ? { name: 'FinanceSellInvoiceDetail', params: { id: x.id } } : undefined,
       statusText: invoiceStatusLabel(x.invoiceStatus, t),
-      isFinal: isInvoiceFinal(x.invoiceStatus),
+      isFinal: salesInvoiceOutcome(x.invoiceStatus) === 'done',
+      outcome: salesInvoiceOutcome(x.invoiceStatus),
       createdAt: x.createTime ?? x.makeInvoiceDate,
       showCustomer: true,
       customerId: lineCustomerId,

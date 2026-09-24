@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import {
   fetchCustomsDeclarationFlowAggregates,
+  fetchCustomsDeclarationItemFlowAggregates,
   type CustomsDeclarationFlowAggregatesDto
 } from '@/api/customs'
 import { getApiErrorMessage } from '@/utils/apiError'
@@ -13,6 +14,7 @@ export const useCustomsDeclarationFlowPanelStore = defineStore('customsDeclarati
   const aggregates = ref<CustomsDeclarationFlowAggregatesDto | null>(null)
   const loading = ref(false)
   const loadError = ref('')
+  const source = ref<'declaration' | 'item'>('declaration')
   let loadSeq = 0
 
   function rowKey(r: RowRecord | null | undefined) {
@@ -25,16 +27,18 @@ export const useCustomsDeclarationFlowPanelStore = defineStore('customsDeclarati
     aggregates.value = null
     loading.value = false
     loadError.value = ''
+    source.value = 'declaration'
   }
 
-  function setRowOnly(r: RowRecord) {
+  function setRowOnly(r: RowRecord, nextSource: 'declaration' | 'item' = 'declaration') {
     const nextKey = rowKey(r)
     const prevKey = rowKey(row.value)
     row.value = r
-    if (prevKey !== nextKey) {
+    if (prevKey !== nextKey || source.value !== nextSource) {
       aggregates.value = null
       loadError.value = ''
     }
+    source.value = nextSource
   }
 
   async function loadSelected(failMessage: string) {
@@ -44,7 +48,10 @@ export const useCustomsDeclarationFlowPanelStore = defineStore('customsDeclarati
     loading.value = true
     loadError.value = ''
     try {
-      const data = await fetchCustomsDeclarationFlowAggregates(id)
+      const data =
+        source.value === 'item'
+          ? await fetchCustomsDeclarationItemFlowAggregates(id)
+          : await fetchCustomsDeclarationFlowAggregates(id)
       if (seq !== loadSeq) return
       aggregates.value = data
     } catch (e: unknown) {
@@ -56,13 +63,18 @@ export const useCustomsDeclarationFlowPanelStore = defineStore('customsDeclarati
     }
   }
 
-  async function selectRow(r: RowRecord, failMessage: string) {
-    setRowOnly(r)
+  async function selectRow(
+    r: RowRecord,
+    failMessage: string,
+    nextSource: 'declaration' | 'item' = 'declaration'
+  ) {
+    setRowOnly(r, nextSource)
     await loadSelected(failMessage)
   }
 
   return {
     row,
+    source,
     aggregates,
     loading,
     loadError,

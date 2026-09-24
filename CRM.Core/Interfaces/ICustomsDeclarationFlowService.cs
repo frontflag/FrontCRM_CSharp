@@ -6,6 +6,11 @@ public interface ICustomsDeclarationFlowService
     Task<CustomsDeclarationFlowAggregatesDto> GetFlowAggregatesAsync(
         string declarationId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>报关明细列表流程：站序与报关单相同，上下游只挂本行；装箱与报关仍是单头。</summary>
+    Task<CustomsDeclarationFlowAggregatesDto> GetFlowAggregatesForItemAsync(
+        string declarationItemId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class CustomsDeclarationFlowAggregatesDto

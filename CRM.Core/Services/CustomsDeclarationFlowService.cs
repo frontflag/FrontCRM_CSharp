@@ -66,9 +66,28 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         _stockInRepo = stockInRepo;
     }
 
-    public async Task<CustomsDeclarationFlowAggregatesDto> GetFlowAggregatesAsync(
+    public Task<CustomsDeclarationFlowAggregatesDto> GetFlowAggregatesAsync(
         string declarationId,
         CancellationToken cancellationToken = default)
+        => BuildFlowAggregatesAsync(declarationId, null, cancellationToken);
+
+    public async Task<CustomsDeclarationFlowAggregatesDto> GetFlowAggregatesForItemAsync(
+        string declarationItemId,
+        CancellationToken cancellationToken = default)
+    {
+        var itemId = declarationItemId?.Trim() ?? string.Empty;
+        if (string.IsNullOrEmpty(itemId))
+            throw new ArgumentException("报关明细ID不能为空", nameof(declarationItemId));
+
+        var item = (await _declarationItemRepo.FindAsync(i => i.Id == itemId && !i.IsDeleted)).FirstOrDefault()
+                    ?? throw new InvalidOperationException("报关明细不存在");
+        return await BuildFlowAggregatesAsync(item.DeclarationId, item.Id, cancellationToken);
+    }
+
+    private async Task<CustomsDeclarationFlowAggregatesDto> BuildFlowAggregatesAsync(
+        string declarationId,
+        string? scopeItemId,
+        CancellationToken cancellationToken)
     {
         _ = cancellationToken;
         var id = declarationId?.Trim() ?? string.Empty;
@@ -82,6 +101,15 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
             .OrderBy(i => i.LineNo)
             .ThenBy(i => i.Id, StringComparer.OrdinalIgnoreCase)
             .ToList();
+        var scopedItems = items;
+        if (!string.IsNullOrWhiteSpace(scopeItemId))
+        {
+            scopedItems = items
+                .Where(i => string.Equals(i.Id, scopeItemId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (scopedItems.Count == 0)
+                throw new InvalidOperationException("报关明细不存在");
+        }
 
         CustomsBroker? broker = null;
         if (!string.IsNullOrWhiteSpace(dec.CustomsBrokerId))
@@ -99,7 +127,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
             ? new List<PackingItem>()
             : (await _packingItemRepo.FindAsync(pi => pi.PackingId == packing.Id && !pi.IsDeleted)).ToList();
 
-        var sellLineIds = DistinctIds(items.Select(i => i.SellOrderItemId));
+        var sellLineIds = DistinctIds(scopedItems.Select(i => i.SellOrderItemId));
         var sellLines = sellLineIds.Count == 0
             ? new List<SellOrderItem>()
             : (await _sellOrderItemRepo.FindIgnoreFiltersAsync(l => sellLineIds.Contains(l.Id))).ToList();
@@ -115,26 +143,26 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
             : (await _sellOrderRepo.FindIgnoreFiltersAsync(o => sellOrderIds.Contains(o.Id))).ToList();
         var soById = sellOrders.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
-        var salesSorIds = DistinctIds(items.Select(i => i.StockOutRequestId));
+        var salesSorIds = DistinctIds(scopedItems.Select(i => i.StockOutRequestId));
         var salesSors = salesSorIds.Count == 0
             ? new List<StockOutRequest>()
             : (await _stockOutRequestRepo.FindIgnoreFiltersAsync(r => salesSorIds.Contains(r.Id))).ToList();
         var salesSorById = salesSors.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
-        var pendlistIds = DistinctIds(items.Select(i => i.CustomsPendlistId));
+        var pendlistIds = DistinctIds(scopedItems.Select(i => i.CustomsPendlistId));
         var pendlists = pendlistIds.Count == 0
             ? new List<CustomsPendlist>()
             : (await _pendlistRepo.FindIgnoreFiltersAsync(p => pendlistIds.Contains(p.Id))).ToList();
         var pendlistById = pendlists.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
-        var customsSorIds = DistinctIds(items.Select(i => i.CustomsStockOutNotifyId));
+        var customsSorIds = DistinctIds(scopedItems.Select(i => i.CustomsStockOutNotifyId));
         var customsSors = customsSorIds.Count == 0
             ? new List<StockOutRequest>()
             : (await _stockOutRequestRepo.FindIgnoreFiltersAsync(r => customsSorIds.Contains(r.Id))).ToList();
         var customsSorById = customsSors.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
         var customerIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var i in items)
+        foreach (var i in scopedItems)
             AddId(customerIds, i.CustomerId);
         foreach (var so in sellOrders)
             AddId(customerIds, so.CustomerId);
@@ -145,7 +173,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         var customerById = customers.ToDictionary(x => x.Id.Trim(), x => x, StringComparer.OrdinalIgnoreCase);
 
         var userIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var i in items)
+        foreach (var i in scopedItems)
             AddId(userIds, i.SalesUserId);
         foreach (var so in sellOrders)
             AddId(userIds, so.SalesUserId);
@@ -162,12 +190,21 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
             ? new List<StockOutItem>()
             : (await _stockOutItemRepo.FindAsync(i =>
                     i.PackingId != null && i.PackingId == packingId && !i.IsDeleted)).ToList();
+        if (!string.IsNullOrWhiteSpace(scopeItemId))
+        {
+            var pickId = scopedItems[0].PickingTaskItemId?.Trim();
+            stockOutItems = string.IsNullOrEmpty(pickId)
+                ? new List<StockOutItem>()
+                : stockOutItems
+                    .Where(i => string.Equals(i.PickingTaskItemId, pickId, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+        }
         var stockOutIds = DistinctIds(stockOutItems.Select(i => i.StockOutId));
         var stockOuts = stockOutIds.Count == 0
             ? new List<StockOut>()
             : (await _stockOutRepo.FindAsync(s => stockOutIds.Contains(s.Id) && !s.IsDeleted)).ToList();
 
-        var cdiIds = items.Select(i => i.Id.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var cdiIds = scopedItems.Select(i => i.Id.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var arrivals = cdiIds.Count == 0
             ? new List<StockInNotify>()
             : (await _arrivalRepo.FindAsync(a =>
@@ -212,7 +249,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         };
 
         var seenSell = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items)
+        foreach (var item in scopedItems)
         {
             var lineId = item.SellOrderItemId?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(lineId) || !seenSell.Add(lineId))
@@ -243,7 +280,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         dto.SellOrderItems = OrderByCreate(dto.SellOrderItems);
 
         var seenSalesSor = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items)
+        foreach (var item in scopedItems)
         {
             var sorId = item.StockOutRequestId?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(sorId) || !seenSalesSor.Add(sorId))
@@ -279,7 +316,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         dto.SalesStockOutNotifies = OrderByCreate(dto.SalesStockOutNotifies);
 
         var seenPend = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items)
+        foreach (var item in scopedItems)
         {
             var pid = item.CustomsPendlistId?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(pid) || !seenPend.Add(pid))
@@ -307,7 +344,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
         dto.Pendlists = OrderByCreate(dto.Pendlists);
 
         var seenCustomsSor = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var item in items)
+        foreach (var item in scopedItems)
         {
             var cid = item.CustomsStockOutNotifyId?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(cid) || !seenCustomsSor.Add(cid))
@@ -394,7 +431,7 @@ public class CustomsDeclarationFlowService : ICustomsDeclarationFlowService
 
         foreach (var a in arrivals.OrderBy(x => x.CreateTime))
         {
-            var item = items.FirstOrDefault(i =>
+            var item = scopedItems.FirstOrDefault(i =>
                 string.Equals(i.Id, a.CustomsDeclarationItemId, StringComparison.OrdinalIgnoreCase));
             var so = item == null ? null : ResolveSellOrderFromItem(item, sellById, soById);
             var party = item == null

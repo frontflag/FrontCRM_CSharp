@@ -7,6 +7,13 @@ import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
+import {
+  foldFlowCards,
+  packingOutcome,
+  salesOrderOutcome,
+  stockOutNotifyOutcome,
+  stockOutOutcome
+} from '@/utils/flowStationBadge'
 import type { FlowStationStatus, StockItemFlowCard } from '@/utils/stockItemFlowPanel'
 
 export type StockOutNotifyFlowStationKey =
@@ -46,9 +53,7 @@ function sortByCreatedAsc<T>(items: T[], getTime: (x: T) => string | null | unde
 }
 
 function stationStatusFromCards(cards: StockItemFlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
+  return foldFlowCards(cards)
 }
 
 function buildStation(
@@ -107,10 +112,6 @@ function outboundStatusLabel(v: unknown, t: TFunc): string {
   return '—'
 }
 
-function isStockItemFinal(v: unknown) {
-  return Number(v) === 3
-}
-
 function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
@@ -121,15 +122,6 @@ function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   return t('stockOutNotifyList.status.unknown')
 }
 
-function isStockOutNotifyFinal(v: unknown) {
-  const s = Number(v)
-  return s === STOCK_OUT_REQUEST_STATUS.StockedOut || s === STOCK_OUT_REQUEST_STATUS.Cancelled
-}
-
-function isPackingFinal(v: unknown) {
-  return Number(v) === 100
-}
-
 function stockOutStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === 0) return t('stockOutList.status.draft')
@@ -138,16 +130,6 @@ function stockOutStatusLabel(v: unknown, t: TFunc): string {
   if (s === 3) return t('stockOutList.status.cancelled')
   if (s === 4) return t('stockOutList.status.finished')
   return Number.isFinite(s) ? String(s) : '—'
-}
-
-function isStockOutFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3 || s === 4
-}
-
-function isSalesOrderFinal(v: unknown) {
-  const s = Number(v)
-  return s < 0 || s === 100 || s === 110 || s === 120
 }
 
 function rowStr(row: RowRecord | null | undefined, ...keys: string[]): string {
@@ -186,7 +168,8 @@ function mapStockItemCard(
     docNo: dash(src.docCode),
     docRoute: aggregateId ? { name: 'InventoryStockDetail', params: { stockId: aggregateId } } : undefined,
     statusText: outboundStatusLabel(src.status, t),
-    isFinal: isStockItemFinal(src.status),
+    isFinal: Number(src.status) === 3,
+    outcome: Number(src.status) === 3 ? 'done' : 'active',
     createdAt: src.bizDate ?? src.createTime,
     createdAtLabelKey: `${F}.fields.stockInDate`,
     showVendor: true,
@@ -260,7 +243,8 @@ export function buildStockOutNotifyFlowStations(
               }
             : undefined,
         statusText: Number.isFinite(status) ? translateSalesOrderStatus(status, t) : '—',
-        isFinal: isSalesOrderFinal(status),
+        isFinal: salesOrderOutcome(status) === 'done',
+        outcome: salesOrderOutcome(status),
         createdAt: sell.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -292,7 +276,8 @@ export function buildStockOutNotifyFlowStations(
         docNo: dash(src?.docCode ?? rowStr(rec, 'requestCode')),
         docRoute: id && !mask521 ? { name: 'StockOutNotifyDetail', params: { id } } : undefined,
         statusText: stockOutNotifyStatusLabel(src?.status ?? rec?.status, t),
-        isFinal: isStockOutNotifyFinal(src?.status ?? rec?.status),
+        isFinal: stockOutNotifyOutcome(src?.status ?? rec?.status) === 'done',
+        outcome: stockOutNotifyOutcome(src?.status ?? rec?.status),
         createdAt: src?.createTime ?? (rec?.createTime as string | null),
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -354,7 +339,8 @@ export function buildStockOutNotifyFlowStations(
       docNo: dash(x.docCode),
       docRoute: !mask521 ? { name: 'PackingDetail', params: { id: x.id } } : undefined,
       statusText: packingStatusLabel(Number(x.status)),
-      isFinal: isPackingFinal(x.status),
+      isFinal: packingOutcome(x.status) === 'done',
+      outcome: packingOutcome(x.status),
       createdAt: x.createTime,
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
@@ -384,7 +370,8 @@ export function buildStockOutNotifyFlowStations(
       docNo: dash(x.docCode),
       docRoute: !mask521 ? { name: 'StockOutDetail', params: { id: x.id } } : undefined,
       statusText: stockOutStatusLabel(x.status, t),
-      isFinal: isStockOutFinal(x.status),
+      isFinal: stockOutOutcome(x.status) === 'done',
+      outcome: stockOutOutcome(x.status),
       createdAt: x.createTime,
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,

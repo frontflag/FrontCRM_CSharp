@@ -5,8 +5,19 @@ import { resolveStockInTypeLabelKey } from '@/constants/stockInType'
 import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
+import {
+  foldFlowCards,
+  packingOutcome,
+  poItemOutcome,
+  qcOutcome,
+  stockInOutcome,
+  stockOutNotifyOutcome,
+  stockOutOutcome,
+  type FlowDocOutcome,
+  type FlowStationBadge
+} from '@/utils/flowStationBadge'
 
-export type FlowStationStatus = 'empty' | 'active' | 'done'
+export type FlowStationStatus = FlowStationBadge
 
 export type StockItemFlowStationKey =
   | 'purchaseOrderItem'
@@ -29,6 +40,8 @@ export interface StockItemFlowCard {
   docRoute?: FlowDocRoute
   statusText: string
   isFinal: boolean
+  outcome?: FlowDocOutcome
+  isDeleted?: boolean
   createdAt?: string | null
   createdAtLabelKey: string
   showVendor: boolean
@@ -107,9 +120,7 @@ function sortByCreatedAsc<T>(items: T[], getTime: (x: T) => string | null | unde
 }
 
 function stationStatusFromCards(cards: StockItemFlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
+  return foldFlowCards(cards)
 }
 
 function buildStation(
@@ -136,22 +147,12 @@ function poItemStatusLabel(v: unknown): string {
   return Number.isFinite(s) ? (PO_ITEM_STATUS_TEXT[s] ?? String(s)) : '—'
 }
 
-function isPoItemFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === -1 || s === -2
-}
-
 function qcStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === -1) return t('qcList.qcStatus.failed')
   if (s === 10) return t('qcList.qcStatus.partial')
   if (s === 100) return t('qcList.qcStatus.passed')
   return t('qcList.qcStatus.unknown')
-}
-
-function isQcFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === -1
 }
 
 function stockInStatusLabel(v: unknown, t: TFunc): string {
@@ -163,21 +164,12 @@ function stockInStatusLabel(v: unknown, t: TFunc): string {
   return Number.isFinite(s) ? String(s) : '—'
 }
 
-function isStockInFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3
-}
-
 function outboundStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === 1) return t('inventoryStockItemList.filters.outboundNone')
   if (s === 2) return t('inventoryStockItemList.filters.outboundPartial')
   if (s === 3) return t('inventoryStockItemList.filters.outboundDone')
   return '—'
-}
-
-function isStockItemFinal(v: unknown) {
-  return Number(v) === 3
 }
 
 function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
@@ -190,15 +182,6 @@ function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   return t('stockOutNotifyList.status.unknown')
 }
 
-function isStockOutNotifyFinal(v: unknown) {
-  const s = Number(v)
-  return s === STOCK_OUT_REQUEST_STATUS.StockedOut || s === STOCK_OUT_REQUEST_STATUS.Cancelled
-}
-
-function isPackingFinal(v: unknown) {
-  return Number(v) === 100
-}
-
 function stockOutStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === 0) return t('stockOutList.status.draft')
@@ -207,11 +190,6 @@ function stockOutStatusLabel(v: unknown, t: TFunc): string {
   if (s === 3) return t('stockOutList.status.cancelled')
   if (s === 4) return t('stockOutList.status.finished')
   return Number.isFinite(s) ? String(s) : '—'
-}
-
-function isStockOutFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3 || s === 4
 }
 
 function asBizType(v: unknown): number | null {
@@ -316,7 +294,8 @@ export function buildStockItemFlowStations(
               }
             : undefined,
         statusText: poItemStatusLabel(po.status),
-        isFinal: isPoItemFinal(po.status),
+        isFinal: poItemOutcome(po.status) === 'done',
+        outcome: poItemOutcome(po.status),
         createdAt: po.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: true,
@@ -347,7 +326,8 @@ export function buildStockItemFlowStations(
             ? { name: 'QcCreate', query: { noticeId, qcId: qc.id } }
             : undefined,
         statusText: qcStatusLabel(qc.status, t),
-        isFinal: isQcFinal(qc.status),
+        isFinal: qcOutcome(qc.status) === 'done',
+        outcome: qcOutcome(qc.status),
         createdAt: qc.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -371,7 +351,8 @@ export function buildStockItemFlowStations(
         docNo: dash(stockIn.docCode),
         docRoute: !mask511 ? { name: 'StockInDetail', params: { id: stockIn.id } } : undefined,
         statusText: stockInStatusLabel(stockIn.status, t),
-        isFinal: isStockInFinal(stockIn.status),
+        isFinal: stockInOutcome(stockIn.status) === 'done',
+        outcome: stockInOutcome(stockIn.status),
         createdAt: stockIn.createTime ?? stockIn.bizDate,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -426,7 +407,8 @@ export function buildStockItemFlowStations(
           ? { name: 'InventoryStockDetail', params: { stockId: aggregateId } }
           : undefined,
         statusText: outboundStatusLabel(src?.status ?? row?.outboundStatus, t),
-        isFinal: isStockItemFinal(src?.status ?? row?.outboundStatus),
+        isFinal: Number(src?.status ?? row?.outboundStatus) === 3,
+        outcome: Number(src?.status ?? row?.outboundStatus) === 3 ? 'done' : 'active',
         createdAt: src?.bizDate ?? (row?.stockInDate as string | null),
         createdAtLabelKey: `${F}.fields.stockInDate`,
         showVendor: true,
@@ -475,7 +457,8 @@ export function buildStockItemFlowStations(
       docNo: dash(x.docCode),
       docRoute: !mask521 ? { name: 'StockOutNotifyDetail', params: { id: x.id } } : undefined,
       statusText: stockOutNotifyStatusLabel(x.status, t),
-      isFinal: isStockOutNotifyFinal(x.status),
+      isFinal: stockOutNotifyOutcome(x.status) === 'done',
+      outcome: stockOutNotifyOutcome(x.status),
       createdAt: x.createTime,
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
@@ -505,7 +488,8 @@ export function buildStockItemFlowStations(
       docNo: dash(x.docCode),
       docRoute: !mask521 ? { name: 'PackingDetail', params: { id: x.id } } : undefined,
       statusText: packingStatusLabel(Number(x.status)),
-      isFinal: isPackingFinal(x.status),
+      isFinal: packingOutcome(x.status) === 'done',
+      outcome: packingOutcome(x.status),
       createdAt: x.createTime,
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,
@@ -535,7 +519,8 @@ export function buildStockItemFlowStations(
       docNo: dash(x.docCode),
       docRoute: !mask521 ? { name: 'StockOutDetail', params: { id: x.id } } : undefined,
       statusText: stockOutStatusLabel(x.status, t),
-      isFinal: isStockOutFinal(x.status),
+      isFinal: stockOutOutcome(x.status) === 'done',
+      outcome: stockOutOutcome(x.status),
       createdAt: x.createTime,
       createdAtLabelKey: `${F}.fields.createdAt`,
       showVendor: false,

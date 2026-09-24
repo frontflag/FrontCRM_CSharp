@@ -15,6 +15,14 @@ import {
   type FlowStationKey,
   type FlowStationStatus
 } from '@/utils/sellOrderItemFlowPanel'
+import {
+  foldFlowCards,
+  packingOutcome,
+  pickingOutcome,
+  salesOrderOutcome,
+  stockOutNotifyOutcome,
+  stockOutOutcome
+} from '@/utils/flowStationBadge'
 
 function asBizType(v: unknown): number | null {
   if (v == null || v === '') return null
@@ -88,9 +96,7 @@ function sortByCreatedAsc<T>(items: T[], getTime: (x: T) => string | null | unde
 }
 
 function stationStatusFromCards(cards: FlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
+  return foldFlowCards(cards)
 }
 
 function buildStation(key: PackingFlowStationKey, titleKey: string, cards: FlowCard[]): FlowStation {
@@ -108,15 +114,6 @@ function formatQtyPcs(qty: unknown): string {
   return `${Math.trunc(n)} pcs`
 }
 
-function isPackingFinal(v: unknown) {
-  return Number(v) === 100
-}
-
-function isSalesOrderFinal(v: unknown) {
-  const s = Number(v)
-  return s < 0 || s === 100 || s === 110 || s === 120
-}
-
 function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
@@ -125,11 +122,6 @@ function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
   if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
   return t('stockOutNotifyList.status.unknown')
-}
-
-function isStockOutNotifyFinal(v: unknown) {
-  const s = Number(v)
-  return s === STOCK_OUT_REQUEST_STATUS.StockedOut || s === STOCK_OUT_REQUEST_STATUS.Cancelled
 }
 
 function stockOutStatusLabel(v: unknown, t: TFunc): string {
@@ -142,11 +134,6 @@ function stockOutStatusLabel(v: unknown, t: TFunc): string {
   return Number.isFinite(s) ? String(s) : '—'
 }
 
-function isStockOutFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3 || s === 4
-}
-
 function pickingStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === 1) return t('pickingSlip.status.pending')
@@ -154,11 +141,6 @@ function pickingStatusLabel(v: unknown, t: TFunc): string {
   if (s === 100) return t('pickingSlip.status.done')
   if (s === -1) return t('pickingSlip.status.cancelled')
   return t('pickingSlip.status.unknown')
-}
-
-function isPickingFinal(v: unknown) {
-  const s = Number(v)
-  return s === 100 || s === -1
 }
 
 /**
@@ -196,7 +178,8 @@ export function buildPackingItemFlowStations(
             ? { name: 'SalesOrderDetail', params: { id: orderId } }
             : undefined,
         statusText: Number.isFinite(status) ? translateSalesOrderStatus(status, t) : '—',
-        isFinal: isSalesOrderFinal(status),
+        isFinal: salesOrderOutcome(status) === 'done',
+        outcome: salesOrderOutcome(status),
         createdAt: (row.orderCreateTime ?? row.createTime ?? null) as string | null,
         showCustomer: true,
         customerId: lineCustomerId,
@@ -237,7 +220,8 @@ export function buildPackingItemFlowStations(
             docNo: dash(x.requestCode),
             docRoute: !mask ? { name: 'StockOutNotifyDetail', params: { id: x.id } } : undefined,
             statusText: stockOutNotifyStatusLabel(x.status, t),
-            isFinal: isStockOutNotifyFinal(x.status),
+            isFinal: stockOutNotifyOutcome(x.status) === 'done',
+            outcome: stockOutNotifyOutcome(x.status),
             createdAt: x.createTime ?? x.requestDate,
             showCustomer: true,
             customerId: lineCustomerId,
@@ -259,7 +243,8 @@ export function buildPackingItemFlowStations(
             docNo: dash(x.requestCode),
             docRoute: !mask ? { name: 'StockOutNotifyDetail', params: { id: x.id } } : undefined,
             statusText: stockOutNotifyStatusLabel(x.status, t),
-            isFinal: isStockOutNotifyFinal(x.status),
+            isFinal: stockOutNotifyOutcome(x.status) === 'done',
+            outcome: stockOutNotifyOutcome(x.status),
             createdAt: x.createTime ?? x.requestDate,
             showCustomer: true,
             customerId: lineCustomerId,
@@ -289,7 +274,8 @@ export function buildPackingItemFlowStations(
             docNo: dash(x.code),
             docRoute: !mask ? { name: 'PackingDetail', params: { id: x.id } } : undefined,
             statusText: packingStatusLabel(Number(x.status)),
-            isFinal: isPackingFinal(x.status),
+            isFinal: packingOutcome(x.status) === 'done',
+            outcome: packingOutcome(x.status),
             createdAt: x.createTime,
             showCustomer: true,
             customerId: lineCustomerId,
@@ -312,7 +298,8 @@ export function buildPackingItemFlowStations(
                 docNo: dash(packingCode),
                 docRoute: !mask ? { name: 'PackingDetail', params: { id: packingId } } : undefined,
                 statusText: packingStatusLabel(Number(row?.packingStatus)),
-                isFinal: isPackingFinal(row?.packingStatus),
+                isFinal: packingOutcome(row?.packingStatus) === 'done',
+                outcome: packingOutcome(row?.packingStatus),
                 createdAt: (row?.createTime ?? null) as string | null,
                 showCustomer: true,
                 customerId: lineCustomerId,
@@ -348,7 +335,8 @@ export function buildPackingItemFlowStations(
         docNo: dash(task.taskCode),
         docRoute: !mask ? { name: 'PickingSlipDetail', params: { id: task.id } } : undefined,
         statusText: pickingStatusLabel(task.status, t),
-        isFinal: isPickingFinal(task.status),
+        isFinal: pickingOutcome(task.status) === 'done',
+        outcome: pickingOutcome(task.status),
         createdAt: task.createTime ?? null,
         showCustomer: false,
         personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
@@ -382,7 +370,8 @@ export function buildPackingItemFlowStations(
             ? { name: 'StockOutItemList', query: { highlight: String(x.stockOutItemCode).trim() } }
             : undefined,
         statusText: stockOutStatusLabel(x.status, t),
-        isFinal: isStockOutFinal(x.status),
+        isFinal: stockOutOutcome(x.status) === 'done',
+        outcome: stockOutOutcome(x.status),
         createdAt: x.createTime,
         showCustomer: true,
         customerId: lineCustomerId,

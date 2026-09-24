@@ -184,6 +184,7 @@ import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import RegionTypeChip from '@/components/Common/RegionTypeChip.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
+import { flowStationBadgeLabel } from '@/utils/flowStationBadge'
 import {
   buildPackingItemFlowStations,
   formatFlowCardDate,
@@ -226,9 +227,7 @@ const stations = computed(() =>
 )
 
 function stationStatusLabel(status: FlowStationStatus) {
-  if (status === 'done') return t('salesOrderItemList.flowPanel.stationDone')
-  if (status === 'active') return t('salesOrderItemList.flowPanel.stationActive')
-  return t('salesOrderItemList.flowPanel.stationEmpty')
+  return flowStationBadgeLabel(status, t as (key: string, ...args: unknown[]) => string)
 }
 
 function priceLabel(_key: string) {

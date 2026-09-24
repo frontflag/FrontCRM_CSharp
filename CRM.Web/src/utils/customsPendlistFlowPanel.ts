@@ -4,6 +4,20 @@ import { packingStatusLabel } from '@/api/packing'
 import { STOCK_OUT_REQUEST_STATUS } from '@/constants/stockOutRequestStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import type { FlowCard, FlowStation, FlowStationKey, FlowStationStatus } from '@/utils/sellOrderItemFlowPanel'
+import {
+  arrivalOutcome,
+  declarationOutcome,
+  foldFlowCards,
+  packingOutcome,
+  pendlistOutcome,
+  pickingOutcome,
+  qcOutcome,
+  sellLineOutcome,
+  stockInOutcome,
+  stockOutNotifyOutcome,
+  stockOutOutcome,
+  type FlowDocOutcome
+} from '@/utils/flowStationBadge'
 
 type TFunc = (key: string, ...args: unknown[]) => string
 
@@ -13,9 +27,7 @@ function dash(v?: string | null) {
 }
 
 function stationStatusFromCards(cards: FlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
+  return foldFlowCards(cards)
 }
 
 function buildStation(key: FlowStationKey, titleKey: string, cards: FlowCard[]): FlowStation {
@@ -44,9 +56,67 @@ function pendlistStatusText(status?: number | null, t?: TFunc): string {
   return status == null ? '—' : String(status)
 }
 
-function isPendlistFinal(status?: number | null) {
-  const n = Number(status)
-  return n === CUSTOMS_PENDLIST_STATUS.Closed || n === CUSTOMS_PENDLIST_STATUS.Cancelled
+function pickingStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const s = Number(status)
+  if (s === 1) return t('pickingSlip.status.pending')
+  if (s === 2) return t('pickingSlip.status.inProgress')
+  if (s === 100) return t('pickingSlip.status.done')
+  if (s === -1) return t('pickingSlip.status.cancelled')
+  return t('pickingSlip.status.unknown')
+}
+
+function stockOutStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const s = Number(status)
+  if (s === 0) return t('stockOutList.status.draft')
+  if (s === 1) return t('stockOutList.status.pending')
+  if (s === 2) return t('stockOutList.status.done')
+  if (s === 3) return t('stockOutList.status.cancelled')
+  if (s === 4) return t('stockOutList.status.finished')
+  return Number.isFinite(s) ? String(s) : '—'
+}
+
+function declarationStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const s = Number(status)
+  if (s === -1) return t('customsPages.declarations.internalVoid')
+  if (s === 1) return t('customsPages.declarations.internalPending')
+  if (s === 2) return t('customsPages.declarations.internalProcessing')
+  if (s === 3) return t('customsPages.declarations.internalDone')
+  return Number.isFinite(s) ? String(s) : '—'
+}
+
+function arrivalStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const keyMap: Record<number, string> = {
+    1: 'new',
+    10: 'notArrived',
+    20: 'pendingQc',
+    30: 'qcDone',
+    100: 'stocked'
+  }
+  const k = keyMap[Number(status)]
+  return k ? t(`arrivalNoticeList.status.${k}`) : t('arrivalNoticeList.statusUnknown')
+}
+
+function qcStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const s = Number(status)
+  if (s === -1) return t('qcList.qcStatus.failed')
+  if (s === 10) return t('qcList.qcStatus.partial')
+  if (s === 100) return t('qcList.qcStatus.passed')
+  return t('qcList.qcStatus.unknown')
+}
+
+function stockInStatusLabel(status: number | null | undefined, t: TFunc): string {
+  if (status == null) return '—'
+  const s = Number(status)
+  if (s === 0) return t('stockInList.status.draft')
+  if (s === 1) return t('stockInList.status.pending')
+  if (s === 2) return t('stockInList.status.done')
+  if (s === 3) return t('stockInList.status.cancelled')
+  return Number.isFinite(s) ? String(s) : '—'
 }
 
 function priceText(doc?: CustomsPendlistFlowDocDto | null) {
@@ -58,7 +128,7 @@ function toCard(
   doc: CustomsPendlistFlowDocDto,
   opts: {
     statusText: string
-    isFinal: boolean
+    outcome: FlowDocOutcome
     personRoleKey: string
     docRoute?: FlowCard['docRoute']
     showCustomer?: boolean
@@ -74,7 +144,9 @@ function toCard(
       : dash(doc.docCode),
     docRoute: doc.isDeleted ? undefined : opts.docRoute,
     statusText: doc.isDeleted ? '已删除' : opts.statusText,
-    isFinal: doc.isDeleted || opts.isFinal,
+    isFinal: !doc.isDeleted && opts.outcome === 'done',
+    outcome: opts.outcome,
+    isDeleted: !!doc.isDeleted,
     createdAt: doc.createTime ?? null,
     showCustomer: opts.showCustomer !== false,
     customerName: doc.customerName,
@@ -107,7 +179,7 @@ export function buildCustomsPendlistFlowStations(
         ? [
             toCard(sell, {
               statusText: Number(sell.status) === 1 ? '已取消' : '正常',
-              isFinal: Number(sell.status) === 1,
+              outcome: sellLineOutcome(sell.status, sell.receiptProgressStatus, sell.invoiceProgressStatus),
               personRoleKey: 'salesOrderItemList.flowPanel.role.salesUser',
               docRoute:
                 sell.salesOrderId && sell.id
@@ -128,10 +200,7 @@ export function buildCustomsPendlistFlowStations(
         ? [
             toCard(salesSor, {
               statusText: salesSorStatusText(salesSor.status, t),
-              isFinal:
-                !!salesSor.isDeleted ||
-                Number(salesSor.status) === STOCK_OUT_REQUEST_STATUS.StockedOut ||
-                Number(salesSor.status) === STOCK_OUT_REQUEST_STATUS.Cancelled,
+              outcome: stockOutNotifyOutcome(salesSor.status),
               personRoleKey: 'salesOrderItemList.flowPanel.role.salesUser',
               docRoute:
                 !salesSor.isDeleted && salesSor.id
@@ -150,7 +219,7 @@ export function buildCustomsPendlistFlowStations(
               { ...pendlist, docCode: pendlist.docCode || '待报关记录' },
               {
                 statusText: pendlistStatusText(pendlist.status, t),
-                isFinal: isPendlistFinal(pendlist.status),
+                outcome: pendlistOutcome(pendlist.status),
                 personRoleKey: 'salesOrderItemList.flowPanel.role.creator',
                 showCustomer: true
               }
@@ -164,10 +233,7 @@ export function buildCustomsPendlistFlowStations(
       (aggregates.customsStockOutNotifies ?? []).map((d) =>
         toCard(d, {
           statusText: salesSorStatusText(d.status, t),
-          isFinal:
-            !!d.isDeleted ||
-            Number(d.status) === STOCK_OUT_REQUEST_STATUS.StockedOut ||
-            Number(d.status) === STOCK_OUT_REQUEST_STATUS.Cancelled,
+          outcome: stockOutNotifyOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.salesUser',
           includePendlistId: true,
           docRoute: !d.isDeleted && d.id ? { name: 'StockOutNotifyList', query: { highlightId: d.id } } : undefined
@@ -180,7 +246,7 @@ export function buildCustomsPendlistFlowStations(
       (aggregates.packings ?? []).map((d) =>
         toCard(d, {
           statusText: packingStatusLabel(Number(d.status ?? 0)),
-          isFinal: Number(d.status) >= 100 || Number(d.status) === -1,
+          outcome: packingOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.salesUser',
           docRoute: d.id ? { name: 'PackingDetail', params: { id: d.id } } : undefined
         })
@@ -191,8 +257,8 @@ export function buildCustomsPendlistFlowStations(
       'customsPages.pendlists.flowStations.picking',
       (aggregates.pickings ?? []).map((d) =>
         toCard(d, {
-          statusText: d.status == null ? '—' : String(d.status),
-          isFinal: Number(d.status) === 100 || Number(d.status) === -1,
+          statusText: pickingStatusLabel(d.status, t),
+          outcome: pickingOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.operator'
         })
       )
@@ -202,8 +268,8 @@ export function buildCustomsPendlistFlowStations(
       'customsPages.pendlists.flowStations.stockOut',
       (aggregates.stockOuts ?? []).map((d) =>
         toCard(d, {
-          statusText: d.status == null ? '—' : String(d.status),
-          isFinal: Number(d.status) === 100 || Number(d.status) === -1,
+          statusText: stockOutStatusLabel(d.status, t),
+          outcome: stockOutOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
           docRoute: d.id ? { name: 'StockOutDetail', params: { id: d.id } } : undefined
         })
@@ -214,8 +280,8 @@ export function buildCustomsPendlistFlowStations(
       'customsPages.pendlists.flowStations.declaration',
       (aggregates.declarations ?? []).map((d) =>
         toCard(d, {
-          statusText: d.status == null ? '—' : String(d.status),
-          isFinal: Number(d.status) === 30 || Number(d.status) === -1,
+          statusText: declarationStatusLabel(d.status, t),
+          outcome: declarationOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
           docRoute: d.id ? { name: 'CustomsDeclarationDetail', params: { id: d.id } } : undefined
         })
@@ -226,8 +292,8 @@ export function buildCustomsPendlistFlowStations(
       'customsPages.pendlists.flowStations.arrival',
       (aggregates.arrivals ?? []).map((d) =>
         toCard(d, {
-          statusText: d.status == null ? '—' : String(d.status),
-          isFinal: Number(d.status) >= 100,
+          statusText: arrivalStatusLabel(d.status, t),
+          outcome: arrivalOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.purchaser',
           docRoute: d.id ? { name: 'ArrivalNoticeList', query: { highlightId: d.id } } : undefined
         })
@@ -238,8 +304,8 @@ export function buildCustomsPendlistFlowStations(
       'customsPages.pendlists.flowStations.qc',
       (aggregates.qcs ?? []).map((d) =>
         toCard(d, {
-          statusText: d.status == null ? '—' : String(d.status),
-          isFinal: Number(d.status) === 100 || Number(d.status) === -1,
+          statusText: qcStatusLabel(d.status, t),
+          outcome: qcOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
           docRoute: d.id ? { name: 'QcList', query: { highlightId: d.id } } : undefined
         })
@@ -250,8 +316,8 @@ export function buildCustomsPendlistFlowStations(
       'customsPages.pendlists.flowStations.stockIn',
       (aggregates.stockIns ?? []).map((d) =>
         toCard(d, {
-          statusText: d.status == null ? '—' : String(d.status),
-          isFinal: Number(d.status) === 100,
+          statusText: stockInStatusLabel(d.status, t),
+          outcome: stockInOutcome(d.status),
           personRoleKey: 'salesOrderItemList.flowPanel.role.operator',
           docRoute: d.id ? { name: 'StockInDetail', params: { id: d.id } } : undefined
         })

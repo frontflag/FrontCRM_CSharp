@@ -443,6 +443,10 @@ const enUS = {
     },
     items: {
       title: 'Declaration line items',
+      flowPanel: {
+        pickRow: 'With the Flow tab open, click a row to see this line’s upstream and downstream chain',
+        loadFailed: 'Failed to load declaration line flow'
+      },
       search: 'Search',
       reset: 'Reset',
       export: 'Export',
@@ -6366,6 +6370,9 @@ const enUS = {
       stationDone: 'Completed',
       stationCancelled: 'Cancelled',
       stationFailed: 'Failed',
+      stationReviewFailed: 'Review failed',
+      stationInvoiceFailed: 'Invoice failed',
+      stationRedFlushed: 'Red-flushed',
       stockingUsageStatus: 'Used',
       writeOffStatus: 'Written off',
       stations: {

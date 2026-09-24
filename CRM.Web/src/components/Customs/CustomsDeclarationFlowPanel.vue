@@ -1,7 +1,7 @@
 <template>
   <div class="so-item-flow-root so-item-flow-root--embedded" aria-label="customs-declaration-flow-panel">
     <div v-if="!row" class="so-item-flow-root__empty">
-      {{ t('customsPages.declarations.flowPanel.pickRow') }}
+      {{ t(pickRowKey) }}
     </div>
 
     <div v-else v-loading="loading" class="so-item-flow-root__content">
@@ -191,6 +191,7 @@ import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import StockBizTypeTag from '@/components/Inventory/StockBizTypeTag.vue'
 import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
+import { flowStationBadgeLabel } from '@/utils/flowStationBadge'
 import { buildCustomsDeclarationFlowStations } from '@/utils/customsDeclarationFlowPanel'
 import {
   formatFlowCardDate,
@@ -206,7 +207,10 @@ const props = defineProps<{
   loading?: boolean
   loadError?: string
   maskSensitive?: boolean
+  pickRowKey?: string
 }>()
+
+const pickRowKey = computed(() => props.pickRowKey || 'customsPages.declarations.flowPanel.pickRow')
 
 const { t } = useI18n()
 const { customerTo } = useFlowPartyLinks()
@@ -222,11 +226,7 @@ function showsOutType(key: FlowStationKey) {
 }
 
 function stationStatusLabel(status: FlowStationStatus) {
-  if (status === 'active') return t('salesOrderItemList.flowPanel.stationActive')
-  if (status === 'done') return t('salesOrderItemList.flowPanel.stationDone')
-  if (status === 'cancelled') return t('salesOrderItemList.flowPanel.stationCancelled')
-  if (status === 'failed') return t('salesOrderItemList.flowPanel.stationFailed')
-  return t('salesOrderItemList.flowPanel.stationEmpty')
+  return flowStationBadgeLabel(status, t as (key: string, ...args: unknown[]) => string)
 }
 
 function toRouteLocation(route: FlowDocRoute) {

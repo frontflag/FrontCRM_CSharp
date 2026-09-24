@@ -5,6 +5,7 @@ $flow-status-active: #00a0dc;
 $flow-status-done: #67c23a;
 $flow-status-cancelled: #909399;
 $flow-status-failed: #c95745;
+$flow-status-red: #9c59b6;
 
 .so-item-flow-root {
   min-width: 0;
@@ -105,9 +106,16 @@ $flow-status-failed: #c95745;
     background: $flow-status-cancelled;
   }
 
-  &--failed {
+  &--failed,
+  &--reviewFailed,
+  &--invoiceFailed {
     border-color: $flow-status-failed;
     background: $flow-status-failed;
+  }
+
+  &--redFlushed {
+    border-color: $flow-status-red;
+    background: $flow-status-red;
   }
 }
 
@@ -156,8 +164,14 @@ $flow-status-failed: #c95745;
     color: $flow-status-cancelled;
   }
 
-  &--failed {
+  &--failed,
+  &--reviewFailed,
+  &--invoiceFailed {
     color: $flow-status-failed;
+  }
+
+  &--redFlushed {
+    color: $flow-status-red;
   }
 
   &--empty {

@@ -41,4 +41,6 @@ public sealed class CustomsPendlistFlowDocDto
     /// <summary>仅报关出库通知小卡：关联待报关 Id（溯源，非强制删除确认入口）。</summary>
     public string? PendlistId { get; set; }
     public string? SalesOrderId { get; set; }
+    public short? ReceiptProgressStatus { get; set; }
+    public short? InvoiceProgressStatus { get; set; }
 }

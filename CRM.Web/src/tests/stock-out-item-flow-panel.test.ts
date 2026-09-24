@@ -28,7 +28,7 @@ describe('buildStockOutItemFlowStations', () => {
       'receivable',
       'receiptWriteOff'
     ])
-    expect(stations.find((s) => s.key === 'stockOut')?.stationStatus).toBe('done')
+    expect(stations.find((s) => s.key === 'stockOut')?.stationStatus).toBe('active')
     expect(stations.filter((s) => s.key !== 'stockOut').every((s) => s.stationStatus === 'empty')).toBe(true)
   })
 

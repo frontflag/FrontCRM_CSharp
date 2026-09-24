@@ -7,6 +7,13 @@ import { resolveStockOutTypeLabelKey } from '@/constants/stockOutType'
 import { translateSalesOrderStatus } from '@/constants/salesOrderStatus'
 import { formatUnitPriceWithCurrencyCodeSuffix } from '@/utils/moneyFormat'
 import { formatFlowCardDate, resolveFlowPartyId } from '@/utils/sellOrderItemFlowPanel'
+import {
+  foldFlowCards,
+  packingOutcome,
+  salesOrderOutcome,
+  stockOutNotifyOutcome,
+  stockOutOutcome
+} from '@/utils/flowStationBadge'
 import type { FlowStationStatus, StockItemFlowCard } from '@/utils/stockItemFlowPanel'
 
 export type StockOutItemFlowStationKey =
@@ -47,9 +54,7 @@ function sortByCreatedAsc<T>(items: T[], getTime: (x: T) => string | null | unde
 }
 
 function stationStatusFromCards(cards: StockItemFlowCard[]): FlowStationStatus {
-  if (cards.length === 0) return 'empty'
-  if (cards.every((c) => c.isFinal)) return 'done'
-  return 'active'
+  return foldFlowCards(cards)
 }
 
 function buildStation(
@@ -125,10 +130,6 @@ function outboundStatusLabel(v: unknown, t: TFunc): string {
   return '—'
 }
 
-function isStockItemFinal(v: unknown) {
-  return Number(v) === 3
-}
-
 function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   const s = Number(v)
   if (s === STOCK_OUT_REQUEST_STATUS.PendingCustoms) return t('stockOutNotifyList.status.pendingCustoms')
@@ -137,15 +138,6 @@ function stockOutNotifyStatusLabel(v: unknown, t: TFunc): string {
   if (s === STOCK_OUT_REQUEST_STATUS.StockedOut) return t('stockOutNotifyList.status.stockedOut')
   if (s === STOCK_OUT_REQUEST_STATUS.Cancelled) return t('stockOutNotifyList.status.cancelled')
   return t('stockOutNotifyList.status.unknown')
-}
-
-function isStockOutNotifyFinal(v: unknown) {
-  const s = Number(v)
-  return s === STOCK_OUT_REQUEST_STATUS.StockedOut || s === STOCK_OUT_REQUEST_STATUS.Cancelled
-}
-
-function isPackingFinal(v: unknown) {
-  return Number(v) === 100
 }
 
 function stockOutStatusLabel(v: unknown, t: TFunc): string {
@@ -167,20 +159,6 @@ function receivableVerificationStatusLabel(v: unknown, t: TFunc): string {
   if (s === 2) return t('financeReceivableList.verification.complete')
   if (s === 1) return t('financeReceivableList.verification.partial')
   return t('financeReceivableList.verification.pending')
-}
-
-function isReceivableFinal(v: unknown) {
-  return Number(v) === 2
-}
-
-function isStockOutFinal(v: unknown) {
-  const s = Number(v)
-  return s === 2 || s === 3 || s === 4
-}
-
-function isSalesOrderFinal(v: unknown) {
-  const s = Number(v)
-  return s < 0 || s === 100 || s === 110 || s === 120
 }
 
 function rowStr(row: RowRecord | null | undefined, ...keys: string[]): string {
@@ -223,7 +201,8 @@ function mapStockItemCard(
     docNo: dash(src.docCode),
     docRoute: aggregateId ? { name: 'InventoryStockDetail', params: { stockId: aggregateId } } : undefined,
     statusText: outboundStatusLabel(src.status, t),
-    isFinal: isStockItemFinal(src.status),
+    isFinal: Number(src.status) === 3,
+    outcome: Number(src.status) === 3 ? 'done' : 'active',
     createdAt: src.bizDate ?? src.createTime,
     createdAtLabelKey: `${F}.fields.stockInDate`,
     showVendor: true,
@@ -300,7 +279,8 @@ export function buildStockOutItemFlowStations(
               }
             : undefined,
         statusText: Number.isFinite(status) ? translateSalesOrderStatus(status, t) : '—',
-        isFinal: isSalesOrderFinal(status),
+        isFinal: salesOrderOutcome(status) === 'done',
+        outcome: salesOrderOutcome(status),
         createdAt: sell.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -334,7 +314,8 @@ export function buildStockOutItemFlowStations(
         docNo: dash(src.docCode),
         docRoute: id && !mask521 ? { name: 'StockOutNotifyDetail', params: { id } } : undefined,
         statusText: stockOutNotifyStatusLabel(src.status, t),
-        isFinal: isStockOutNotifyFinal(src.status),
+        isFinal: stockOutNotifyOutcome(src.status) === 'done',
+        outcome: stockOutNotifyOutcome(src.status),
         createdAt: src.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -383,7 +364,8 @@ export function buildStockOutItemFlowStations(
         docNo: dash(x.docCode),
         docRoute: !mask521 ? { name: 'PackingDetail', params: { id: x.id } } : undefined,
         statusText: packingStatusLabel(Number(x.status)),
-        isFinal: isPackingFinal(x.status),
+        isFinal: packingOutcome(x.status) === 'done',
+        outcome: packingOutcome(x.status),
         createdAt: x.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -456,7 +438,8 @@ export function buildStockOutItemFlowStations(
             ? { name: 'StockOutItemList', query: { highlight: lineNo } }
             : undefined,
         statusText: stockOutStatusLabel(x.status ?? rec?.status, t),
-        isFinal: isStockOutFinal(x.status ?? rec?.status),
+        isFinal: stockOutOutcome(x.status ?? rec?.status) === 'done',
+        outcome: stockOutOutcome(x.status ?? rec?.status),
         createdAt: x.createTime ?? (rec?.stockOutDate as string | null),
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -490,7 +473,8 @@ export function buildStockOutItemFlowStations(
         docNo: dash(x.receivableCode),
         docRoute: !mask521 && x.id ? { name: 'FinanceReceivableDetail', params: { id: x.id } } : undefined,
         statusText: receivableVerificationStatusLabel(x.verificationStatus, t),
-        isFinal: isReceivableFinal(x.verificationStatus),
+        isFinal: Number(x.verificationStatus) === 2,
+        outcome: Number(x.verificationStatus) === 2 ? 'done' : 'active',
         createdAt: x.stockOutDate ?? x.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,
@@ -527,6 +511,7 @@ export function buildStockOutItemFlowStations(
             : undefined,
         statusText: t(`${N}.writeOffStatus`),
         isFinal: true,
+        outcome: 'done',
         createdAt: x.createTime,
         createdAtLabelKey: `${F}.fields.createdAt`,
         showVendor: false,

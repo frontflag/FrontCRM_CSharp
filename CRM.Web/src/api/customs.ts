@@ -311,6 +311,8 @@ export interface CustomsPendlistFlowDocDto {
   isDeleted?: boolean
   pendlistId?: string | null
   salesOrderId?: string | null
+  receiptProgressStatus?: number | null
+  invoiceProgressStatus?: number | null
 }
 
 export interface CustomsPendlistFlowAggregatesDto {
@@ -378,6 +380,14 @@ export async function fetchCustomsDeclarationFlowAggregates(
 ): Promise<CustomsDeclarationFlowAggregatesDto> {
   return apiClient.get<CustomsDeclarationFlowAggregatesDto>(
     `/api/v1/customs-declarations/${encodeURIComponent(declarationId)}/flow-aggregates`
+  )
+}
+
+export async function fetchCustomsDeclarationItemFlowAggregates(
+  declarationItemId: string
+): Promise<CustomsDeclarationFlowAggregatesDto> {
+  return apiClient.get<CustomsDeclarationFlowAggregatesDto>(
+    `/api/v1/customs-declaration-items/${encodeURIComponent(declarationItemId)}/flow-aggregates`
   )
 }
 

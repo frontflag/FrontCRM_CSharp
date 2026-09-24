@@ -152,6 +152,7 @@ import type { PurchaseOrderDetailTabAggregates } from '@/api/purchaseOrder'
 import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
+import { flowStationBadgeLabel } from '@/utils/flowStationBadge'
 import {
   buildPurchaseOrderItemFlowStations,
   formatPoFlowCardDate,
@@ -187,9 +188,7 @@ const stations = computed(() =>
 )
 
 function stationStatusLabel(status: FlowStationStatus) {
-  if (status === 'done') return t('purchaseOrderItemList.flowPanel.stationDone')
-  if (status === 'active') return t('purchaseOrderItemList.flowPanel.stationActive')
-  return t('purchaseOrderItemList.flowPanel.stationEmpty')
+  return flowStationBadgeLabel(status, t as (key: string, ...args: unknown[]) => string)
 }
 
 function priceLabel(key: PoFlowStationKey) {

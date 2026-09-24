@@ -141,6 +141,7 @@ import CustomsDeclarationIconLink from '@/components/Customs/CustomsDeclarationI
 import FlowPartyLink from '@/components/Common/FlowPartyLink.vue'
 import FlowYouAreHereMark from '@/components/Common/FlowYouAreHereMark.vue'
 import { useFlowPartyLinks } from '@/composables/useFlowPartyLinks'
+import { flowStationBadgeLabel } from '@/utils/flowStationBadge'
 import {
   buildSellOrderItemFlowStations,
   formatFlowCardDate,
@@ -176,9 +177,7 @@ const stations = computed(() =>
 )
 
 function stationStatusLabel(status: FlowStationStatus) {
-  if (status === 'done') return t('salesOrderItemList.flowPanel.stationDone')
-  if (status === 'active') return t('salesOrderItemList.flowPanel.stationActive')
-  return t('salesOrderItemList.flowPanel.stationEmpty')
+  return flowStationBadgeLabel(status, t as (key: string, ...args: unknown[]) => string)
 }
 
 function priceLabel(key: FlowStationKey) {

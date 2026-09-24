@@ -1799,6 +1799,11 @@
             :loading="customsDeclarationFlowStore.loading"
             :load-error="customsDeclarationFlowStore.loadError"
             :mask-sensitive="maskSaleSensitiveFields"
+            :pick-row-key="
+              route.name === 'CustomsDeclarationItemList'
+                ? 'customsPages.items.flowPanel.pickRow'
+                : undefined
+            "
             class="aux-panel-tab-body"
           />
           <ArrivalNoticeOpsPanel
@@ -2560,7 +2565,9 @@ const showCustomsDeclarationOpsPanel = computed(
 )
 
 const showCustomsDeclarationFlowPanel = computed(
-  () => rightActiveTabId.value === 'r-flow' && isCustomsDeclarationOpsRoute.value
+  () =>
+    rightActiveTabId.value === 'r-flow' &&
+    (isCustomsDeclarationOpsRoute.value || route.name === 'CustomsDeclarationItemList')
 )
 
 const showArrivalNoticeOpsPanel = computed(
@@ -3124,6 +3131,7 @@ watch(
       return
     }
     if (name === 'CustomsDeclarationList') {
+      if (customsDeclarationFlowStore.source === 'item') customsDeclarationFlowStore.clear()
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
@@ -3143,6 +3151,7 @@ watch(
       return
     }
     if (name === 'CustomsDeclarationDetail') {
+      if (customsDeclarationFlowStore.source === 'item') customsDeclarationFlowStore.clear()
       rightTabs.value = [
         { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
@@ -3567,8 +3576,31 @@ watch(
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-user-level-log' })
       return
     }
+    if (name === 'CustomsDeclarationItemList') {
+      if (customsDeclarationFlowStore.source !== 'item') customsDeclarationFlowStore.clear()
+      rightTabs.value = [
+        { id: 'r-flow', labelKey: 'layout.auxTabs.flow' },
+        { id: 'r4', labelKey: 'layout.auxTabs.help' }
+      ]
+      salesOrderItemOpsStore.clear()
+      purchaseOrderItemOpsStore.clear()
+      packingDetailFlowStore.clear()
+      customsPendlistFlowStore.clear()
+      customsDeclarationOpsStore.clear()
+      arrivalNoticeOpsStore.clear()
+      qcOpsStore.clear()
+      stockInOpsStore.clear()
+      stockItemFlowStore.clear()
+      stockOutNotifyCustomsPanelStore.clear()
+      materialIntelLookupStore.clearBound()
+      customerIntelLookupStore.clearBound()
+      vendorIntelLookupStore.clearBound()
+      restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-flow' })
+      return
+    }
     rightTabs.value = [{ id: 'r4', labelKey: 'layout.auxTabs.help' }]
     salesOrderItemOpsStore.clear()
+    customsDeclarationFlowStore.clear()
     purchaseOrderItemOpsStore.clear()
     packingDetailFlowStore.clear()
     customsPendlistFlowStore.clear()

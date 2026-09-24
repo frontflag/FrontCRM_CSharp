@@ -14,6 +14,7 @@ public class CustomsPendlistFlowService : ICustomsPendlistFlowService
     private readonly IRepository<StockOutRequest> _stockOutRequestRepo;
     private readonly IRepository<SellOrder> _sellOrderRepo;
     private readonly IRepository<SellOrderItem> _sellOrderItemRepo;
+    private readonly IRepository<SellOrderItemExtend> _sellOrderItemExtendRepo;
     private readonly IRepository<CustomerInfo> _customerRepo;
     private readonly IRepository<User> _userRepo;
     private readonly IRepository<PackingItem> _packingItemRepo;
@@ -32,6 +33,7 @@ public class CustomsPendlistFlowService : ICustomsPendlistFlowService
         IRepository<StockOutRequest> stockOutRequestRepo,
         IRepository<SellOrder> sellOrderRepo,
         IRepository<SellOrderItem> sellOrderItemRepo,
+        IRepository<SellOrderItemExtend> sellOrderItemExtendRepo,
         IRepository<CustomerInfo> customerRepo,
         IRepository<User> userRepo,
         IRepository<PackingItem> packingItemRepo,
@@ -49,6 +51,7 @@ public class CustomsPendlistFlowService : ICustomsPendlistFlowService
         _stockOutRequestRepo = stockOutRequestRepo;
         _sellOrderRepo = sellOrderRepo;
         _sellOrderItemRepo = sellOrderItemRepo;
+        _sellOrderItemExtendRepo = sellOrderItemExtendRepo;
         _customerRepo = customerRepo;
         _userRepo = userRepo;
         _packingItemRepo = packingItemRepo;
@@ -76,6 +79,12 @@ public class CustomsPendlistFlowService : ICustomsPendlistFlowService
                        ?? throw new InvalidOperationException("待报关记录不存在");
 
         var line = await _sellOrderItemRepo.GetByIdAsync(pendlist.SellOrderItemId.Trim());
+        SellOrderItemExtend? lineExtend = null;
+        if (line != null)
+        {
+            var lineId = line.Id;
+            lineExtend = (await _sellOrderItemExtendRepo.FindIgnoreFiltersAsync(e => e.Id == lineId)).FirstOrDefault();
+        }
         SellOrder? so = null;
         CustomerInfo? customer = null;
         User? soSales = null;
@@ -225,7 +234,9 @@ public class CustomsPendlistFlowService : ICustomsPendlistFlowService
                     UnitPrice = line.Price,
                     Currency = line.Currency,
                     Qty = line.Qty,
-                    SalesOrderId = line.SellOrderId
+                    SalesOrderId = line.SellOrderId,
+                    ReceiptProgressStatus = lineExtend?.ReceiptProgressStatus,
+                    InvoiceProgressStatus = lineExtend?.InvoiceProgressStatus
                 },
             SalesStockOutNotify = salesSor == null
                 ? new CustomsPendlistFlowDocDto

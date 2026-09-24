@@ -441,6 +441,10 @@ const zhCN = {
     },
     items: {
       title: '报关明细',
+      flowPanel: {
+        pickRow: '在「流程」页签下单击列表行，查看本行报关上下游',
+        loadFailed: '加载报关明细流程失败'
+      },
       search: '查询',
       reset: '重置',
       export: '导出',
@@ -6354,6 +6358,9 @@ const zhCN = {
       stationDone: '已完成',
       stationCancelled: '已取消',
       stationFailed: '未通过',
+      stationReviewFailed: '审核失败',
+      stationInvoiceFailed: '开票失败',
+      stationRedFlushed: '已红冲',
       stockingUsageStatus: '已使用',
       writeOffStatus: '已核销',
       stations: {
