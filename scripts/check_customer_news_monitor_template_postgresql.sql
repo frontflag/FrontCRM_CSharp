@@ -34,6 +34,8 @@ SELECT
     (position('窗口：' in t.user_prompt_template) > 0) AS ok_v2_window_line,
     (position('禁止输出检索过程' in t.system_prompt) > 0
         OR position('让我继续搜索' in t.system_prompt) > 0) AS ok_no_search_loop_rule,
+    (position('检索充分性' in t.system_prompt) > 0) AS ok_v4_thorough,
+    (position('然后立即停止生成' in t.system_prompt) = 0) AS ok_no_early_stop,
     left(t.system_prompt, 180) AS system_head
 FROM public.ai_prompt_template t
 WHERE t.code = 'customer.news.monitor'

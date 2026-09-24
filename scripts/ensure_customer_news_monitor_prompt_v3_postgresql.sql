@@ -1,4 +1,5 @@
--- 增量：客户新闻动态监测提示词防检索循环 + 缩短 max_tokens
+-- 增量：客户新闻动态监测提示词防检索循环；max_tokens 不低于 8192
+-- 注意：v3 曾含「找不到就立即停止」，已有库请再执行 ensure_customer_news_monitor_prompt_v4_postgresql.sql
 -- DBeaver-safe / Navicat-safe：无双花括号字面量
 -- 可重复执行。
 
@@ -9,8 +10,8 @@ WHERE code = 'customer.news.monitor' AND version = 1
   AND position('让我继续搜索' in system_prompt) = 0;
 
 UPDATE public.ai_scenario
-SET max_tokens = 2048
+SET max_tokens = 8192
 WHERE code = 'customer.news.monitor'
-  AND max_tokens > 2048;
+  AND max_tokens < 8192;
 
 DELETE FROM public.ai_invocation_cache WHERE scenario_code = 'customer.news.monitor';
