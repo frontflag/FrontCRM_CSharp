@@ -3,6 +3,8 @@
     v-model="visibleModel"
     :title="t('aiEntityCreate.confirmDialog.title')"
     :width="dialogWidth"
+    :z-index="4600"
+    modal-class="ai-parse-confirm-overlay"
     destroy-on-close
     :close-on-click-modal="false"
     class="ai-entity-parse-confirm-dialog"

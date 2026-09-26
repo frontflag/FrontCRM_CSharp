@@ -137,7 +137,11 @@ public class KnowledgeBaseController : ControllerBase
     {
         try
         {
-            var result = await _kb.AskAsync(UserId ?? "", request?.Question ?? "", cancellationToken);
+            var result = await _kb.AskAsync(
+                UserId ?? "",
+                request?.Question ?? "",
+                cancellationToken,
+                request?.DialogueContext);
             return Ok(ApiResponse<KbAskResultDto>.Ok(result));
         }
         catch (InvalidOperationException ex)
@@ -152,4 +156,7 @@ public class KnowledgeBaseController : ControllerBase
 public sealed class KbAskRequest
 {
     public string Question { get; set; } = "";
+
+    /// <summary>本轮已有对话。只供回答时理解指代，不参与检索和缓存。</summary>
+    public string? DialogueContext { get; set; }
 }

@@ -3,6 +3,7 @@ using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Knowledge;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,12 +15,62 @@ namespace CRM.API.Controllers;
 public class AiAssistantController : ControllerBase
 {
     private readonly IAiAssistantService _assistantService;
+    private readonly IRbacService _rbacService;
     private readonly ILogger<AiAssistantController> _logger;
 
-    public AiAssistantController(IAiAssistantService assistantService, ILogger<AiAssistantController> logger)
+    public AiAssistantController(
+        IAiAssistantService assistantService,
+        IRbacService rbacService,
+        ILogger<AiAssistantController> logger)
     {
         _assistantService = assistantService;
+        _rbacService = rbacService;
         _logger = logger;
+    }
+
+    [HttpPost("route")]
+    public async Task<ActionResult<ApiResponse<AiSkillRouteDto>>> Route(
+        [FromBody] RouteAiSkillRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(ApiResponse<AiSkillRouteDto>.Fail("未登录", 401));
+
+        var text = (request?.Text ?? string.Empty).Trim();
+        if (text.Length == 0)
+            return BadRequest(ApiResponse<AiSkillRouteDto>.Fail("请输入文字"));
+
+        try
+        {
+            var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
+            var allowed = new List<string>();
+            if (AllowsBiz(summary, AiAssistantPermissionCodes.Submit))
+                allowed.Add(AiAssistantSkills.Feedback);
+            if (AllowsBiz(summary, KbHandbookCodes.AskPermission))
+                allowed.Add(AiAssistantSkills.Handbook);
+            if (allowed.Count == 0)
+                return StatusCode(403, ApiResponse<AiSkillRouteDto>.Fail("无权限使用 AI 交互", 403));
+
+            var skill = await _assistantService.RouteSkillAsync(text, allowed, cancellationToken);
+            return Ok(ApiResponse<AiSkillRouteDto>.Ok(new AiSkillRouteDto { Skill = skill }));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<AiSkillRouteDto>.Fail(ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AI skill route failed");
+            return StatusCode(500, ApiResponse<AiSkillRouteDto>.Fail($"技能判断失败: {ex.Message}", 500));
+        }
+    }
+
+    private static bool AllowsBiz(UserPermissionSummaryDto summary, string code)
+    {
+        if (summary.IsSysAdmin || summary.HasBizDataBypass)
+            return true;
+        return summary.PermissionCodes.Any(c => string.Equals(c, code, StringComparison.OrdinalIgnoreCase));
     }
 
     [HttpPost("sessions")]

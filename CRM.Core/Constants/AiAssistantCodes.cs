@@ -24,6 +24,7 @@ public static class AiAssistantSessionStatus
 public static class AiAssistantSkills
 {
     public const string Feedback = "feedback";
+    public const string Handbook = "handbook";
 }
 
 public static class AiAssistantMessageRoles

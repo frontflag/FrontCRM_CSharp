@@ -90,8 +90,12 @@ export const knowledgeBaseApi = {
   activate(versionId: string) {
     return apiClient.post<boolean>(`${base}/versions/${versionId}/activate`)
   },
-  ask(question: string) {
-    return apiClient.post<KbAskResult>(`${base}/ask`, { question }, { timeout: 180000 })
+  ask(question: string, dialogueContext?: string) {
+    return apiClient.post<KbAskResult>(
+      `${base}/ask`,
+      { question, dialogueContext: dialogueContext || undefined },
+      { timeout: 180000 }
+    )
   },
   reader(versionId?: string) {
     return apiClient.get<KbHandbookReader>(`${base}/reader`, { params: versionId ? { versionId } : {} })

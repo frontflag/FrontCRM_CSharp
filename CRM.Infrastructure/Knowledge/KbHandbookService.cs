@@ -15,7 +15,8 @@ namespace CRM.Infrastructure.Knowledge;
 
 public sealed class KbHandbookService : IKbHandbookService
 {
-    private const string Disclaimer = "以下内容来自新人培训教材，不是公司制度。";
+    private const string Disclaimer = "以下内容来自培训教材：";
+    private const string LegacyDisclaimer = "以下内容来自新人培训教材，不是公司制度。";
     private const string Compliance = "涉及合规、假货或诈骗的筛查，以公司合规要求为准。";
     private const string Uncovered = "教材未覆盖该问题。";
 
@@ -301,12 +302,25 @@ public sealed class KbHandbookService : IKbHandbookService
         };
     }
 
-    public async Task<KbAskResultDto> AskAsync(string userId, string question, CancellationToken cancellationToken = default)
+    public async Task<KbAskResultDto> AskAsync(
+        string userId,
+        string question,
+        CancellationToken cancellationToken = default,
+        string? dialogueContext = null)
     {
         await EnsurePermissionAsync(userId, KbHandbookCodes.AskPermission, cancellationToken);
         var normalized = HandbookChunker.Normalize(question);
         if (normalized.Length is < 1 or > 500)
             throw new InvalidOperationException("问题长度需要在 1 到 500 字之间。");
+        var useCache = string.IsNullOrWhiteSpace(dialogueContext);
+        var questionForModel = normalized;
+        if (!useCache)
+        {
+            var prior = dialogueContext!.Trim();
+            if (prior.Length > 4000)
+                prior = prior[^4000..];
+            questionForModel = normalized + "\n\n【本轮已有对话，仅供理解指代】\n" + prior;
+        }
 
         var conn = await OpenAsync(cancellationToken);
         await using var activeCmd = conn.CreateCommand();
@@ -327,14 +341,19 @@ public sealed class KbHandbookService : IKbHandbookService
         await activeReader.DisposeAsync();
 
         var questionHash = AiJsonHelper.ComputeSha256Hex(normalized);
-        var cached = await ReadCacheAsync(conn, versionId, questionHash, cancellationToken);
-        if (cached != null)
+        if (useCache)
         {
-            cached.DocumentTitle = title;
-            cached.VersionId = versionId;
-            cached.VersionNo = versionNo;
-            cached.FromCache = true;
-            return cached;
+            var cached = await ReadCacheAsync(conn, versionId, questionHash, cancellationToken);
+            if (cached != null)
+            {
+                if (cached.Covered)
+                    cached.Answer = WithDisclaimer(cached.Answer);
+                cached.DocumentTitle = title;
+                cached.VersionId = versionId;
+                cached.VersionNo = versionNo;
+                cached.FromCache = true;
+                return cached;
+            }
         }
 
         var profile = await LoadProfileAsync(conn, cancellationToken);
@@ -352,7 +371,8 @@ public sealed class KbHandbookService : IKbHandbookService
                 VersionId = versionId,
                 VersionNo = versionNo
             };
-            await WriteCacheAsync(conn, versionId, questionHash, normalized, missed, hits.FirstOrDefault()?.Distance, cancellationToken);
+            if (useCache)
+                await WriteCacheAsync(conn, versionId, questionHash, normalized, missed, hits.FirstOrDefault()?.Distance, cancellationToken);
             return missed;
         }
 
@@ -366,7 +386,7 @@ public sealed class KbHandbookService : IKbHandbookService
             ScenarioCode = KbHandbookCodes.Scenario,
             Input = new Dictionary<string, string?>
             {
-                ["question"] = normalized,
+                ["question"] = questionForModel,
                 ["corpus_version_id"] = versionId,
                 ["chunk_ids"] = string.Join(',', selected.Select(h => h.Id)),
                 ["context"] = context,
@@ -395,11 +415,12 @@ public sealed class KbHandbookService : IKbHandbookService
                 VersionId = versionId,
                 VersionNo = versionNo
             };
-            await WriteCacheAsync(conn, versionId, questionHash, normalized, missed, hits[0].Distance, cancellationToken);
+            if (useCache)
+                await WriteCacheAsync(conn, versionId, questionHash, normalized, missed, hits[0].Distance, cancellationToken);
             return missed;
         }
 
-        var text = Disclaimer + "\n" + answer.Trim();
+        var text = WithDisclaimer(answer);
         if (compliance && !text.Contains(Compliance, StringComparison.Ordinal))
             text += "\n" + Compliance;
         var result = new KbAskResultDto
@@ -411,8 +432,22 @@ public sealed class KbHandbookService : IKbHandbookService
             VersionNo = versionNo,
             Citations = DedupeCitations(selected)
         };
-        await WriteCacheAsync(conn, versionId, questionHash, normalized, result, hits[0].Distance, cancellationToken);
+        if (useCache)
+            await WriteCacheAsync(conn, versionId, questionHash, normalized, result, hits[0].Distance, cancellationToken);
         return result;
+    }
+
+    private static string WithDisclaimer(string answer)
+    {
+        var body = answer.Trim();
+        foreach (var prefix in new[] { LegacyDisclaimer, Disclaimer })
+        {
+            if (!body.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
+            body = body[prefix.Length..].TrimStart('\r', '\n', ' ');
+            break;
+        }
+        return string.IsNullOrEmpty(body) ? Disclaimer : Disclaimer + "\n" + body;
     }
 
     private async Task ProcessVersionAsync(DbConnection conn, string versionId, CancellationToken cancellationToken)

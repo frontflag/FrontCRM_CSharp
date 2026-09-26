@@ -1941,6 +1941,7 @@
     <!-- /.app-layout-body -->
     <CrmImageBrowser />
     <AiAssistantDrawer v-model="aiAssistantOpen" />
+    <AiInteractionLayer />
     <SystemMessageDrawer />
     <SystemAnnouncementModal
       v-model="forceAnnouncementOpen"
@@ -2017,6 +2018,7 @@ import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
 import CrmImageBrowser from '@/components/Common/CrmImageBrowser.vue'
 import AiAssistantDrawer from '@/components/AiAssistant/AiAssistantDrawer.vue'
+import AiInteractionLayer from '@/components/AiInteraction/AiInteractionLayer.vue'
 import SystemMessageDrawer from '@/components/SystemAnnouncement/SystemMessageDrawer.vue'
 import SystemAnnouncementModal from '@/components/SystemAnnouncement/SystemAnnouncementModal.vue'
 import { sysAnnouncementsApi, type AnnouncementDetail } from '@/api/sysAnnouncements'

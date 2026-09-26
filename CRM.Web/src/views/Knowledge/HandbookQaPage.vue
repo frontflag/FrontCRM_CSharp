@@ -1,7 +1,7 @@
 <template>
   <div class="page">
     <h2>培训问答</h2>
-    <p class="hint">以下内容来自新人培训教材，不是公司制度。</p>
+    <p class="hint">以下内容来自培训教材：</p>
     <el-input v-model="question" type="textarea" :rows="3" maxlength="500" placeholder="输入问题" />
     <div class="actions">
       <el-button type="primary" :loading="loading" @click="ask">提问</el-button>

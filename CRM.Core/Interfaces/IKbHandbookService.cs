@@ -13,7 +13,11 @@ public interface IKbHandbookService
 
     Task ProcessPendingAsync(CancellationToken cancellationToken = default);
 
-    Task<KbAskResultDto> AskAsync(string userId, string question, CancellationToken cancellationToken = default);
+    Task<KbAskResultDto> AskAsync(
+        string userId,
+        string question,
+        CancellationToken cancellationToken = default,
+        string? dialogueContext = null);
 
     Task<KbHandbookReaderDto> GetReaderAsync(
         string userId,

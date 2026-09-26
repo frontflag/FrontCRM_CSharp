@@ -13,6 +13,7 @@ declare module 'vue' {
     AiBusinessCardUploadDialog: typeof import('./src/components/AiCreate/AiBusinessCardUploadDialog.vue')['default']
     AiEntityCreateHost: typeof import('./src/components/AiCreate/AiEntityCreateHost.vue')['default']
     AiEntityParseConfirmDialog: typeof import('./src/components/AiCreate/AiEntityParseConfirmDialog.vue')['default']
+    AiInteractionLayer: typeof import('./src/components/AiInteraction/AiInteractionLayer.vue')['default']
     AiTextParseDialog: typeof import('./src/components/AiCreate/AiTextParseDialog.vue')['default']
     AnalyticsBreakdownChart: typeof import('./src/components/Analytics/AnalyticsBreakdownChart.vue')['default']
     AnalyticsBreakdownPieChart: typeof import('./src/components/Analytics/AnalyticsBreakdownPieChart.vue')['default']

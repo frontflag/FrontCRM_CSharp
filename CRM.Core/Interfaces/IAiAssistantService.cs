@@ -10,6 +10,12 @@ public interface IAiAssistantService
         string userId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>未点技能时，在允许的技能里判断这一句走哪一项。</summary>
+    Task<string> RouteSkillAsync(
+        string text,
+        IReadOnlyCollection<string> allowedSkills,
+        CancellationToken cancellationToken = default);
+
     /// <summary>跳过对话模型，直接落一条待处理用户反馈（会话标记为已提交）。</summary>
     Task<DirectFeedbackSubmitResult> SubmitDirectFeedbackAsync(
         SubmitDirectFeedbackRequest request,
@@ -46,6 +52,9 @@ public sealed class SendAiAssistantMessageRequest
     public string? ImageBase64 { get; set; }
     public string? ImageMimeType { get; set; }
     public string? ImageFileName { get; set; }
+
+    /// <summary>本轮其他技能的可见对话。只进模型提示，不写入反馈正文。</summary>
+    public string? BackgroundContext { get; set; }
 }
 
 public sealed class AiAssistantSessionDto
@@ -144,4 +153,14 @@ public sealed class DirectFeedbackSubmitResult
 {
     public string FeedbackId { get; set; } = string.Empty;
     public string SessionId { get; set; } = string.Empty;
+}
+
+public sealed class RouteAiSkillRequest
+{
+    public string? Text { get; set; }
+}
+
+public sealed class AiSkillRouteDto
+{
+    public string Skill { get; set; } = string.Empty;
 }

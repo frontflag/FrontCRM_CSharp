@@ -131,7 +131,8 @@ public sealed class AiAssistantService : IAiAssistantService
             .OrderBy(m => m.CreateTime)
             .ToListAsync(cancellationToken);
 
-        var llmResult = await InvokeModelOrHeuristicAsync(session, history, text, attachmentId != null, cancellationToken);
+        var llmResult = await InvokeModelOrHeuristicAsync(
+            session, history, text, attachmentId != null, request.BackgroundContext, cancellationToken);
         ApplyGuards(session, llmResult);
 
         string? feedbackId = null;
@@ -238,6 +239,7 @@ public sealed class AiAssistantService : IAiAssistantService
         List<AiAssistantMessage> historyIncludingNewUser,
         string userText,
         bool hasImage,
+        string? backgroundContext,
         CancellationToken cancellationToken)
     {
         var heuristic = FeedbackAssistantTurnParser.Heuristic(
@@ -267,7 +269,7 @@ public sealed class AiAssistantService : IAiAssistantService
             if (string.Equals(provider.Code, "mock", StringComparison.OrdinalIgnoreCase))
                 return heuristic;
 
-            var messages = BuildChatMessages(template.SystemPrompt, session, historyIncludingNewUser);
+            var messages = BuildChatMessages(template.SystemPrompt, session, historyIncludingNewUser, backgroundContext);
             var llm = _providerFactory.Create(provider);
             var completion = await llm.ChatAsync(new AiChatCompletionRequest
             {
@@ -300,7 +302,8 @@ public sealed class AiAssistantService : IAiAssistantService
     private static List<AiChatMessageDto> BuildChatMessages(
         string systemPrompt,
         AiAssistantSession session,
-        List<AiAssistantMessage> history)
+        List<AiAssistantMessage> history,
+        string? backgroundContext)
     {
         var ctx = new StringBuilder();
         ctx.AppendLine(systemPrompt);
@@ -312,6 +315,15 @@ public sealed class AiAssistantService : IAiAssistantService
         ctx.AppendLine($"preferredCategory={session.PreferredCategory}");
         ctx.AppendLine($"userTurnCount={session.UserTurnCount}");
         ctx.AppendLine($"consecutiveOffTopic={session.ConsecutiveOffTopicCount}");
+        if (!string.IsNullOrWhiteSpace(backgroundContext))
+        {
+            var prior = backgroundContext.Trim();
+            if (prior.Length > 4000)
+                prior = prior[^4000..];
+            ctx.AppendLine();
+            ctx.AppendLine("【本轮其他对话，仅供理解「上面」等指代。不要把这些内容写成反馈正文。】");
+            ctx.AppendLine(prior);
+        }
 
         var list = new List<AiChatMessageDto>
         {
@@ -525,4 +537,94 @@ public sealed class AiAssistantService : IAiAssistantService
 
     private static string? FirstNonEmpty(params string?[] values) =>
         values.FirstOrDefault(v => !string.IsNullOrWhiteSpace(v))?.Trim();
+
+    public async Task<string> RouteSkillAsync(
+        string text,
+        IReadOnlyCollection<string> allowedSkills,
+        CancellationToken cancellationToken = default)
+    {
+        var allowed = (allowedSkills ?? Array.Empty<string>())
+            .Where(s => s is AiAssistantSkills.Feedback or AiAssistantSkills.Handbook)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (allowed.Count == 0)
+            throw new InvalidOperationException("没有可用技能");
+        if (allowed.Count == 1)
+            return allowed[0];
+
+        var judged = await TryRouteWithModelAsync(text, cancellationToken);
+        if (judged != null && allowed.Any(s => string.Equals(s, judged, StringComparison.OrdinalIgnoreCase)))
+            return allowed.First(s => string.Equals(s, judged, StringComparison.OrdinalIgnoreCase));
+        return AiInteractionSkillHeuristic.Choose(text, allowed);
+    }
+
+    private async Task<string?> TryRouteWithModelAsync(string text, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var scenario = await _db.AiScenarios.AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Code == AiAssistantScenarioCodes.FeedbackCollect && !s.IsDeleted && s.IsEnabled, cancellationToken);
+            if (scenario == null)
+                return null;
+            var provider = await _db.AiProviders.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.Code == scenario.ProviderCode && !p.IsDeleted && p.IsEnabled, cancellationToken);
+            if (provider == null || string.Equals(provider.Code, "mock", StringComparison.OrdinalIgnoreCase))
+                return null;
+
+            var llm = _providerFactory.Create(provider);
+            var completion = await llm.ChatAsync(new AiChatCompletionRequest
+            {
+                ProviderCode = provider.Code,
+                Model = string.IsNullOrWhiteSpace(scenario.Model) ? provider.DefaultModel : scenario.Model,
+                Messages =
+                [
+                    new AiChatMessageDto
+                    {
+                        Role = "system",
+                        Content = "只输出 JSON {\"skill\":\"feedback\"} 或 {\"skill\":\"handbook\"}。feedback=系统故障、缺陷、改进建议。handbook=培训教材与业务知识。不要解释。"
+                    },
+                    new AiChatMessageDto { Role = "user", Content = text ?? "" }
+                ],
+                MaxTokens = 40,
+                Temperature = 0m,
+                TimeoutSeconds = provider.TimeoutSeconds,
+                EnableWebSearch = false
+            }, cancellationToken);
+
+            return ParseRoutedSkill(completion.Content);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "AI skill route failed; using heuristic");
+            return null;
+        }
+    }
+
+    private static string? ParseRoutedSkill(string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+            return null;
+        var raw = content.Trim();
+        var start = raw.IndexOf('{');
+        var end = raw.LastIndexOf('}');
+        if (start < 0 || end <= start)
+            return null;
+        try
+        {
+            using var doc = JsonDocument.Parse(raw[start..(end + 1)]);
+            if (!doc.RootElement.TryGetProperty("skill", out var skillNode))
+                return null;
+            var skill = skillNode.GetString();
+            if (string.Equals(skill, AiAssistantSkills.Feedback, StringComparison.OrdinalIgnoreCase))
+                return AiAssistantSkills.Feedback;
+            if (string.Equals(skill, AiAssistantSkills.Handbook, StringComparison.OrdinalIgnoreCase))
+                return AiAssistantSkills.Handbook;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+
+        return null;
+    }
 }
