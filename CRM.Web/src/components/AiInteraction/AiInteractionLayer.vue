@@ -60,6 +60,69 @@
                 <span class="ai-face"></span>
               </div>
               <p class="bubble-text">{{ turn.text }}</p>
+              <div v-if="turn.kind === 'assistant' && turn.chart" class="data-chart">
+                <p v-if="turn.chart.type === 'number'" class="data-number">
+                  {{ formatDataValue(turn.chart.points[0]?.value) }}
+                  <span>{{ turn.chart.unit }}</span>
+                </p>
+                <div v-else-if="turn.chart.type === 'line'">
+                  <svg class="data-line" viewBox="0 0 280 96" role="img">
+                    <polyline :points="linePoints(turn.chart.points)" fill="none" stroke="#2563eb" stroke-width="2" />
+                  </svg>
+                  <div class="data-line-labels">
+                    <span v-for="point in turn.chart.points" :key="point.label">{{ point.label }}</span>
+                  </div>
+                </div>
+                <div v-else class="data-bars">
+                  <div v-for="point in turn.chart.points" :key="point.label" class="data-bar-row">
+                    <span class="data-bar-label">{{ point.label }}</span>
+                    <span class="data-bar-track">
+                      <span class="data-bar-fill" :style="{ width: barWidth(turn.chart.points, point.value) }" />
+                    </span>
+                  </div>
+                </div>
+                <p v-if="turn.chart.type !== 'number' && turn.chart.unit" class="data-unit">{{ turn.chart.unit }}</p>
+              </div>
+              <table v-if="turn.kind === 'assistant' && turn.rows?.length" class="data-table">
+                <tbody>
+                  <tr v-for="row in turn.rows" :key="row.label">
+                    <td>
+                      <router-link
+                        v-if="row.routeName"
+                        :to="dataRoute(row.routeName, row.routeQueryKey, row.routeQueryValue)"
+                        target="_blank"
+                        rel="noopener"
+                      >
+                        {{ row.label }}
+                      </router-link>
+                      <template v-else>{{ row.label }}</template>
+                    </td>
+                    <td>{{ row.valueText || '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p v-if="turn.kind === 'assistant' && turn.basisNote" class="data-basis">{{ turn.basisNote }}</p>
+              <router-link
+                v-if="turn.kind === 'assistant' && turn.link"
+                class="data-link"
+                :to="dataRoute(turn.link.routeName, turn.link.queryKey, turn.link.queryValue)"
+                target="_blank"
+                rel="noopener"
+              >
+                {{ turn.link.label }}
+              </router-link>
+              <div v-if="turn.kind === 'assistant' && turn.options?.length && isLatestDataTurn(turn)" class="data-options">
+                <button
+                  v-for="option in turn.options"
+                  :key="option.id"
+                  type="button"
+                  class="chip"
+                  :disabled="busy"
+                  @click="sendOption(option.label)"
+                >
+                  {{ option.label }}
+                </button>
+              </div>
               <div v-if="assistantCitations(turn).length" class="reply-panel">
                 <p class="create-title">{{ t('aiInteraction.refsTitle') }}</p>
                 <ul class="refs">
@@ -165,7 +228,7 @@ import {
   AI_PERMISSION_ENTITY_PARSE_RFQ,
   AI_PERMISSION_ENTITY_PARSE_VENDOR
 } from '@/api/ai'
-import { aiAssistantApi } from '@/api/aiAssistant'
+import { aiAssistantApi, type AiDataQueryLink, type AiDataQueryRow, type AiDataQueryState } from '@/api/aiAssistant'
 import { knowledgeBaseApi, type KbCitation } from '@/api/knowledgeBase'
 import AiEntityCreateHost from '@/components/AiCreate/AiEntityCreateHost.vue'
 import { useAuthStore } from '@/stores'
@@ -189,6 +252,12 @@ type Turn =
       skill: AiInteractionSkill
       citations?: KbCitation[]
       versionId?: string | null
+      basisNote?: string | null
+      options?: { id: string; label: string }[]
+      chart?: { type: string; unit?: string; points: { label: string; value?: number | null }[] } | null
+      rows?: AiDataQueryRow[]
+      link?: AiDataQueryLink | null
+      dataState?: AiDataQueryState | null
     }
   | { kind: 'marker'; id: string; skill: AiInteractionSkill }
   | { kind: 'create'; id: string; text: string }
@@ -230,11 +299,13 @@ const createActions = computed<PasteCreateKind[]>(() => {
 const canFeedback = computed(() => authStore.hasPermission('biz.feedback.submit'))
 const canHandbook = computed(() => authStore.hasPermission('biz.ai.kb.qa'))
 const canOps = computed(() => authStore.hasPermission('biz.ai.ops.qa'))
+const canData = computed(() => authStore.hasPermission('biz.ai.data.query'))
 const skills = computed<AiInteractionSkill[]>(() => {
   const list: AiInteractionSkill[] = []
   if (canFeedback.value) list.push('feedback')
   if (canHandbook.value) list.push('handbook')
   if (canOps.value) list.push('ops')
+  if (canData.value) list.push('data')
   return list
 })
 const chatting = computed(() => turns.value.length > 0 || busy.value)
@@ -244,7 +315,11 @@ const feedbackEnded = computed(() => {
 })
 const showCategory = computed(() => selectedSkill.value === 'feedback' && !sessionId.value)
 const allowImage = computed(
-  () => selectedSkill.value !== 'handbook' && selectedSkill.value !== 'ops' && canFeedback.value
+  () =>
+    selectedSkill.value !== 'handbook' &&
+    selectedSkill.value !== 'ops' &&
+    selectedSkill.value !== 'data' &&
+    canFeedback.value
 )
 const composerDisabled = computed(
   () => busy.value || (selectedSkill.value === 'feedback' && feedbackEnded.value)
@@ -324,6 +399,7 @@ async function startCreate(cardId: string, kind: PasteCreateKind, text: string) 
 function skillName(skill: AiInteractionSkill) {
   if (skill === 'feedback') return t('aiInteraction.skillFeedback')
   if (skill === 'ops') return t('aiInteraction.skillOps')
+  if (skill === 'data') return t('aiInteraction.skillData')
   return t('aiInteraction.skillHandbook')
 }
 
@@ -450,11 +526,11 @@ async function onSend() {
     mode = skills.value.length === 1 ? 'user' : 'auto'
   }
 
-  if ((skill === 'handbook' || skill === 'ops') && !text) {
-    errorText.value = t('aiInteraction.handbookNeedsText')
+  if ((skill === 'handbook' || skill === 'ops' || skill === 'data') && !text) {
+    errorText.value = skill === 'data' ? t('aiInteraction.dataNeedsText') : t('aiInteraction.handbookNeedsText')
     return
   }
-  if ((skill === 'handbook' || skill === 'ops') && text.length > 500) {
+  if ((skill === 'handbook' || skill === 'ops' || skill === 'data') && text.length > 500) {
     errorText.value = t('aiInteraction.questionTooLong')
     return
   }
@@ -477,6 +553,7 @@ async function onSend() {
 
   try {
     if (skill === 'feedback') await sendFeedback(text, image, background)
+    else if (skill === 'data') await sendData(text)
     else await sendHandbook(text, background, skill)
   } catch (error) {
     turns.value = turns.value.filter((turn) => turn.id !== userTurn.id)
@@ -498,7 +575,15 @@ async function resolveSkill(text: string): Promise<AiInteractionSkill | null> {
   try {
     const routed = await aiAssistantApi.routeSkill(text)
     const skill =
-      routed.skill === 'handbook' ? 'handbook' : routed.skill === 'ops' ? 'ops' : routed.skill === 'feedback' ? 'feedback' : null
+      routed.skill === 'handbook'
+        ? 'handbook'
+        : routed.skill === 'ops'
+          ? 'ops'
+          : routed.skill === 'data'
+            ? 'data'
+            : routed.skill === 'feedback'
+              ? 'feedback'
+              : null
     if (skill && allowed.includes(skill)) return skill
   } catch (error) {
     const status = (error as { httpStatus?: number }).httpStatus
@@ -508,6 +593,83 @@ async function resolveSkill(text: string): Promise<AiInteractionSkill | null> {
     }
   }
   return chooseAiSkill(text, allowed)
+}
+
+function latestDataState(): AiDataQueryState | null {
+  for (let i = turns.value.length - 1; i >= 0; i -= 1) {
+    const turn = turns.value[i]
+    if (turn.kind === 'assistant' && turn.skill === 'data' && turn.dataState) return turn.dataState
+  }
+  return null
+}
+
+function isLatestDataTurn(turn: Turn) {
+  for (let i = turns.value.length - 1; i >= 0; i -= 1) {
+    const item = turns.value[i]
+    if (item.kind === 'assistant' && item.skill === 'data') return item.id === turn.id
+  }
+  return false
+}
+
+function sendOption(label: string) {
+  if (busy.value) return
+  selectedSkill.value = 'data'
+  routeMode.value = 'user'
+  draft.value = label
+  void onSend()
+}
+
+function dataRoute(name: string, key?: string | null, value?: string | null) {
+  if (key && value) return { name, query: { [key]: value } }
+  return { name }
+}
+
+function formatDataValue(value?: number | null) {
+  if (value == null || Number.isNaN(value)) return '—'
+  return value.toLocaleString('zh-CN', { maximumFractionDigits: 2 })
+}
+
+function barWidth(points: { value?: number | null }[], value?: number | null) {
+  const max = Math.max(...points.map((point) => Number(point.value) || 0), 0)
+  if (!max || value == null) return '0%'
+  return `${Math.max(4, Math.round((Number(value) / max) * 100))}%`
+}
+
+function linePoints(points: { value?: number | null }[]) {
+  if (points.length === 0) return ''
+  const values = points.map((point) => Number(point.value) || 0)
+  const max = Math.max(...values, 0)
+  const min = Math.min(...values, 0)
+  const span = max - min || 1
+  return points
+    .map((point, index) => {
+      const x = points.length === 1 ? 140 : (index / (points.length - 1)) * 264 + 8
+      const y = 88 - ((Number(point.value) || 0) - min) / span * 76
+      return `${x},${y}`
+    })
+    .join(' ')
+}
+
+async function sendData(text: string) {
+  const result = await aiAssistantApi.queryData({
+    question: text,
+    state: latestDataState()
+  })
+  turns.value = [
+    ...turns.value,
+    {
+      kind: 'assistant',
+      id: `data-${Date.now()}`,
+      text: result.summary,
+      skill: 'data',
+      basisNote: result.basisNote,
+      options: result.options,
+      chart: result.chart,
+      rows: result.rows,
+      link: result.link,
+      dataState: result.state
+    }
+  ]
 }
 
 async function sendFeedback(
@@ -833,6 +995,104 @@ onBeforeUnmount(() => {
 
 .refs a:hover {
   text-decoration: underline;
+}
+
+.data-chart,
+.data-table,
+.data-basis,
+.data-link,
+.data-options {
+  margin-top: 12px;
+}
+
+.data-number {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+  font-weight: 650;
+  color: #0f172a;
+}
+
+.data-number span,
+.data-unit,
+.data-basis {
+  font-size: 13px;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.data-line {
+  width: 100%;
+  height: 96px;
+}
+
+.data-line-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.data-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.data-bar-row {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.data-bar-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.data-bar-track {
+  height: 8px;
+  border-radius: 99px;
+  background: #e8eef6;
+}
+
+.data-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: #2563eb;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table td {
+  padding: 4px 0;
+  border-bottom: 1px solid #e5eaf1;
+}
+
+.data-table td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.data-table a,
+.data-link {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.data-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .bubble--thinking {

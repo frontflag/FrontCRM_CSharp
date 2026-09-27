@@ -226,6 +226,48 @@ public sealed class InventoryOnHandListAnalyticsQuery : IInventoryOnHandListAnal
         };
     }
 
+    public async Task<decimal?> GetConvertedUsdTotalAsync(
+        InventoryOnHandSummaryQueryRequest request,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default)
+    {
+        if (maskAmounts)
+            return null;
+        var layers = (await LoadBundleAsync(request, cancellationToken)).Layers;
+        return Math.Round(layers.Sum(l => l.QtyRepertory * l.UnitUsd), 2, MidpointRounding.AwayFromZero);
+    }
+
+    public async Task<InventoryOnHandListAnalyticsRankingsDto> GetAgedRankingsAsync(
+        InventoryOnHandSummaryQueryRequest request,
+        int minAgeDays,
+        bool maskAmounts,
+        CancellationToken cancellationToken = default)
+    {
+        var layers = (await LoadBundleAsync(request, cancellationToken)).Layers
+            .Where(l => l.AgeDays > minAgeDays)
+            .ToList();
+        var currencies = InventoryOnHandCurrency.OrderPresent(layers.Select(l => l.Currency));
+        return new InventoryOnHandListAnalyticsRankingsDto
+        {
+            CustomerByQty = RankQty(
+                layers,
+                l => string.IsNullOrWhiteSpace(l.CustomerId) ? "_unset" : l.CustomerId!,
+                l => string.IsNullOrWhiteSpace(l.CustomerId) ? UnsetCustomer : (l.CustomerName ?? l.CustomerId!)),
+            BrandByQty = RankQty(
+                layers,
+                l => string.IsNullOrWhiteSpace(l.BrandKey) ? "_unset" : l.BrandKey,
+                l => string.IsNullOrWhiteSpace(l.PurchaseBrand) ? UnsetBrand : l.PurchaseBrand!.Trim()),
+            CustomerByAmount = FacetRankAmount(
+                layers, currencies, maskAmounts,
+                l => string.IsNullOrWhiteSpace(l.CustomerId) ? "_unset" : l.CustomerId!,
+                l => string.IsNullOrWhiteSpace(l.CustomerId) ? UnsetCustomer : (l.CustomerName ?? l.CustomerId!)),
+            BrandByAmount = FacetRankAmount(
+                layers, currencies, maskAmounts,
+                l => string.IsNullOrWhiteSpace(l.BrandKey) ? "_unset" : l.BrandKey,
+                l => string.IsNullOrWhiteSpace(l.PurchaseBrand) ? UnsetBrand : l.PurchaseBrand!.Trim())
+        };
+    }
+
     private async Task<AnalyticsBundle> LoadBundleAsync(
         InventoryOnHandSummaryQueryRequest request,
         CancellationToken cancellationToken)

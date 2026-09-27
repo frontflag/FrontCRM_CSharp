@@ -4,6 +4,7 @@ using CRM.API.Models.DTOs;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
 using CRM.Core.Knowledge;
+using CRM.Core.Models.Ai;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,15 +16,18 @@ namespace CRM.API.Controllers;
 public class AiAssistantController : ControllerBase
 {
     private readonly IAiAssistantService _assistantService;
+    private readonly IAiDataQueryService _dataQueryService;
     private readonly IRbacService _rbacService;
     private readonly ILogger<AiAssistantController> _logger;
 
     public AiAssistantController(
         IAiAssistantService assistantService,
+        IAiDataQueryService dataQueryService,
         IRbacService rbacService,
         ILogger<AiAssistantController> logger)
     {
         _assistantService = assistantService;
+        _dataQueryService = dataQueryService;
         _rbacService = rbacService;
         _logger = logger;
     }
@@ -51,6 +55,8 @@ public class AiAssistantController : ControllerBase
                 allowed.Add(AiAssistantSkills.Handbook);
             if (AllowsBiz(summary, KbHandbookCodes.OpsAskPermission))
                 allowed.Add(AiAssistantSkills.Ops);
+            if (AllowsBiz(summary, AiAssistantPermissionCodes.DataQuery))
+                allowed.Add(AiAssistantSkills.Data);
             if (allowed.Count == 0)
                 return StatusCode(403, ApiResponse<AiSkillRouteDto>.Fail("无权限使用 AI 交互", 403));
 
@@ -65,6 +71,34 @@ public class AiAssistantController : ControllerBase
         {
             _logger.LogError(ex, "AI skill route failed");
             return StatusCode(500, ApiResponse<AiSkillRouteDto>.Fail($"技能判断失败: {ex.Message}", 500));
+        }
+    }
+
+    [HttpPost("data-query")]
+    [RequirePermission(AiAssistantPermissionCodes.DataQuery)]
+    public async Task<ActionResult<ApiResponse<AiDataQueryResponse>>> DataQuery(
+        [FromBody] AiDataQueryRequest? request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrWhiteSpace(userId))
+            return Unauthorized(ApiResponse<AiDataQueryResponse>.Fail("未登录", 401));
+
+        var question = (request?.Question ?? string.Empty).Trim();
+        if (question.Length == 0)
+            return BadRequest(ApiResponse<AiDataQueryResponse>.Fail("请输入文字"));
+        if (question.Length > 500)
+            return BadRequest(ApiResponse<AiDataQueryResponse>.Fail("这一句请控制在 500 字以内"));
+
+        try
+        {
+            var data = await _dataQueryService.AskAsync(userId, question, request?.State, cancellationToken);
+            return Ok(ApiResponse<AiDataQueryResponse>.Ok(data));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "AI data query failed");
+            return StatusCode(500, ApiResponse<AiDataQueryResponse>.Fail($"查询失败: {ex.Message}", 500));
         }
     }
 

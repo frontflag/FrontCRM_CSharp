@@ -132,6 +132,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IAiAdminService, AiAdminService>();
             services.AddScoped<IAiEntityParseLogService, AiEntityParseLogService>();
             services.AddScoped<IAiAssistantService, AiAssistantService>();
+            services.AddScoped<IAiDataQueryService, AiDataQueryService>();
             services.AddScoped<IUserFeedbackAdminService, UserFeedbackAdminService>();
             services.AddScoped<ISysAnnouncementService, SysAnnouncementService>();
             services.AddScoped<ISysUserNoticeService, SysUserNoticeService>();

@@ -544,7 +544,7 @@ public sealed class AiAssistantService : IAiAssistantService
         CancellationToken cancellationToken = default)
     {
         var allowed = (allowedSkills ?? Array.Empty<string>())
-            .Where(s => s is AiAssistantSkills.Feedback or AiAssistantSkills.Handbook or AiAssistantSkills.Ops)
+            .Where(s => s is AiAssistantSkills.Feedback or AiAssistantSkills.Handbook or AiAssistantSkills.Ops or AiAssistantSkills.Data)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (allowed.Count == 0)
@@ -552,10 +552,14 @@ public sealed class AiAssistantService : IAiAssistantService
         if (allowed.Count == 1)
             return allowed[0];
 
+        var heuristic = AiInteractionSkillHeuristic.Choose(text, allowed);
+        if (string.Equals(heuristic, AiAssistantSkills.Data, StringComparison.OrdinalIgnoreCase))
+            return heuristic;
+
         var judged = await TryRouteWithModelAsync(text, cancellationToken);
         if (judged != null && allowed.Any(s => string.Equals(s, judged, StringComparison.OrdinalIgnoreCase)))
             return allowed.First(s => string.Equals(s, judged, StringComparison.OrdinalIgnoreCase));
-        return AiInteractionSkillHeuristic.Choose(text, allowed);
+        return heuristic;
     }
 
     private async Task<string?> TryRouteWithModelAsync(string text, CancellationToken cancellationToken)

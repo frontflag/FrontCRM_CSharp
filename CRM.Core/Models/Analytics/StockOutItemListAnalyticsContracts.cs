@@ -45,4 +45,8 @@ public sealed class StockOutItemListAnalyticsRankingsDto
         Array.Empty<SalesAnalyticsRankingRowDto>();
     public IReadOnlyList<SalesAnalyticsRankingRowDto> SalesUserByAmount { get; set; } =
         Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> BrandByAmount { get; set; } =
+        Array.Empty<SalesAnalyticsRankingRowDto>();
+    public IReadOnlyList<SalesAnalyticsRankingRowDto> BrandByQty { get; set; } =
+        Array.Empty<SalesAnalyticsRankingRowDto>();
 }

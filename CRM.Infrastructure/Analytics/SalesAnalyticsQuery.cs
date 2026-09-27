@@ -549,6 +549,7 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
 
         var orders = await BuildSellOrderQueryAsync(userId, scope, cancellationToken);
         var ordersInPeriod = orders.Where(o => o.CreateTime >= dateFrom && o.CreateTime < dateEnd);
+        var salesOrderCount = await ordersInPeriod.CountAsync(cancellationToken);
 
         var salesOrderItemCount = await (
             from oi in _db.SellOrderItems.AsNoTracking()
@@ -581,6 +582,7 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
             RfqCustomerCount = rfqCustomerCount,
             RfqToSalesConversionRate = rate,
             SalesOrderItemCount = salesOrderItemCount,
+            SalesOrderCount = salesOrderCount,
             SalesOrderCustomerCount = salesOrderCustomerCount,
             SalesAmountApproved = scope.MaskAmounts ? null : salesAmountApproved,
             SalesAmountStockOut = salesAmountStockOut,
@@ -633,6 +635,7 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
     {
         var orders = await BuildSellOrderQueryAsync(scope.Summary.UserId, scope, cancellationToken);
         var ordersInPeriod = orders.Where(o => o.CreateTime >= dateFrom && o.CreateTime < dateEnd);
+        var salesOrderCount = await ordersInPeriod.CountAsync(cancellationToken);
 
         var salesOrderItemCount = await (
             from oi in _db.SellOrderItems.AsNoTracking()
@@ -657,6 +660,7 @@ public sealed class SalesAnalyticsQuery : ISalesAnalyticsQuery
             RfqCustomerCount = 0,
             RfqToSalesConversionRate = null,
             SalesOrderItemCount = salesOrderItemCount,
+            SalesOrderCount = salesOrderCount,
             SalesOrderCustomerCount = salesOrderCustomerCount,
             SalesAmountApproved = scope.MaskAmounts ? null : salesAmountApproved,
             SalesAmountStockOut = salesAmountStockOut,

@@ -21,6 +21,14 @@ public static class AiInteractionSkillHeuristic
         "如何操作|步骤|公式|核销|提成|报关|装箱|拣货|审核|出库申请|新建|备货|收款|开票|报价|销售订单|出库",
         RegexOptions.Compiled);
 
+    private static readonly Regex HowtoPattern = new(
+        "如何|什么是|怎么|步骤|公式",
+        RegexOptions.Compiled);
+
+    private static readonly Regex DataPattern = new(
+        "业绩|销售趋势|订单趋势|库存金额|积压|待收款|待核销|有应收|卖得最好|卖最好|Top\\s*\\d+|近半年|近三个月|近3个月|近六个月|新建订单|多少条|多少张",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
     public static string Choose(string? text, IReadOnlyCollection<string> allowed)
     {
         if (allowed.Count == 0)
@@ -33,16 +41,23 @@ public static class AiInteractionSkillHeuristic
         var feedbackStrong = FeedbackStrongPattern.IsMatch(raw);
         var handbookHit = HandbookPattern.IsMatch(raw);
         var opsHit = OpsPattern.IsMatch(raw);
+        var dataHit = !HowtoPattern.IsMatch(raw) && DataPattern.IsMatch(raw);
         var pick = feedbackStrong && feedbackHit
             ? AiAssistantSkills.Feedback
-            : opsHit
-                ? AiAssistantSkills.Ops
-                : Fallback(raw, feedbackHit, handbookHit);
+            : dataHit
+                ? AiAssistantSkills.Data
+                : opsHit
+                    ? AiAssistantSkills.Ops
+                    : Fallback(raw, feedbackHit, handbookHit);
 
         if (allowed.Any(s => string.Equals(s, pick, StringComparison.OrdinalIgnoreCase)))
             return allowed.First(s => string.Equals(s, pick, StringComparison.OrdinalIgnoreCase));
 
-        var next = pick == AiAssistantSkills.Ops ? Fallback(raw, feedbackHit, handbookHit) : pick;
+        var next = pick == AiAssistantSkills.Data
+            ? (opsHit ? AiAssistantSkills.Ops : Fallback(raw, feedbackHit, handbookHit))
+            : pick == AiAssistantSkills.Ops
+                ? Fallback(raw, feedbackHit, handbookHit)
+                : pick;
         return allowed.FirstOrDefault(s => string.Equals(s, next, StringComparison.OrdinalIgnoreCase))
             ?? allowed.First();
     }

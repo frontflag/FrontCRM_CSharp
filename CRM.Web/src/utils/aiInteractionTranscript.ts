@@ -1,4 +1,4 @@
-export type AiInteractionSkill = 'feedback' | 'handbook' | 'ops'
+export type AiInteractionSkill = 'feedback' | 'handbook' | 'ops' | 'data'
 
 export type PasteCreateKind = 'customer' | 'vendor' | 'rfq'
 
@@ -14,6 +14,8 @@ const FEEDBACK_PATTERN = /反馈|建议|报错|故障|bug|不好用|无法|失�
 const FEEDBACK_STRONG_PATTERN = /报错|故障|bug|无法|缺陷|截图/i
 const HANDBOOK_PATTERN = /培训|教材|新人|怎么|如何|什么是|业务|知识点|学习/
 const OPS_PATTERN = /如何操作|步骤|公式|核销|提成|报关|装箱|拣货|审核|出库申请|新建|备货|收款|开票|报价|销售订单|出库/
+const HOWTO_PATTERN = /如何|什么是|怎么|步骤|公式/
+const DATA_PATTERN = /业绩|销售趋势|订单趋势|库存金额|积压|待收款|待核销|有应收|卖得最好|卖最好|Top\s*\d+|近半年|近三个月|近3个月|近六个月|新建订单|多少条|多少张/i
 
 function fallbackSkill(text: string, feedbackHit: boolean, handbookHit: boolean): AiInteractionSkill {
   if (feedbackHit && handbookHit) return FEEDBACK_STRONG_PATTERN.test(text) ? 'feedback' : 'handbook'
@@ -28,10 +30,21 @@ export function chooseAiSkill(text: string, allowed: AiInteractionSkill[]): AiIn
   const feedbackHit = FEEDBACK_PATTERN.test(text)
   const handbookHit = HANDBOOK_PATTERN.test(text)
   const opsHit = OPS_PATTERN.test(text)
+  const dataHit = !HOWTO_PATTERN.test(text) && DATA_PATTERN.test(text)
   const pick: AiInteractionSkill =
-    FEEDBACK_STRONG_PATTERN.test(text) && feedbackHit ? 'feedback' : opsHit ? 'ops' : fallbackSkill(text, feedbackHit, handbookHit)
+    FEEDBACK_STRONG_PATTERN.test(text) && feedbackHit
+      ? 'feedback'
+      : dataHit
+        ? 'data'
+        : opsHit
+          ? 'ops'
+          : fallbackSkill(text, feedbackHit, handbookHit)
   if (allowed.includes(pick)) return pick
-  const next = pick === 'ops' ? fallbackSkill(text, feedbackHit, handbookHit) : pick
+  const next = pick === 'data'
+    ? (opsHit ? 'ops' : fallbackSkill(text, feedbackHit, handbookHit))
+    : pick === 'ops'
+      ? fallbackSkill(text, feedbackHit, handbookHit)
+      : pick
   return allowed.includes(next) ? next : allowed[0]
 }
 

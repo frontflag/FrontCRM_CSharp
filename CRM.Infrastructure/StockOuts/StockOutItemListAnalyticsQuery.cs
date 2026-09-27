@@ -172,10 +172,38 @@ public sealed class StockOutItemListAnalyticsQuery : IStockOutItemListAnalyticsQ
             .Take(TopN)
             .ToList();
 
+        var brandByAmount = rows
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Key,
+                Name = g.Key == "_unset" ? "未分配品牌" : g.Key,
+                Amount = maskAmounts ? null : Math.Round(g.Sum(x => x.UsdAmount), 2, MidpointRounding.AwayFromZero),
+                OrderCount = g.Sum(x => x.OutQty)
+            })
+            .OrderByDescending(x => x.Amount ?? x.OrderCount)
+            .Take(TopN)
+            .ToList();
+
+        var brandByQty = rows
+            .GroupBy(r => string.IsNullOrWhiteSpace(r.Brand) ? "_unset" : r.Brand!, StringComparer.OrdinalIgnoreCase)
+            .Select(g => new SalesAnalyticsRankingRowDto
+            {
+                Id = g.Key,
+                Name = g.Key == "_unset" ? "未分配品牌" : g.Key,
+                Amount = maskAmounts ? null : Math.Round(g.Sum(x => x.UsdAmount), 2, MidpointRounding.AwayFromZero),
+                OrderCount = g.Sum(x => x.OutQty)
+            })
+            .OrderByDescending(x => x.OrderCount)
+            .Take(TopN)
+            .ToList();
+
         return new StockOutItemListAnalyticsRankingsDto
         {
             CustomerByAmount = customerByAmount,
-            SalesUserByAmount = salesUserByAmount
+            SalesUserByAmount = salesUserByAmount,
+            BrandByAmount = brandByAmount,
+            BrandByQty = brandByQty
         };
     }
 
@@ -206,7 +234,8 @@ public sealed class StockOutItemListAnalyticsQuery : IStockOutItemListAnalyticsQ
                 HeaderLineConvertPrice = x.SoLine != null ? x.SoLine.ConvertPrice : 0m,
                 SoSalesUserId = x.Order != null ? x.Order.SalesUserId : null,
                 SoSalesUserName = x.Order != null ? x.Order.SalesUserName : null,
-                UserLogin = x.SalesUser != null ? x.SalesUser.UserName : null
+                UserLogin = x.SalesUser != null ? x.SalesUser.UserName : null,
+                PurchaseBrand = x.Item.PurchaseBrand
             })
             .ToListAsync(cancellationToken);
 
@@ -292,6 +321,8 @@ public sealed class StockOutItemListAnalyticsQuery : IStockOutItemListAnalyticsQ
                 CustomerName = customerName,
                 SalesUserId = salesUserId,
                 SalesUserName = salesUserName,
+                Brand = string.IsNullOrWhiteSpace(x.PurchaseBrand) ? null : x.PurchaseBrand.Trim(),
+                OutQty = outQty,
                 StockOutType = x.StockOutType,
                 Currency = currency,
                 LocalAmount = localAmount,
@@ -526,6 +557,7 @@ public sealed class StockOutItemListAnalyticsQuery : IStockOutItemListAnalyticsQ
         public string? SoSalesUserId { get; set; }
         public string? SoSalesUserName { get; set; }
         public string? UserLogin { get; set; }
+        public string? PurchaseBrand { get; set; }
     }
 
     private sealed class ExtendSnap
@@ -551,6 +583,8 @@ public sealed class StockOutItemListAnalyticsQuery : IStockOutItemListAnalyticsQ
         public string? CustomerName { get; set; }
         public string? SalesUserId { get; set; }
         public string? SalesUserName { get; set; }
+        public string? Brand { get; set; }
+        public int OutQty { get; set; }
         public short StockOutType { get; set; }
         public short Currency { get; set; }
         public decimal LocalAmount { get; set; }

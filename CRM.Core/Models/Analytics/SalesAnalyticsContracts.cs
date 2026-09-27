@@ -54,6 +54,8 @@ public sealed class SalesAnalyticsSnapshotDto
     public int RfqCustomerCount { get; set; }
     public decimal? RfqToSalesConversionRate { get; set; }
     public int SalesOrderItemCount { get; set; }
+    /// <summary>区间内销售订单张数。与看板同一批订单：按创建时间，不含取消和审核失败。</summary>
+    public int SalesOrderCount { get; set; }
     public int SalesOrderCustomerCount { get; set; }
     public decimal? SalesAmountApproved { get; set; }
     /// <summary>已出库：原币 Σ qty×price；折算美金 Σ qty×convert_price。</summary>

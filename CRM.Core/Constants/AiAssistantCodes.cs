@@ -12,6 +12,9 @@ public static class AiAssistantPermissionCodes
 
     /// <summary>运维查看与处理用户反馈。</summary>
     public const string Admin = "biz.feedback.admin";
+
+    /// <summary>AI 模式里查白名单业务数。查到的数仍受原业务的数据范围和金额权限约束。</summary>
+    public const string DataQuery = "biz.ai.data.query";
 }
 
 public static class AiAssistantSessionStatus
@@ -26,6 +29,7 @@ public static class AiAssistantSkills
     public const string Feedback = "feedback";
     public const string Handbook = "handbook";
     public const string Ops = "ops";
+    public const string Data = "data";
 }
 
 public static class AiAssistantMessageRoles
