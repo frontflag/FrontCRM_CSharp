@@ -12,6 +12,13 @@ const EDITABLE_SELECTOR = [
   '.el-input-number'
 ].join(',')
 
+const SIDEBAR_MENU_SELECTOR = [
+  '.sidebar .menu-item',
+  '.sidebar .submenu-item',
+  '.sidebar-menu-flyout-popper .menu-item',
+  '.sidebar-menu-flyout-popper .submenu-item'
+].join(',')
+
 const ACTIVATION_ROLES = new Set([
   'button',
   'link',
@@ -29,6 +36,11 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true
   if (target.isContentEditable) return true
   return !!target.closest(EDITABLE_SELECTOR)
+}
+
+export function isSidebarMenuTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  return !!target.closest(SIDEBAR_MENU_SELECTOR)
 }
 
 export function isActivationTarget(target: EventTarget | null): boolean {
@@ -53,13 +65,13 @@ export function hasForeignOverlay(): boolean {
   return Array.from(document.querySelectorAll<HTMLElement>('.el-overlay, .el-message-box')).some(isShown)
 }
 
-/** 空格开启新一轮。输入框、按钮、已打开的弹层、组字和长按都不抢。 */
+/** 空格开启新一轮。输入框、按钮、已打开的弹层、组字和长按都不抢。主菜单项除外。 */
 export function shouldStartAiRound(event: KeyboardEvent): boolean {
   if (event.code !== 'Space') return false
   if (event.repeat || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return false
   if (event.isComposing) return false
   if (isEditableTarget(event.target)) return false
-  if (isActivationTarget(event.target)) return false
+  if (isActivationTarget(event.target) && !isSidebarMenuTarget(event.target)) return false
   if (hasForeignOverlay()) return false
   return true
 }

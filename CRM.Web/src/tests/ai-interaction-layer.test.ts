@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isActivationTarget, isEditableTarget, shouldStartAiRound } from '@/utils/aiInteractionHotkey'
+import { isActivationTarget, isEditableTarget, isSidebarMenuTarget, shouldStartAiRound } from '@/utils/aiInteractionHotkey'
 import {
   chooseAiSkill,
   formatAiTranscript,
@@ -32,6 +32,29 @@ describe('shouldStartAiRound', () => {
     expect(shouldStartAiRound(key('Space', { isComposing: true }))).toBe(false)
     expect(shouldStartAiRound(key('Space', { repeat: true }))).toBe(false)
     expect(shouldStartAiRound(key('Enter'))).toBe(false)
+  })
+
+  it('opens when focus is on a sidebar menu item', () => {
+    const sidebar = document.createElement('aside')
+    sidebar.className = 'sidebar'
+    const link = document.createElement('a')
+    link.className = 'menu-item'
+    const label = document.createElement('span')
+    label.className = 'menu-label'
+    link.appendChild(label)
+    sidebar.appendChild(link)
+    document.body.appendChild(sidebar)
+
+    const onLabel = key('Space')
+    Object.defineProperty(onLabel, 'target', { value: label })
+    expect(isSidebarMenuTarget(label)).toBe(true)
+    expect(shouldStartAiRound(onLabel)).toBe(true)
+
+    const outside = document.createElement('a')
+    const onOutside = key('Space')
+    Object.defineProperty(onOutside, 'target', { value: outside })
+    expect(shouldStartAiRound(onOutside)).toBe(false)
+    sidebar.remove()
   })
 
   it('ignores a closed drawer overlay that is still in the page', () => {
