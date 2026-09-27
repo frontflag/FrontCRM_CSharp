@@ -716,6 +716,10 @@ onBeforeUnmount(() => {
   justify-content: flex-start;
 }
 
+.ai-interaction-stage.is-chatting .ai-interaction-dock {
+  margin-top: 20px;
+}
+
 .ai-interaction-stage:not(.is-chatting) .ai-interaction-dock {
   margin-bottom: 0;
 }

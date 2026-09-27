@@ -14,7 +14,7 @@ public static class KbHandbookCodes
     public const string ProviderCode = "siliconflow";
     public const string EmbeddingModel = "BAAI/bge-m3";
     public const int EmbeddingDimension = 1024;
-    public const int TopK = 5;
+    public const int TopK = 8;
     public const double DefaultMaxTopDistance = 0.45;
     public const double DefaultMaxChunkDistance = 0.55;
 

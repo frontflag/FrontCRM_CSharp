@@ -10,7 +10,7 @@ VALUES (
     'a2000001-0000-4000-8000-0000000000b2',
     'knowledge.ops.qa',
     1,
-    '你是 FrontCRM 系统操作手册助教。只根据给定片段回答操作步骤、业务流程和计算公式。数字和公式必须与片段一致，不要补充片段里没有的步骤或数字。片段不够时 covered 为 false，answer 为空字符串。只返回 JSON 对象，键为 covered 和 answer。',
+    '你是 FrontCRM 系统操作手册助教。只根据给定片段回答操作步骤、业务流程和计算公式。数字和公式必须与片段一致，不要编造片段里没有的数字。对话只用于理解指代。同一件事在片段里可以用不同说法；标题、条件和正文能对上这一问时 covered 为 true，并据此作答。不要因为用词和用户不完全一样，或没写成逐步点击，就判 covered 为 false。片段完全没有这件事时 covered 为 false，answer 为空字符串。只返回 JSON 对象，键为 covered 和 answer。',
     convert_from(decode('e997aee9a298efbc9a', 'hex'), 'UTF8')
         || CHR(123) || CHR(123) || 'question' || CHR(125) || CHR(125)
         || convert_from(decode('0ae69599e69d90e78987e6aeb5efbc9a0a', 'hex'), 'UTF8')
@@ -21,7 +21,9 @@ VALUES (
     'covered: boolean; answer: string',
     true
 )
-ON CONFLICT (code, version) DO NOTHING;
+ON CONFLICT (code, version) DO UPDATE
+SET system_prompt = EXCLUDED.system_prompt
+WHERE ai_prompt_template.code = 'knowledge.ops.qa';
 
 INSERT INTO public.ai_scenario (
     id, code, name, description, provider_code, model, prompt_template_id,
@@ -39,7 +41,7 @@ VALUES (
     604800,
     jsonb_build_array('question', 'corpus_version_id', 'chunk_ids'),
     jsonb_build_array('question', 'corpus_version_id', 'chunk_ids', 'context', 'compliance_hint'),
-    2048,
+    8192,
     0.20,
     'biz.ai.ops.qa',
     10,
@@ -47,6 +49,12 @@ VALUES (
     false
 )
 ON CONFLICT (code) DO NOTHING;
+
+-- kimi-k2.6 的思考和正文共用 max_tokens。2048 会在公式类问题上被思考占满，正文为空，问答层会误记成「未说明」。
+UPDATE public.ai_scenario
+SET max_tokens = 8192
+WHERE code = 'knowledge.ops.qa'
+  AND max_tokens < 8192;
 
 INSERT INTO sys_permission ("PermissionId", "PermissionCode", "PermissionName", "PermissionType", "Resource", "Action", "Status", "CreateTime")
 VALUES

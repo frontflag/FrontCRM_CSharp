@@ -404,16 +404,25 @@ public sealed class KbHandbookService : IKbHandbookService
             }
         }, userId, cancellationToken);
 
+        var parsed = AiJsonHelper.TryParseJsonObject(invoked.Content);
+        if (parsed is not JsonElement element || element.ValueKind != JsonValueKind.Object)
+        {
+            return new KbAskResultDto
+            {
+                Covered = false,
+                Answer = "这次没有生成回答，请再问一次。",
+                DocumentTitle = title,
+                VersionId = versionId,
+                VersionNo = versionNo
+            };
+        }
+
         var covered = false;
         var answer = "";
-        var parsed = AiJsonHelper.TryParseJsonObject(invoked.Content);
-        if (parsed is JsonElement element && element.ValueKind == JsonValueKind.Object)
-        {
-            if (element.TryGetProperty("covered", out var coveredNode))
-                covered = coveredNode.ValueKind == JsonValueKind.True;
-            if (element.TryGetProperty("answer", out var answerNode) && answerNode.ValueKind == JsonValueKind.String)
-                answer = answerNode.GetString() ?? "";
-        }
+        if (element.TryGetProperty("covered", out var coveredNode))
+            covered = coveredNode.ValueKind == JsonValueKind.True;
+        if (element.TryGetProperty("answer", out var answerNode) && answerNode.ValueKind == JsonValueKind.String)
+            answer = answerNode.GetString() ?? "";
 
         if (!covered || string.IsNullOrWhiteSpace(answer))
         {
@@ -634,13 +643,13 @@ public sealed class KbHandbookService : IKbHandbookService
     private async Task<List<Hit>> SearchAsync(DbConnection conn, string versionId, float[] vector, CancellationToken cancellationToken)
     {
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
+        cmd.CommandText = $"""
             SELECT id, heading, content, chapter_no, chapter_title, section_no, section_title,
                    (embedding <=> CAST(@q AS vector))
             FROM kb_chunk
             WHERE document_version_id = @ver AND embedding IS NOT NULL
             ORDER BY embedding <=> CAST(@q AS vector)
-            LIMIT 5
+            LIMIT {KbHandbookCodes.TopK}
             """;
         cmd.Parameters.Add(P("@ver", versionId));
         cmd.Parameters.Add(P("@q", ToVectorLiteral(vector)));
@@ -811,10 +820,27 @@ public sealed class KbHandbookService : IKbHandbookService
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    private static string CitationHeading(Hit hit)
+    {
+        var heading = hit.Heading.Trim();
+        var chapterTitle = hit.ChapterTitle?.Trim();
+        if (string.IsNullOrEmpty(chapterTitle) || heading.Contains(chapterTitle, StringComparison.Ordinal))
+            return heading;
+
+        var chapterMark = string.IsNullOrEmpty(hit.ChapterNo) ? "" : "第" + hit.ChapterNo + "章";
+        if (chapterMark.Length > 0 && heading.StartsWith(chapterMark, StringComparison.Ordinal))
+        {
+            var rest = heading[chapterMark.Length..].TrimStart();
+            return string.IsNullOrEmpty(rest) ? chapterMark + " " + chapterTitle : chapterMark + " " + chapterTitle + " " + rest;
+        }
+
+        return string.IsNullOrEmpty(heading) ? chapterTitle : chapterTitle + " " + heading;
+    }
+
     private static KbCitationDto ToCitation(Hit hit) => new()
     {
         ChunkId = hit.Id,
-        Heading = hit.Heading,
+        Heading = CitationHeading(hit),
         ChapterNo = hit.ChapterNo,
         SectionNo = hit.SectionNo,
         Anchor = HandbookAnchor.Section(hit.ChapterNo, hit.Heading, hit.SectionNo, hit.SectionTitle),

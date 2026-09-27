@@ -235,6 +235,10 @@ public static class HandbookChunker
         var parts = new List<string>();
         if (!string.IsNullOrEmpty(chapterNo))
             parts.Add($"第{chapterNo}章");
+        if (!string.IsNullOrEmpty(sectionNo)
+            && !string.IsNullOrEmpty(chapterTitle)
+            && (string.IsNullOrEmpty(sectionTitle) || !sectionTitle.Contains(chapterTitle, StringComparison.Ordinal)))
+            parts.Add(chapterTitle);
         if (!string.IsNullOrEmpty(sectionNo))
             parts.Add(sectionNo);
 

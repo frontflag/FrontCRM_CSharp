@@ -44,7 +44,7 @@ public class HandbookChunkerTests
         Assert.Equal("报价策略与 GP 管理", chunk.ChapterTitle);
         Assert.Equal("10.1", chunk.SectionNo);
         Assert.Equal("GP 公式与底线", chunk.SectionTitle);
-        Assert.Equal("第10章 10.1 GP 公式与底线", chunk.Heading);
+        Assert.Equal("第10章 报价策略与 GP 管理 10.1 GP 公式与底线", chunk.Heading);
         Assert.Contains("【标准】", chunk.Content, StringComparison.Ordinal);
     }
 
@@ -62,7 +62,7 @@ public class HandbookChunkerTests
 
         Assert.True(chunks.Count >= 2);
         Assert.All(chunks, c => Assert.True(c.Content.Length <= HandbookChunker.HardMax));
-        var firstBody = chunks[0].Content["第2章 2.5 货品状态七档\n".Length..];
+        var firstBody = chunks[0].Content["第2章 电子元器件基础知识 2.5 货品状态七档\n".Length..];
         var overlap = firstBody[^HandbookChunker.Overlap..];
         Assert.Contains(overlap, chunks[1].Content, StringComparison.Ordinal);
         Assert.Equal(0, chunks[0].ChunkIndex);
