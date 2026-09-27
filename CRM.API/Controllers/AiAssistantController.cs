@@ -49,6 +49,8 @@ public class AiAssistantController : ControllerBase
                 allowed.Add(AiAssistantSkills.Feedback);
             if (AllowsBiz(summary, KbHandbookCodes.AskPermission))
                 allowed.Add(AiAssistantSkills.Handbook);
+            if (AllowsBiz(summary, KbHandbookCodes.OpsAskPermission))
+                allowed.Add(AiAssistantSkills.Ops);
             if (allowed.Count == 0)
                 return StatusCode(403, ApiResponse<AiSkillRouteDto>.Fail("无权限使用 AI 交互", 403));
 

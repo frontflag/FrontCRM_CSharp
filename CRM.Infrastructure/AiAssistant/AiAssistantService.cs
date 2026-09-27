@@ -544,7 +544,7 @@ public sealed class AiAssistantService : IAiAssistantService
         CancellationToken cancellationToken = default)
     {
         var allowed = (allowedSkills ?? Array.Empty<string>())
-            .Where(s => s is AiAssistantSkills.Feedback or AiAssistantSkills.Handbook)
+            .Where(s => s is AiAssistantSkills.Feedback or AiAssistantSkills.Handbook or AiAssistantSkills.Ops)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (allowed.Count == 0)
@@ -581,7 +581,7 @@ public sealed class AiAssistantService : IAiAssistantService
                     new AiChatMessageDto
                     {
                         Role = "system",
-                        Content = "只输出 JSON {\"skill\":\"feedback\"} 或 {\"skill\":\"handbook\"}。feedback=系统故障、缺陷、改进建议。handbook=培训教材与业务知识。不要解释。"
+                        Content = "只输出 JSON {\"skill\":\"feedback\"}、{\"skill\":\"handbook\"} 或 {\"skill\":\"ops\"}。feedback=系统故障、缺陷、改进建议、截图。ops=系统页面、按钮、单据顺序、操作步骤、公式、核销、提成、报关、装箱、拣货、审核、出库申请。handbook=培训教材与行业概念。明确报错、故障、缺陷、截图归 feedback。培训教材、新人、行业概念且不是在问操作步骤时归 handbook。不要解释。"
                     },
                     new AiChatMessageDto { Role = "user", Content = text ?? "" }
                 ],
@@ -619,6 +619,8 @@ public sealed class AiAssistantService : IAiAssistantService
                 return AiAssistantSkills.Feedback;
             if (string.Equals(skill, AiAssistantSkills.Handbook, StringComparison.OrdinalIgnoreCase))
                 return AiAssistantSkills.Handbook;
+            if (string.Equals(skill, AiAssistantSkills.Ops, StringComparison.OrdinalIgnoreCase))
+                return AiAssistantSkills.Ops;
         }
         catch (JsonException)
         {

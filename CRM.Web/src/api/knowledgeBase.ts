@@ -90,10 +90,14 @@ export const knowledgeBaseApi = {
   activate(versionId: string) {
     return apiClient.post<boolean>(`${base}/versions/${versionId}/activate`)
   },
-  ask(question: string, dialogueContext?: string) {
+  ask(question: string, dialogueContext?: string, documentCode?: string) {
     return apiClient.post<KbAskResult>(
       `${base}/ask`,
-      { question, dialogueContext: dialogueContext || undefined },
+      {
+        question,
+        dialogueContext: dialogueContext || undefined,
+        documentCode: documentCode || undefined
+      },
       { timeout: 180000 }
     )
   },

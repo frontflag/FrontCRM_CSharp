@@ -2508,6 +2508,7 @@ const zhCN = {
     skills: '技能',
     skillFeedback: '反馈与建议',
     skillHandbook: '培训问答',
+    skillOps: '操作手册',
     autoSkill: '自动：{name}',
     switchedTo: '已切换到 {name}',
     placeholder: '输入问题，Enter 发送。可不选技能，由 AI 判断。',

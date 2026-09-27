@@ -6,6 +6,10 @@ public static class KbHandbookCodes
     public const string Scenario = "knowledge.handbook.qa";
     public const string AskPermission = "biz.ai.kb.qa";
     public const string AdminPermission = "biz.ai.kb.admin";
+
+    public const string OpsDocumentCode = "ops.manual";
+    public const string OpsScenario = "knowledge.ops.qa";
+    public const string OpsAskPermission = "biz.ai.ops.qa";
     public const string EmbeddingEnv = "AI_EMBEDDING_API_KEY";
     public const string ProviderCode = "siliconflow";
     public const string EmbeddingModel = "BAAI/bge-m3";

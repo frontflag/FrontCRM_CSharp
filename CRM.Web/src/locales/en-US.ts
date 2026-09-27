@@ -2516,6 +2516,7 @@ const enUS = {
     skills: 'Skills',
     skillFeedback: 'Feedback',
     skillHandbook: 'Training Q&A',
+    skillOps: 'Operations manual',
     autoSkill: 'Auto: {name}',
     switchedTo: 'Switched to {name}',
     placeholder: 'Type a question, Enter to send. Leave the skill unset and AI will choose.',

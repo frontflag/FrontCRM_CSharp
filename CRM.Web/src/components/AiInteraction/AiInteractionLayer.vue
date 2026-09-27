@@ -229,10 +229,12 @@ const createActions = computed<PasteCreateKind[]>(() => {
 })
 const canFeedback = computed(() => authStore.hasPermission('biz.feedback.submit'))
 const canHandbook = computed(() => authStore.hasPermission('biz.ai.kb.qa'))
+const canOps = computed(() => authStore.hasPermission('biz.ai.ops.qa'))
 const skills = computed<AiInteractionSkill[]>(() => {
   const list: AiInteractionSkill[] = []
   if (canFeedback.value) list.push('feedback')
   if (canHandbook.value) list.push('handbook')
+  if (canOps.value) list.push('ops')
   return list
 })
 const chatting = computed(() => turns.value.length > 0 || busy.value)
@@ -241,7 +243,9 @@ const feedbackEnded = computed(() => {
   return status === 'submitted' || status === 'abandoned'
 })
 const showCategory = computed(() => selectedSkill.value === 'feedback' && !sessionId.value)
-const allowImage = computed(() => selectedSkill.value !== 'handbook' && canFeedback.value)
+const allowImage = computed(
+  () => selectedSkill.value !== 'handbook' && selectedSkill.value !== 'ops' && canFeedback.value
+)
 const composerDisabled = computed(
   () => busy.value || (selectedSkill.value === 'feedback' && feedbackEnded.value)
 )
@@ -318,7 +322,9 @@ async function startCreate(cardId: string, kind: PasteCreateKind, text: string) 
 }
 
 function skillName(skill: AiInteractionSkill) {
-  return skill === 'feedback' ? t('aiInteraction.skillFeedback') : t('aiInteraction.skillHandbook')
+  if (skill === 'feedback') return t('aiInteraction.skillFeedback')
+  if (skill === 'ops') return t('aiInteraction.skillOps')
+  return t('aiInteraction.skillHandbook')
 }
 
 function readHref(versionId: string | null | undefined, anchor: string) {
@@ -444,11 +450,11 @@ async function onSend() {
     mode = skills.value.length === 1 ? 'user' : 'auto'
   }
 
-  if (skill === 'handbook' && !text) {
+  if ((skill === 'handbook' || skill === 'ops') && !text) {
     errorText.value = t('aiInteraction.handbookNeedsText')
     return
   }
-  if (skill === 'handbook' && text.length > 500) {
+  if ((skill === 'handbook' || skill === 'ops') && text.length > 500) {
     errorText.value = t('aiInteraction.questionTooLong')
     return
   }
@@ -471,7 +477,7 @@ async function onSend() {
 
   try {
     if (skill === 'feedback') await sendFeedback(text, image, background)
-    else await sendHandbook(text, background)
+    else await sendHandbook(text, background, skill)
   } catch (error) {
     turns.value = turns.value.filter((turn) => turn.id !== userTurn.id)
     draft.value = text
@@ -491,7 +497,8 @@ async function resolveSkill(text: string): Promise<AiInteractionSkill | null> {
   if (allowed.length === 1) return allowed[0]
   try {
     const routed = await aiAssistantApi.routeSkill(text)
-    const skill = routed.skill === 'handbook' ? 'handbook' : routed.skill === 'feedback' ? 'feedback' : null
+    const skill =
+      routed.skill === 'handbook' ? 'handbook' : routed.skill === 'ops' ? 'ops' : routed.skill === 'feedback' ? 'feedback' : null
     if (skill && allowed.includes(skill)) return skill
   } catch (error) {
     const status = (error as { httpStatus?: number }).httpStatus
@@ -541,15 +548,19 @@ async function sendFeedback(
   ]
 }
 
-async function sendHandbook(text: string, background: string) {
-  const result = await knowledgeBaseApi.ask(text, background || undefined)
+async function sendHandbook(text: string, background: string, skill: AiInteractionSkill) {
+  const result = await knowledgeBaseApi.ask(
+    text,
+    background || undefined,
+    skill === 'ops' ? 'ops.manual' : undefined
+  )
   turns.value = [
     ...turns.value,
     {
       kind: 'assistant',
       id: `assistant-${Date.now()}`,
       text: result.answer,
-      skill: 'handbook',
+      skill: skill === 'ops' ? 'ops' : 'handbook',
       citations: result.citations,
       versionId: result.versionId
     }

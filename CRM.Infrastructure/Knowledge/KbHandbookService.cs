@@ -52,7 +52,7 @@ public sealed class KbHandbookService : IKbHandbookService
             return;
         if (summary.PermissionCodes.Any(c => string.Equals(c, perm, StringComparison.OrdinalIgnoreCase)))
             return;
-        throw new InvalidOperationException("当前账号无权使用培训问答。");
+        throw new InvalidOperationException("当前账号无权提问。");
     }
 
     private async Task EnsureReadAsync(string? userId)
@@ -64,6 +64,7 @@ public sealed class KbHandbookService : IKbHandbookService
             return;
         if (summary.PermissionCodes.Any(c =>
                 string.Equals(c, KbHandbookCodes.AskPermission, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(c, KbHandbookCodes.OpsAskPermission, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(c, KbHandbookCodes.AdminPermission, StringComparison.OrdinalIgnoreCase)))
             return;
         throw new InvalidOperationException("当前账号无权浏览培训教材。");
@@ -264,9 +265,11 @@ public sealed class KbHandbookService : IKbHandbookService
                 FROM kb_document_version v
                 JOIN kb_document d ON d.id = v.document_id
                 WHERE v.is_active = true AND v.status = 2 AND v.is_deleted = false AND d.is_deleted = false
+                  AND d.code = @code
                 ORDER BY v."modify_time" DESC NULLS LAST
                 LIMIT 1
                 """;
+            activeCmd.Parameters.Add(P("@code", KbHandbookCodes.DocumentCode));
             await using var activeReader = await activeCmd.ExecuteReaderAsync(cancellationToken);
             if (!await activeReader.ReadAsync(cancellationToken))
                 throw new InvalidOperationException("还没有启用的教材版本。");
@@ -306,9 +309,14 @@ public sealed class KbHandbookService : IKbHandbookService
         string userId,
         string question,
         CancellationToken cancellationToken = default,
-        string? dialogueContext = null)
+        string? dialogueContext = null,
+        string? documentCode = null)
     {
-        await EnsurePermissionAsync(userId, KbHandbookCodes.AskPermission, cancellationToken);
+        var code = string.IsNullOrWhiteSpace(documentCode)
+            ? KbHandbookCodes.DocumentCode
+            : documentCode.Trim();
+        var corpus = CorpusFor(code);
+        await EnsurePermissionAsync(userId, corpus.Permission, cancellationToken);
         var normalized = HandbookChunker.Normalize(question);
         if (normalized.Length is < 1 or > 500)
             throw new InvalidOperationException("问题长度需要在 1 到 500 字之间。");
@@ -329,12 +337,14 @@ public sealed class KbHandbookService : IKbHandbookService
             FROM kb_document_version v
             JOIN kb_document d ON d.id = v.document_id
             WHERE v.is_active = true AND v.status = 2 AND v.is_deleted = false AND d.is_deleted = false
+              AND d.code = @code
             ORDER BY v."modify_time" DESC NULLS LAST
             LIMIT 1
             """;
+        activeCmd.Parameters.Add(P("@code", code));
         await using var activeReader = await activeCmd.ExecuteReaderAsync(cancellationToken);
         if (!await activeReader.ReadAsync(cancellationToken))
-            throw new InvalidOperationException("还没有启用的教材版本。");
+            throw new InvalidOperationException(corpus.MissingVersion);
         var versionId = activeReader.GetString(0);
         var versionNo = activeReader.GetInt32(1);
         var title = activeReader.GetString(2);
@@ -347,7 +357,7 @@ public sealed class KbHandbookService : IKbHandbookService
             if (cached != null)
             {
                 if (cached.Covered)
-                    cached.Answer = WithDisclaimer(cached.Answer);
+                    cached.Answer = WithDisclaimer(cached.Answer, corpus.Disclaimer, corpus.LegacyDisclaimer);
                 cached.DocumentTitle = title;
                 cached.VersionId = versionId;
                 cached.VersionNo = versionNo;
@@ -366,7 +376,7 @@ public sealed class KbHandbookService : IKbHandbookService
             var missed = new KbAskResultDto
             {
                 Covered = false,
-                Answer = Uncovered,
+                Answer = corpus.Uncovered,
                 DocumentTitle = title,
                 VersionId = versionId,
                 VersionNo = versionNo
@@ -379,11 +389,11 @@ public sealed class KbHandbookService : IKbHandbookService
         var selected = hits.Where(h => h.Distance <= maxChunk).Take(KbHandbookCodes.TopK).ToList();
         if (selected.Count == 0)
             selected.Add(hits[0]);
-        var compliance = selected.Any(h => h.ChapterNo is "15" or "16");
+        var compliance = corpus.ComplianceChapters && selected.Any(h => h.ChapterNo is "15" or "16");
         var context = string.Join("\n\n", selected.Select((h, i) => $"[{i + 1}] {h.Heading}\n{h.Content}"));
         var invoked = await _orchestrator.InvokeAsync(new AiInvokeRequestDto
         {
-            ScenarioCode = KbHandbookCodes.Scenario,
+            ScenarioCode = corpus.Scenario,
             Input = new Dictionary<string, string?>
             {
                 ["question"] = questionForModel,
@@ -410,7 +420,7 @@ public sealed class KbHandbookService : IKbHandbookService
             var missed = new KbAskResultDto
             {
                 Covered = false,
-                Answer = Uncovered,
+                Answer = corpus.Uncovered,
                 DocumentTitle = title,
                 VersionId = versionId,
                 VersionNo = versionNo
@@ -420,7 +430,7 @@ public sealed class KbHandbookService : IKbHandbookService
             return missed;
         }
 
-        var text = WithDisclaimer(answer);
+        var text = WithDisclaimer(answer, corpus.Disclaimer, corpus.LegacyDisclaimer);
         if (compliance && !text.Contains(Compliance, StringComparison.Ordinal))
             text += "\n" + Compliance;
         var result = new KbAskResultDto
@@ -437,18 +447,57 @@ public sealed class KbHandbookService : IKbHandbookService
         return result;
     }
 
-    private static string WithDisclaimer(string answer)
+    private static string WithDisclaimer(string answer, string disclaimer, string legacyDisclaimer)
     {
         var body = answer.Trim();
-        foreach (var prefix in new[] { LegacyDisclaimer, Disclaimer })
+        foreach (var prefix in new[] { legacyDisclaimer, disclaimer })
         {
-            if (!body.StartsWith(prefix, StringComparison.Ordinal))
+            if (string.IsNullOrEmpty(prefix) || !body.StartsWith(prefix, StringComparison.Ordinal))
                 continue;
             body = body[prefix.Length..].TrimStart('\r', '\n', ' ');
             break;
         }
-        return string.IsNullOrEmpty(body) ? Disclaimer : Disclaimer + "\n" + body;
+        return string.IsNullOrEmpty(body) ? disclaimer : disclaimer + "\n" + body;
     }
+
+    private static CorpusProfile CorpusFor(string documentCode)
+    {
+        if (string.Equals(documentCode, KbHandbookCodes.OpsDocumentCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return new CorpusProfile(
+                KbHandbookCodes.OpsDocumentCode,
+                KbHandbookCodes.OpsAskPermission,
+                KbHandbookCodes.OpsScenario,
+                "以下内容来自系统操作手册：",
+                "",
+                "操作手册未说明该问题。",
+                "还没有启用的操作手册版本。",
+                false);
+        }
+
+        if (!string.Equals(documentCode, KbHandbookCodes.DocumentCode, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("未知的知识库文档。");
+
+        return new CorpusProfile(
+            KbHandbookCodes.DocumentCode,
+            KbHandbookCodes.AskPermission,
+            KbHandbookCodes.Scenario,
+            Disclaimer,
+            LegacyDisclaimer,
+            Uncovered,
+            "还没有启用的教材版本。",
+            true);
+    }
+
+    private sealed record CorpusProfile(
+        string Code,
+        string Permission,
+        string Scenario,
+        string Disclaimer,
+        string LegacyDisclaimer,
+        string Uncovered,
+        string MissingVersion,
+        bool ComplianceChapters);
 
     private async Task ProcessVersionAsync(DbConnection conn, string versionId, CancellationToken cancellationToken)
     {
@@ -466,8 +515,14 @@ public sealed class KbHandbookService : IKbHandbookService
                 """, cancellationToken, P("@id", versionId));
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
                 throw new InvalidOperationException("教材文件不存在。");
-            await using var stream = File.OpenRead(path);
-            var paragraphs = HandbookDocxReader.ReadParagraphs(stream);
+            IReadOnlyList<string> paragraphs;
+            if (path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+                paragraphs = HandbookMarkdownReader.ReadParagraphs(await File.ReadAllTextAsync(path, cancellationToken));
+            else
+            {
+                await using var stream = File.OpenRead(path);
+                paragraphs = HandbookDocxReader.ReadParagraphs(stream);
+            }
             var chunks = HandbookChunker.Chunk(paragraphs);
             if (chunks.Count == 0)
                 throw new InvalidOperationException("教材没有切出任何块。");

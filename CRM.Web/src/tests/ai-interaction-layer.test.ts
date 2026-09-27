@@ -76,6 +76,11 @@ describe('ai interaction transcript', () => {
   it('routes an unselected skill from the wording', () => {
     expect(chooseAiSkill('这个页面报错了', ['feedback', 'handbook'])).toBe('feedback')
     expect(chooseAiSkill('培训教材里怎么看库存', ['feedback', 'handbook'])).toBe('handbook')
+    expect(chooseAiSkill('培训教材里怎么看库存', ['feedback', 'handbook', 'ops'])).toBe('handbook')
+    expect(chooseAiSkill('怎么新建客户', ['feedback', 'handbook', 'ops'])).toBe('ops')
+    expect(chooseAiSkill('什么是客户的观四面', ['feedback', 'handbook', 'ops'])).toBe('handbook')
+    expect(chooseAiSkill('报错了如何装箱', ['feedback', 'handbook', 'ops'])).toBe('feedback')
+    expect(chooseAiSkill('提成怎么算', ['feedback', 'handbook', 'ops'])).toBe('ops')
     expect(chooseAiSkill('随便说说', ['feedback'])).toBe('feedback')
   })
 })

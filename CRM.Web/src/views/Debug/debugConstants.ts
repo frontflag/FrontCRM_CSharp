@@ -1,2 +1,2 @@
 /** Debug 页展示用前端版本号（post-commit 自动更新，格式 1.1.MMdd-HHmm + 提交说明） */
-export const FRONTEND_DEBUG_VERSION = '1.1.0927-0351 feat(ai): 增加空格唤起的 AI 交互模式'
+export const FRONTEND_DEBUG_VERSION = '1.1.0927-1627 feat(ai): 增加系统操作手册问答'

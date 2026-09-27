@@ -17,7 +17,8 @@ public interface IKbHandbookService
         string userId,
         string question,
         CancellationToken cancellationToken = default,
-        string? dialogueContext = null);
+        string? dialogueContext = null,
+        string? documentCode = null);
 
     Task<KbHandbookReaderDto> GetReaderAsync(
         string userId,

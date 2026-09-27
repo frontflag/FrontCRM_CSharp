@@ -1,4 +1,4 @@
-export type AiInteractionSkill = 'feedback' | 'handbook'
+export type AiInteractionSkill = 'feedback' | 'handbook' | 'ops'
 
 export type PasteCreateKind = 'customer' | 'vendor' | 'rfq'
 
@@ -13,19 +13,26 @@ const PASTE_QUESTION = /怎么|如何|什么是|为什么|吗[？?]?$/
 const FEEDBACK_PATTERN = /反馈|建议|报错|故障|bug|不好用|无法|失败|改进|缺陷|截图/i
 const FEEDBACK_STRONG_PATTERN = /报错|故障|bug|无法|缺陷|截图/i
 const HANDBOOK_PATTERN = /培训|教材|新人|怎么|如何|什么是|业务|知识点|学习/
+const OPS_PATTERN = /如何操作|步骤|公式|核销|提成|报关|装箱|拣货|审核|出库申请|新建|备货|收款|开票|报价|销售订单|出库/
+
+function fallbackSkill(text: string, feedbackHit: boolean, handbookHit: boolean): AiInteractionSkill {
+  if (feedbackHit && handbookHit) return FEEDBACK_STRONG_PATTERN.test(text) ? 'feedback' : 'handbook'
+  if (feedbackHit) return 'feedback'
+  if (handbookHit) return 'handbook'
+  return text.includes('？') || text.includes('?') ? 'handbook' : 'feedback'
+}
 
 export function chooseAiSkill(text: string, allowed: AiInteractionSkill[]): AiInteractionSkill {
   if (allowed.length === 0) throw new Error('没有可用技能')
   if (allowed.length === 1) return allowed[0]
   const feedbackHit = FEEDBACK_PATTERN.test(text)
   const handbookHit = HANDBOOK_PATTERN.test(text)
-  let pick: AiInteractionSkill
-  if (feedbackHit && handbookHit)
-    pick = FEEDBACK_STRONG_PATTERN.test(text) ? 'feedback' : 'handbook'
-  else if (feedbackHit) pick = 'feedback'
-  else if (handbookHit) pick = 'handbook'
-  else pick = text.includes('？') || text.includes('?') ? 'handbook' : 'feedback'
-  return allowed.includes(pick) ? pick : allowed[0]
+  const opsHit = OPS_PATTERN.test(text)
+  const pick: AiInteractionSkill =
+    FEEDBACK_STRONG_PATTERN.test(text) && feedbackHit ? 'feedback' : opsHit ? 'ops' : fallbackSkill(text, feedbackHit, handbookHit)
+  if (allowed.includes(pick)) return pick
+  const next = pick === 'ops' ? fallbackSkill(text, feedbackHit, handbookHit) : pick
+  return allowed.includes(next) ? next : allowed[0]
 }
 
 /** 多行或较长原文才建档。短问句仍走技能路由。 */

@@ -1,8 +1,12 @@
 <template>
   <div class="page">
-    <h2>培训教材</h2>
+    <h2>{{ code === 'ops.manual' ? '操作手册' : '培训教材' }}</h2>
     <div class="actions">
-      <input type="file" accept=".docx" @change="onFile" />
+      <el-select v-model="code" style="width: 160px" @change="onCodeChange">
+        <el-option label="培训教材" value="handbook.distributor.newcomer" />
+        <el-option label="操作手册" value="ops.manual" />
+      </el-select>
+      <input type="file" accept=".docx,.md" @change="onFile" />
       <el-button type="primary" :disabled="!file" :loading="uploading" @click="upload">上传并导入</el-button>
       <el-button @click="load">刷新</el-button>
     </div>
@@ -45,6 +49,7 @@ const chunkNote = ref('')
 const file = ref<File | null>(null)
 const uploading = ref(false)
 const error = ref('')
+const code = ref('handbook.distributor.newcomer')
 
 function statusText(status: number) {
   return ['排队', '嵌入中', '就绪', '失败', '停用'][status] ?? String(status)
@@ -58,10 +63,17 @@ function onFile(event: Event) {
 async function load() {
   error.value = ''
   try {
-    versions.value = await knowledgeBaseApi.listVersions()
+    versions.value = await knowledgeBaseApi.listVersions(code.value)
   } catch (e) {
     error.value = e instanceof Error ? e.message : '加载失败'
   }
+}
+
+function onCodeChange() {
+  chunks.value = []
+  chunkNote.value = ''
+  file.value = null
+  void load()
 }
 
 async function upload() {
@@ -69,7 +81,8 @@ async function upload() {
   uploading.value = true
   error.value = ''
   try {
-    await knowledgeBaseApi.upload(file.value)
+    const title = code.value === 'ops.manual' ? '系统操作手册' : undefined
+    await knowledgeBaseApi.upload(file.value, title, code.value)
     file.value = null
     await load()
   } catch (e) {

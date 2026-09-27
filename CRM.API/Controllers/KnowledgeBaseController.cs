@@ -74,13 +74,14 @@ public class KnowledgeBaseController : ControllerBase
         {
             await _kb.EnsurePermissionAsync(UserId, KbHandbookCodes.AdminPermission, cancellationToken);
             if (file == null || file.Length == 0)
-                return BadRequest(ApiResponse<KbImportResultDto>.Fail("请上传 docx 文件。"));
-            if (!file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
-                return BadRequest(ApiResponse<KbImportResultDto>.Fail("只接受 docx 文件。"));
+                return BadRequest(ApiResponse<KbImportResultDto>.Fail("请上传 docx 或 md 文件。"));
+            var isMarkdown = file.FileName.EndsWith(".md", StringComparison.OrdinalIgnoreCase);
+            if (!isMarkdown && !file.FileName.EndsWith(".docx", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(ApiResponse<KbImportResultDto>.Fail("只接受 docx 或 md 文件。"));
 
             var dir = Path.Combine(_env.ContentRootPath, "Uploads", "KB_DOCUMENT");
             Directory.CreateDirectory(dir);
-            var path = Path.Combine(dir, Guid.NewGuid().ToString("N") + ".docx");
+            var path = Path.Combine(dir, Guid.NewGuid().ToString("N") + (isMarkdown ? ".md" : ".docx"));
             await using (var stream = System.IO.File.Create(path))
                 await file.CopyToAsync(stream, cancellationToken);
 
@@ -88,7 +89,11 @@ public class KnowledgeBaseController : ControllerBase
                 path,
                 Path.GetFileName(file.FileName),
                 string.IsNullOrWhiteSpace(code) ? KbHandbookCodes.DocumentCode : code.Trim(),
-                string.IsNullOrWhiteSpace(title) ? "电子元器件分销行业新人培养教材（行业通用版）" : title.Trim(),
+                string.IsNullOrWhiteSpace(title)
+                    ? string.Equals(code?.Trim(), KbHandbookCodes.OpsDocumentCode, StringComparison.OrdinalIgnoreCase)
+                        ? "系统操作手册"
+                        : "电子元器件分销行业新人培养教材（行业通用版）"
+                    : title.Trim(),
                 cancellationToken);
             return Ok(ApiResponse<KbImportResultDto>.Ok(result, "已排队导入"));
         }
@@ -141,7 +146,8 @@ public class KnowledgeBaseController : ControllerBase
                 UserId ?? "",
                 request?.Question ?? "",
                 cancellationToken,
-                request?.DialogueContext);
+                request?.DialogueContext,
+                request?.DocumentCode);
             return Ok(ApiResponse<KbAskResultDto>.Ok(result));
         }
         catch (InvalidOperationException ex)
@@ -159,4 +165,7 @@ public sealed class KbAskRequest
 
     /// <summary>本轮已有对话。只供回答时理解指代，不参与检索和缓存。</summary>
     public string? DialogueContext { get; set; }
+
+    /// <summary>知识库文档编码。空则培训教材。</summary>
+    public string? DocumentCode { get; set; }
 }
