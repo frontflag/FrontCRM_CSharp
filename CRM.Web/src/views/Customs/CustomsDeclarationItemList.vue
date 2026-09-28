@@ -91,7 +91,7 @@
 
     <CrmDataTable
       ref="dataTableRef"
-      column-layout-key="customs-declaration-item-list-main-v6"
+      column-layout-key="customs-declaration-item-list-main-v7"
       :columns="tableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -157,7 +157,16 @@
         <CrmListCopyableTextCell v-else :text="row.purchaseOrderItemCode" />
       </template>
       <template #col-costUsd="{ row }">
-        <span class="cdi-fee-amt">{{ formatCostUsd(row.costUsd) }}</span>
+        <span v-if="row.costUsd == null" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <template v-for="amt in [splitUnitPriceDockParts(row.costUsd)]" :key="'usd-' + row.id">
+            <span class="cdi-list-amt">
+              <span class="cdi-list-amt-int">{{ amt.intPart }}</span><span class="cdi-list-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </div>
       </template>
       <template #col-hsCode="{ row }">
         <CrmListCopyableTextCell :text="row.hsCode" />
@@ -355,12 +364,6 @@ function colW(label: string, extra = 0, align: 'left' | 'center' | 'right' = 'le
   return estimateListColumnHeaderMinWidth(label, { align, extra })
 }
 
-function formatCostUsd(value: number | null | undefined): string {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return '—'
-  return n.toLocaleString('zh-CN', { minimumFractionDigits: 6, maximumFractionDigits: 6 })
-}
-
 const tableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
     {
@@ -405,7 +408,20 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
       label: t('customsPages.items.colSales'),
       prop: 'salesUserName',
       minWidth: Math.max(140, colW(t('customsPages.items.colSales')))
-    },
+    }
+  ]
+
+  if (!maskPurchaseSensitiveFields.value) {
+    cols.push({
+      key: 'vendorName',
+      label: t('customsPages.items.colVendor'),
+      prop: 'vendorName',
+      minWidth: Math.max(180, colW(t('customsPages.items.colVendor'))),
+      showOverflowTooltip: true
+    })
+  }
+
+  cols.push(
     {
       key: 'purchasePn',
       label: t('customsPages.items.colPn'),
@@ -419,6 +435,12 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
       minWidth: Math.max(140, colW(t('customsPages.items.colBrand')))
     },
     {
+      key: 'hsCode',
+      label: t('customsPages.items.colHs'),
+      prop: 'hsCode',
+      minWidth: Math.max(120, colW(t('customsPages.items.colHs')))
+    },
+    {
       key: 'declareQty',
       label: t('customsPages.items.colQty'),
       prop: 'declareQty',
@@ -426,7 +448,7 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
       minWidth: colW(t('customsPages.items.colQty'), 0, 'right'),
       align: 'right'
     }
-  ]
+  )
 
   if (!maskPurchaseSensitiveFields.value) {
     cols.push(
@@ -453,19 +475,6 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
         align: 'right'
       },
       {
-        key: 'hsCode',
-        label: t('customsPages.items.colHs'),
-        prop: 'hsCode',
-        minWidth: Math.max(120, colW(t('customsPages.items.colHs')))
-      },
-      {
-        key: 'vendorName',
-        label: t('customsPages.items.colVendor'),
-        prop: 'vendorName',
-        minWidth: Math.max(180, colW(t('customsPages.items.colVendor'))),
-        showOverflowTooltip: true
-      },
-      {
         key: 'originalPurchaseAmount',
         label: t('customsPages.items.colOrigPurchaseAmount'),
         prop: 'originalPurchaseAmount',
@@ -474,13 +483,6 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
         align: 'right'
       }
     )
-  } else {
-    cols.push({
-      key: 'hsCode',
-      label: t('customsPages.items.colHs'),
-      prop: 'hsCode',
-      minWidth: Math.max(120, colW(t('customsPages.items.colHs')))
-    })
   }
 
   cols.push(
@@ -675,7 +677,7 @@ function exportCell(row: CustomsDeclarationItemListItemDto, key: string): string
         ? ''
         : `${formatUnitPriceNumber(row.originalPurchasePrice)} ${listAmountCurrencyIso(row.purchaseCurrency)}`
     case 'costUsd':
-      return formatCostUsd(row.costUsd)
+      return row.costUsd == null ? '' : `${formatUnitPriceNumber(row.costUsd)} USD`
     case 'hsCode':
       return row.hsCode?.trim() || ''
     case 'vendorName':
