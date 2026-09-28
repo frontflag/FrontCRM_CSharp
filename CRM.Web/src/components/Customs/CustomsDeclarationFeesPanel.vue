@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
+import { Lock } from '@element-plus/icons-vue'
 import {
   fetchEffectivePurchaseCostParam,
   patchCustomsDeclarationHeader,
@@ -14,6 +15,18 @@ import { financeExchangeRateApi } from '@/api/financeExchangeRate'
 import { CURRENCY_CODE_TO_TEXT, CurrencyCode } from '@/constants/currency'
 import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { isValidCustomsCostUsd } from '@/utils/customsCostUsd'
+import {
+  buildCustomsFeeLineDemo,
+  type CustomsFeeFormulaExpr,
+  type CustomsFeeFormulaStep,
+  type CustomsFeeFormulaStepId,
+  type CustomsFeeFormulaUnavailableReason
+} from '@/utils/customsFeeFormulaDemo'
+import {
+  resolveDisplayedBrokerAgencyRateDetail,
+  type BrokerAgencyRateSource
+} from '@/utils/customsFeeAgencyRateDisplay'
+import { resolveFeeHeaderLocks } from '@/utils/customsFeeHeaderLocks'
 import { unitLocalToUsd, type ExchangeRatesUsdBase } from '@/utils/exchangeRateToUsd'
 
 const props = defineProps<{
@@ -33,10 +46,38 @@ const recalculating = ref(false)
 const systemPurchaseRatio = ref<number | null>(null)
 const systemRatioLoadFailed = ref(false)
 const financeFxRates = ref<ExchangeRatesUsdBase | null>(null)
+const formulaDemoOn = ref(false)
+const formulaCollapse = ref<string[]>([])
+const formulaExpanded = computed(() => formulaCollapse.value.includes('formula'))
+
+watch(formulaExpanded, (open) => {
+  if (!open) formulaDemoOn.value = false
+})
+
+const formulaStepDescKeys = [
+  'customsPages.fees.formulaStep1',
+  'customsPages.fees.formulaStep2',
+  'customsPages.fees.formulaStep3',
+  'customsPages.fees.formulaStep4',
+  'customsPages.fees.formulaStep5',
+  'customsPages.fees.formulaStep6',
+  'customsPages.fees.formulaStep7'
+] as const
+
+const formulaStepDescKey: Record<CustomsFeeFormulaStep['id'], (typeof formulaStepDescKeys)[number]> = {
+  costUsd: 'customsPages.fees.formulaStep1',
+  goods: 'customsPages.fees.formulaStep2',
+  duty: 'customsPages.fees.formulaStep3',
+  vat: 'customsPages.fees.formulaStep4',
+  agency: 'customsPages.fees.formulaStep5',
+  total: 'customsPages.fees.formulaStep6',
+  unit: 'customsPages.fees.formulaStep7'
+}
 
 const headerExchangeRate = ref(0)
 const costUsdManual = ref(false)
 const headerBrokerAgencyRate = ref(1)
+const headerBrokerAgencyRateSource = ref<BrokerAgencyRateSource>('none')
 const itemDrafts = reactive<Record<string, ItemDraft>>({})
 
 type ItemDraft = {
@@ -59,10 +100,13 @@ type PanelMode =
 function syncDraftsFromDetail(d: CustomsDeclarationDetailDto) {
   headerExchangeRate.value = Number(d.exchangeRate) || 0
   costUsdManual.value = Boolean(d.costUsdManual)
-  const master = Number(d.brokerMasterAgencyRate)
-  const snapshot = Number(d.brokerAgencyRate ?? 1)
-  headerBrokerAgencyRate.value =
-    Number.isFinite(master) && master > 0 ? master : Number.isFinite(snapshot) && snapshot > 0 ? snapshot : 1
+  const agencyRate = resolveDisplayedBrokerAgencyRateDetail({
+    feesCalculatedAt: d.feesCalculatedAt,
+    brokerAgencyRate: d.brokerAgencyRate,
+    brokerMasterAgencyRate: d.brokerMasterAgencyRate
+  })
+  headerBrokerAgencyRate.value = agencyRate.rate
+  headerBrokerAgencyRateSource.value = agencyRate.source
   for (const row of d.items ?? []) {
     itemDrafts[row.id] = {
       hsCode: (row.hsCode ?? '').trim(),
@@ -133,6 +177,15 @@ const canCorrectLocked = computed(
   () => Boolean(props.canCorrectLockedCostUsd) && props.canWrite && !props.maskPurchase
 )
 
+const feeHeaderLocks = computed(() =>
+  resolveFeeHeaderLocks({
+    panelMode: panelMode.value,
+    canWrite: props.canWrite,
+    canCorrectLocked: canCorrectLocked.value,
+    hasSavedAgencyRate: Number(props.detail.brokerAgencyRate) > 0
+  })
+)
+
 const canEditCostUsdMode = computed(
   () => !props.maskPurchase && props.canWrite && (canMaintainFees.value || canCorrectLocked.value)
 )
@@ -148,7 +201,10 @@ const canEditLineFooterInputs = computed(
 )
 
 const showRecalculateActions = computed(
-  () => props.canWrite && (canMaintainFees.value || canCorrectLocked.value)
+  () =>
+    props.canWrite &&
+    panelMode.value !== 'readonly_void' &&
+    (canMaintainFees.value || canCorrectLocked.value)
 )
 
 const showLockedSave = computed(() => props.canWrite && panelMode.value === 'readonly_locked')
@@ -181,7 +237,7 @@ const headerPurchaseRatio = computed(() => {
 })
 
 const ratioStale = computed(() => {
-  if (props.maskPurchase) return false
+  if (props.maskPurchase || !showRecalculateActions.value) return false
   if (systemPurchaseRatio.value == null || snapshotPurchaseRatio.value == null) return false
   return Math.abs(systemPurchaseRatio.value - snapshotPurchaseRatio.value) > 0.0001
 })
@@ -201,6 +257,12 @@ const recalcDisabled = computed(() => {
   if (systemRatioLoadFailed.value || systemPurchaseRatio.value == null) return true
   if (rowsBlockingRecalc.value) return true
   return recalculating.value
+})
+
+const agencyRateSourceLabel = computed(() => {
+  if (headerBrokerAgencyRateSource.value === 'current') return t('customsPages.fees.agencyRateSourceCurrent')
+  if (headerBrokerAgencyRateSource.value === 'history') return t('customsPages.fees.agencyRateSourceHistory')
+  return ''
 })
 
 function agencyRateHint(rate: number | undefined): string {
@@ -303,6 +365,144 @@ function displayCostUsd(row: CustomsDeclarationDetailItemViewDto): number {
   if (computed != null) return computed
   return Number(row.costUsd ?? 0)
 }
+
+function toggleFormulaDemo() {
+  formulaDemoOn.value = !formulaDemoOn.value
+}
+
+function demoFixed(n: number, digits: number): string {
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: digits, maximumFractionDigits: digits })
+}
+
+function demoRatio(n: number): string {
+  const trimmed = n.toFixed(6).replace(/0+$/, '').replace(/\.$/, '')
+  const [intPart, frac = ''] = trimmed.split('.')
+  return `${intPart}.${frac.padEnd(4, '0')}`
+}
+
+function demoQty(n: number): string {
+  return String(n)
+}
+
+function formatFormulaTableValue(stepId: CustomsFeeFormulaStepId, value: number | null): string {
+  if (value == null || !Number.isFinite(value)) return '—'
+  const digits = stepId === 'costUsd' || stepId === 'unit' ? 6 : 2
+  return demoFixed(value, digits)
+}
+
+function formulaUnavailableText(reason: CustomsFeeFormulaUnavailableReason | null): string {
+  switch (reason) {
+    case 'bad-rate':
+      return t('customsPages.fees.formulaDemoBadRate')
+    case 'bad-qty':
+      return t('customsPages.fees.formulaDemoBadQty')
+    case 'bad-agency':
+      return t('customsPages.fees.formulaDemoBadAgency')
+    default:
+      return t('customsPages.fees.formulaDemoMissingCost')
+  }
+}
+
+function formatFormulaExpr(expr: CustomsFeeFormulaExpr): string {
+  switch (expr.kind) {
+    case 'manual':
+      return t('customsPages.fees.formulaCalcManual', { result: demoFixed(expr.result, 6) })
+    case 'usd':
+      return t('customsPages.fees.formulaCalcUsd', {
+        p0: demoFixed(expr.p0Usd, 6),
+        ratio: demoRatio(expr.ratio),
+        result: demoFixed(expr.result, 6)
+      })
+    case 'fx':
+      return t('customsPages.fees.formulaCalcFx', {
+        p0: demoFixed(expr.p0, 6),
+        currency: currencyText(expr.currency),
+        fx: demoFixed(expr.fxRate, 6),
+        p0Usd: demoFixed(expr.p0Usd, 6),
+        ratio: demoRatio(expr.ratio),
+        result: demoFixed(expr.result, 6)
+      })
+    case 'table-cost':
+      return t('customsPages.fees.formulaCalcFromTable', { result: demoFixed(expr.result, 6) })
+    case 'goods':
+      return t('customsPages.fees.formulaCalcGoods', {
+        costUsd: demoFixed(expr.costUsd, 6),
+        rate: demoFixed(expr.rate, 6),
+        qty: demoQty(expr.qty),
+        result: demoFixed(expr.result, 2)
+      })
+    case 'duty':
+      return t('customsPages.fees.formulaCalcDuty', {
+        goods: demoFixed(expr.goods, 2),
+        dutyRate: demoFixed(expr.dutyRate, 6),
+        result: demoFixed(expr.result, 2)
+      })
+    case 'vat':
+      return t('customsPages.fees.formulaCalcVat', {
+        goods: demoFixed(expr.goods, 2),
+        duty: demoFixed(expr.duty, 2),
+        vatRate: demoFixed(expr.vatRate, 6),
+        result: demoFixed(expr.result, 2)
+      })
+    case 'agency':
+      return t('customsPages.fees.formulaCalcAgency', {
+        goods: demoFixed(expr.goods, 2),
+        duty: demoFixed(expr.duty, 2),
+        vat: demoFixed(expr.vat, 2),
+        agencyRate: demoFixed(expr.agencyRate, 6),
+        result: demoFixed(expr.result, 2)
+      })
+    case 'total':
+      return t('customsPages.fees.formulaCalcTotal', {
+        goods: demoFixed(expr.goods, 2),
+        duty: demoFixed(expr.duty, 2),
+        vat: demoFixed(expr.vat, 2),
+        agency: demoFixed(expr.agency, 2),
+        other: demoFixed(expr.other, 2),
+        result: demoFixed(expr.result, 2)
+      })
+    case 'unit':
+      return t('customsPages.fees.formulaCalcUnit', {
+        total: demoFixed(expr.total, 2),
+        qty: demoQty(expr.qty),
+        result: demoFixed(expr.result, 6)
+      })
+  }
+}
+
+const formulaDemoLines = computed(() =>
+  (props.detail.items ?? []).map((row) => {
+    const draft = rowDraft(row)
+    return {
+      id: row.id,
+      lineNo: row.lineNo,
+      pn: (row.purchasePn ?? '').trim() || '—',
+      brand: (row.purchaseBrand ?? '').trim() || '—',
+      steps: buildCustomsFeeLineDemo({
+        manualCostUsd: costUsdManual.value && draft.costUsdManual,
+        displayedCostUsd: displayCostUsd(row),
+        originalPurchasePrice: Number(row.originalPurchasePrice),
+        purchaseCurrency: linePurchaseCurrency(row),
+        purchaseRatio: linePurchaseRatio(row) ?? headerPurchaseRatio.value,
+        exchangeRate: headerExchangeRate.value,
+        declareQty: Number(row.declareQty),
+        dutyRate: draft.dutyRate,
+        vatRate: draft.vatRate,
+        agencyRate: headerBrokerAgencyRate.value,
+        otherFee: draft.otherFee,
+        financeFx: financeFxRates.value,
+        table: {
+          customsPaymentGoods: Number(row.customsPaymentGoods),
+          dutyAmount: Number(row.dutyAmount),
+          vatAmount: Number(row.vatAmount),
+          customsAgencyFee: Number(row.customsAgencyFee),
+          totalValueTax: Number(row.totalValueTax),
+          taxIncludedUnitPrice: Number(row.taxIncludedUnitPrice)
+        }
+      })
+    }
+  })
+)
 
 function usd6Text(n: number | null | undefined): string {
   if (props.maskPurchase) return '—'
@@ -500,15 +700,6 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
       </div>
       <div v-if="showRecalculateActions || showLockedSave" class="section-header__actions">
         <el-button
-          v-if="showRecalculateActions"
-          size="small"
-          :loading="recalculating"
-          :disabled="recalcDisabled"
-          @click="handleRecalculate"
-        >
-          {{ t('customsPages.fees.btnRecalculate') }}
-        </el-button>
-        <el-button
           type="primary"
           size="small"
           :loading="recalculating"
@@ -576,7 +767,12 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
 
       <div class="fees-header-grid info-grid info-grid--inline-labels">
         <div class="info-item info-item--field-highlight">
-          <span class="info-label">{{ t('customsPages.fees.exchangeRate') }}</span>
+          <span class="info-label">
+            <el-icon v-if="feeHeaderLocks.exchangeRate" class="fees-field-lock" :title="t('customsPages.fees.exchangeRateLocked')">
+              <Lock />
+            </el-icon>
+            {{ t('customsPages.fees.exchangeRate') }}
+          </span>
           <span class="info-value fees-exchange-rate-value">
             <el-input-number
               v-if="canEditHeaderRate"
@@ -598,27 +794,29 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
           </span>
         </div>
         <div class="info-item">
-          <span class="info-label">{{ t('customsPages.fees.agencyRate') }}</span>
+          <span class="info-label">
+            <el-icon v-if="feeHeaderLocks.agencyRate" class="fees-field-lock" :title="t('customsPages.fees.agencyRateLocked')">
+              <Lock />
+            </el-icon>
+            {{ t('customsPages.fees.agencyRate') }}
+          </span>
           <span class="info-value fees-exchange-rate-value">
             <span>{{ maskPurchase ? '—' : headerBrokerAgencyRate.toFixed(6) }}</span>
             <span v-if="!maskPurchase" class="fees-hint">{{ agencyRateHint(headerBrokerAgencyRate) }}</span>
+            <span v-if="!maskPurchase && agencyRateSourceLabel" class="fees-hint">{{ agencyRateSourceLabel }}</span>
           </span>
         </div>
         <div class="info-item">
-          <span class="info-label">{{ t('customsPages.fees.purchaseRatio') }}</span>
+          <span class="info-label">
+            <el-icon v-if="feeHeaderLocks.purchaseRatio" class="fees-field-lock" :title="t('customsPages.fees.purchaseRatioLocked')">
+              <Lock />
+            </el-icon>
+            {{ t('customsPages.fees.purchaseRatio') }}
+          </span>
           <span class="info-value">
             {{ ratioText(headerPurchaseRatio) }}
-            <span
-              v-if="
-                systemPurchaseRatio != null &&
-                !maskPurchase &&
-                snapshotPurchaseRatio != null &&
-                Number(snapshotPurchaseRatio) > 0 &&
-                Math.abs(systemPurchaseRatio - Number(snapshotPurchaseRatio)) > 0.0001
-              "
-              class="fees-hint"
-            >
-              {{ t('customsPages.fees.systemRatioHint', { ratio: systemPurchaseRatio.toFixed(4) }) }}
+            <span v-if="ratioStale" class="fees-hint">
+              {{ t('customsPages.fees.systemRatioHint', { ratio: systemPurchaseRatio!.toFixed(4) }) }}
             </span>
           </span>
         </div>
@@ -781,9 +979,76 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
         </el-table>
       </div>
 
-      <el-collapse class="fees-formula-collapse">
-        <el-collapse-item :title="t('customsPages.fees.formulaTitle')" name="formula">
-          <pre class="fees-formula-text">{{ t('customsPages.fees.formulaBody') }}</pre>
+      <el-collapse v-model="formulaCollapse" class="fees-formula-collapse">
+        <el-collapse-item name="formula">
+          <template #title>
+            <span class="fees-formula-title">
+              <span>{{ t('customsPages.fees.formulaTitle') }}</span>
+              <el-button
+                v-if="!maskPurchase && formulaExpanded"
+                class="fees-formula-demo-btn"
+                size="small"
+                native-type="button"
+                :type="formulaDemoOn ? 'primary' : 'default'"
+                plain
+                @click.stop="toggleFormulaDemo"
+              >
+                {{ formulaDemoOn ? t('customsPages.fees.btnDemoHide') : t('customsPages.fees.btnDemo') }}
+              </el-button>
+            </span>
+          </template>
+          <div v-if="!formulaDemoOn || formulaDemoLines.length === 0" class="fees-formula-list">
+            <div v-for="key in formulaStepDescKeys" :key="key" class="fees-formula-desc">
+              {{ t(key) }}
+            </div>
+          </div>
+          <div v-else class="fees-formula-list">
+            <section v-for="line in formulaDemoLines" :key="line.id" class="fees-formula-line">
+              <div class="fees-formula-line-head">
+                <span>{{ t('customsPages.fees.formulaDemoLineNo', { line: line.lineNo }) }}</span>
+                <span class="fees-formula-line-label fees-formula-line-label--pn">{{
+                  t('customsPages.fees.formulaDemoPnLabel')
+                }}</span>
+                <span>{{ line.pn }}</span>
+                <span class="fees-formula-line-label fees-formula-line-label--brand">{{
+                  t('customsPages.fees.formulaDemoBrandLabel')
+                }}</span>
+                <span>{{ line.brand }}</span>
+              </div>
+              <div v-for="step in line.steps" :key="step.id" class="fees-formula-step">
+                <div class="fees-formula-desc">{{ t(formulaStepDescKey[step.id]) }}</div>
+                <div
+                  class="fees-formula-calc"
+                  :class="{ 'is-mismatch': step.expr != null && step.mismatch }"
+                >
+                  <template v-if="step.expr">
+                    <span>{{ formatFormulaExpr(step.expr) }}</span>
+                    <span v-if="step.expr.kind === 'fx'" class="fees-formula-note">
+                      {{
+                        t('customsPages.fees.formulaDemoFxNote', {
+                          p0: demoFixed(step.expr.p0, 6),
+                          currency: currencyText(step.expr.currency),
+                          fx: demoFixed(step.expr.fxRate, 6),
+                          p0Usd: demoFixed(step.expr.p0Usd, 6)
+                        })
+                      }}
+                    </span>
+                    <span v-else-if="step.expr.kind === 'table-cost'" class="fees-formula-note">
+                      {{ t('customsPages.fees.formulaDemoFallback') }}
+                    </span>
+                    <span v-if="step.mismatch" class="fees-formula-mismatch">
+                      {{
+                        t('customsPages.fees.formulaMismatch', {
+                          value: formatFormulaTableValue(step.id, step.tableValue)
+                        })
+                      }}
+                    </span>
+                  </template>
+                  <span v-else>{{ formulaUnavailableText(step.reason) }}</span>
+                </div>
+              </div>
+            </section>
+          </div>
         </el-collapse-item>
       </el-collapse>
     </div>
@@ -886,10 +1151,18 @@ $fees-highlight-text: #78350f;
   font-size: 12px;
   color: $text-muted;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
 
   &::after {
     content: '：';
   }
+}
+
+.fees-field-lock {
+  margin-right: 4px;
+  font-size: 13px;
+  color: #fbbf24;
 }
 
 .info-item--field-highlight .info-label {
@@ -1050,12 +1323,75 @@ $fees-highlight-text: #78350f;
   background: transparent;
 }
 
-.fees-formula-text {
-  margin: 0;
+.fees-formula-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.fees-formula-demo-btn {
+  flex-shrink: 0;
+}
+
+.fees-formula-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fees-formula-line + .fees-formula-line {
+  margin-top: 10px;
+}
+
+.fees-formula-line-head {
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.fees-formula-line-label {
+  font-weight: 400;
+}
+
+.fees-formula-line-label--pn::before {
+  content: '\00a0\00a0';
+}
+
+.fees-formula-line-label--brand::before {
+  content: '\00a0\00a0\00a0\00a0';
+}
+
+.fees-formula-desc {
   font-size: 12px;
   line-height: 1.6;
   color: $text-muted;
-  white-space: pre-wrap;
+}
+
+.fees-formula-calc {
+  margin: 0 0 6px 1.5em;
+  padding: 2px 6px;
+  font-size: 12px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: $text-secondary;
+  border-radius: 4px;
+
+  &.is-mismatch {
+    background: #fffbeb;
+    color: #78350f;
+  }
+}
+
+.fees-formula-note,
+.fees-formula-mismatch {
+  margin-left: 8px;
   font-family: inherit;
+}
+
+.fees-formula-mismatch {
+  font-weight: 600;
 }
 </style>
