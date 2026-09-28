@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
+using CRM.Core.Knowledge;
 using CRM.Core.Models.Ai;
 using CRM.Core.Utilities;
 using CRM.Infrastructure.Ai.EntityParse;
@@ -367,8 +368,16 @@ public sealed class AiOrchestrator : IAiOrchestrator
         if (string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException("未登录，无法调用 AI。");
 
+        // 培训教材 / 操作手册场景：任意已登录用户可用
+        if (string.Equals(perm, KbHandbookCodes.AskPermission, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(perm, KbHandbookCodes.OpsAskPermission, StringComparison.OrdinalIgnoreCase))
+            return;
+
         var summary = await _rbacService.GetUserPermissionSummaryAsync(userId.Trim());
         if (summary.IsSysAdmin)
+            return;
+        if (summary.HasBizDataBypass
+            && !string.Equals(perm, AiPermissionCodes.Admin, StringComparison.OrdinalIgnoreCase))
             return;
         if (summary.PermissionCodes.Any(c => string.Equals(c, perm, StringComparison.OrdinalIgnoreCase)))
             return;

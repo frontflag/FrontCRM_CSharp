@@ -70,7 +70,7 @@
             </span>
           </a>
           <button
-            v-if="hasPermission('biz.feedback.submit')"
+            v-if="authStore.user"
             type="button"
             class="global-notify-btn"
             :title="t('layout.aiAssistant')"

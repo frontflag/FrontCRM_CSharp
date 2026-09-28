@@ -1,12 +1,13 @@
 # AI 用户反馈助手 — 设计与实现
 
 **状态：** 已实现（首期可联调；需执行 `scripts/ensure_ai_assistant_feedback_postgresql.sql`）  
-**关联：** [AI 模块架构与实现](./AI模块架构与实现.md)、[AI模块PRD](../PRD/AI模块PRD.md)  
+**关联：** [AI 模块架构与实现](./AI模块架构与实现.md)、[AI交互模式-设计与实现](./AI交互模式-设计与实现.md)、[AI模块PRD](../PRD/AI模块PRD.md)  
 **测试对照：** [AI用户反馈助手-测试对照说明](../QA/系统/AI用户反馈助手-测试对照说明.md)  
-**权限脚本（实现时）：** `scripts/ensure_ai_assistant_feedback_postgresql.sql`（建表 + 场景/权限种子，路径以实现为准）  
+**权限：** 用户提交反馈（顶栏抽屉 / AI 交互「反馈与建议」/ 开会话发消息）对**任意已登录用户**开放，不再门控 `biz.feedback.submit`。运维处理仍要 `biz.feedback.admin`。种子脚本可仍写入 `biz.feedback.submit`（兼容历史角色），运行时不作为门控。  
+**权限脚本：** `scripts/ensure_ai_assistant_feedback_postgresql.sql`（建表 + 场景/权限种子）  
 **UI 规范：** [扩展面板.工作台规范](../PRD/规范/UI规范/扩展面板.工作台规范.md)
 
-本文描述 FrontCRM 中 **顶栏 AI 助手（首期技能：问题/建议反馈）** 与 **运维「用户反馈」管理页** 的产品口径、数据模型、API 与实现索引。
+本文描述 FrontCRM 中 **顶栏 AI 助手（首期技能：问题/建议反馈）**、**AI 交互层「反馈与建议」技能** 与 **运维「用户反馈」管理页** 的产品口径、数据模型、API 与实现索引。
 
 ---
 
@@ -14,7 +15,7 @@
 
 | 概念 | 说明 |
 |------|------|
-| **用户入口** | 顶栏 **「AI 助手」** 聊天抽屉（与铃铛「消息通知」占位分离） |
+| **用户入口** | 顶栏 **「AI 助手」** 聊天抽屉（与铃铛「消息通知」占位分离）；以及空格唤起的 [AI 交互模式](./AI交互模式-设计与实现.md)「反馈与建议」技能。**任意已登录用户**可见可用 |
 | **交互** | **自然语言多轮**；信息不足时 AI **主动追问**；齐套后 **静默精炼落库** |
 | **不做** | 表单一次提交；向用户念精炼稿并要求说「好」；承诺解决日期 |
 | **结束话术** | 「已记录并通知开发团队」——「通知」= 工单进入运维列表（本期无邮件/企微） |
@@ -211,7 +212,7 @@ AI：  看起来这次不是系统问题反馈。我先结束本轮对话；
 | `upload_document` | 截图 |
 | `ai_provider` / `ai_scenario` / `ai_prompt_template` | 种子场景 `assistant.feedback.collect`（名称以实现为准），挂 Moonshot；**缓存关闭** |
 | `ai_invocation_log` | 每轮调用审计（可选），非工单台 |
-| RBAC 权限表 | `biz.feedback.admin`；登录用户可开会话（如 `biz.feedback.submit` 或登录即可，实现时定） |
+| RBAC 权限表 | `biz.feedback.admin`（运维处理）；提交反馈对**任意已登录用户**开放（不再门控 `biz.feedback.submit`） |
 
 ### 4.3 本期不建
 
@@ -223,14 +224,14 @@ AI：  看起来这次不是系统问题反馈。我先结束本轮对话；
 
 ### 5.1 助手（用户侧）
 
-| 方法 | 说明 |
-|------|------|
-| `POST /api/v1/ai-assistant/sessions` | 开会话；入参带页面上下文；返回欢迎语 + sessionId |
-| `POST /api/v1/ai-assistant/sessions/{id}/messages` | 文本和/或图片；拼 history 调场景；按 action 落库或继续 |
+| 方法 | 说明 | 权限 |
+|------|------|------|
+| `POST /api/v1/ai-assistant/sessions` | 开会话；入参带页面上下文；返回欢迎语 + sessionId | 已登录（`[Authorize]`，不再要求 `biz.feedback.submit`） |
+| `POST /api/v1/ai-assistant/sessions/{id}/messages` | 文本和/或图片；拼 history 调场景；按 action 落库或继续 | 已登录 |
 
 无 `confirm` 接口。
 
-业务页也可 **跳过对话、直写工单**：`IAiAssistantService.SubmitDirectFeedbackAsync`（会话直接 `submitted`）。当前接入：**我的邮箱**「申请公司邮箱」`POST /api/v1/me/mailboxes/apply-company`（见 [个人邮箱与公司邮箱设置](./系统/个人邮箱与公司邮箱设置-设计与实现.md) §2.10）。该类入口 **不** 要求 `biz.feedback.submit`，工单仍进运维「用户反馈」。
+业务页也可 **跳过对话、直写工单**：`IAiAssistantService.SubmitDirectFeedbackAsync`（会话直接 `submitted`）。当前接入：**我的邮箱**「申请公司邮箱」`POST /api/v1/me/mailboxes/apply-company`（见 [个人邮箱与公司邮箱设置](./系统/个人邮箱与公司邮箱设置-设计与实现.md) §2.10）。与顶栏反馈一致，**不**要求 `biz.feedback.submit`，工单仍进运维「用户反馈」。
 
 ### 5.2 运维
 

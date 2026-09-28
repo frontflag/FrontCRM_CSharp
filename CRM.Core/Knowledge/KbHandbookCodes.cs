@@ -4,11 +4,13 @@ public static class KbHandbookCodes
 {
     public const string DocumentCode = "handbook.distributor.newcomer";
     public const string Scenario = "knowledge.handbook.qa";
+    /// <summary>历史权限码；提问/浏览现已对任意已登录用户开放，仅作场景登记兼容。</summary>
     public const string AskPermission = "biz.ai.kb.qa";
     public const string AdminPermission = "biz.ai.kb.admin";
 
     public const string OpsDocumentCode = "ops.manual";
     public const string OpsScenario = "knowledge.ops.qa";
+    /// <summary>历史权限码；提问现已对任意已登录用户开放，仅作场景登记兼容。</summary>
     public const string OpsAskPermission = "biz.ai.ops.qa";
     public const string EmbeddingEnv = "AI_EMBEDDING_API_KEY";
     public const string ProviderCode = "siliconflow";

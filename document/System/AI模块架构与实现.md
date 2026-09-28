@@ -1,7 +1,7 @@
 # AI 模块架构与实现
 
-**文档版本：** v1.0  
-**更新日期：** 2026-06-24  
+**文档版本：** v1.1  
+**更新日期：** 2026-09-28  
 **项目名称：** FrontCRM_CSharp  
 **适用对象：** 后端 / 前端开发、运维、产品
 
@@ -22,9 +22,9 @@
 - 业务场景：**`customer.intel.lookup`（客户情报调查）** — 详见 [AI客户情报调查-设计与实现](./AI客户情报调查-设计与实现.md)（右栏 + **客户首页 `/custome`** 已落地）
 - 业务场景：**`entity.parse.*`（7 类实体 AI 解析建单）** — 详见 [AI实体解析建单-设计与实现](./AI实体解析建单-设计与实现.md)
 - 业务场景：**`industry.news.briefing`（控制台行业新闻简报）** — 详见 [行业新闻-设计与实现](./系统/行业新闻-设计与实现.md)
-- **顶栏 AI 用户反馈助手**（多轮对话 + 运维工单）— 详见 [AI用户反馈助手-设计与实现](./AI用户反馈助手-设计与实现.md)
-- **知识库教材问答**（文档切块、pgvector 检索、LLM 作答）— 详见 [AI知识库问答-设计与实现](./AI知识库问答-设计与实现.md)
-- **AI 交互模式**（空格唤起的全屏层：技能切换、培训问答、操作手册、反馈、粘贴建档）— 详见 [AI交互模式-设计与实现](./AI交互模式-设计与实现.md)。操作手册正文见 [系统操作手册](./操作手册/系统操作手册.md)
+- **顶栏 AI 用户反馈助手**（多轮对话 + 运维工单）— 详见 [AI用户反馈助手-设计与实现](./AI用户反馈助手-设计与实现.md)。**提交反馈：任意已登录用户**
+- **知识库教材 / 操作手册问答**（文档切块、pgvector 检索、LLM 作答）— 详见 [AI知识库问答-设计与实现](./AI知识库问答-设计与实现.md)。**提问与浏览：任意已登录用户**；导入仍要 `biz.ai.kb.admin`
+- **AI 交互模式**（空格唤起：反馈、培训教材、操作手册、数据查询、粘贴建档）— 详见 [AI交互模式-设计与实现](./AI交互模式-设计与实现.md)。前三项技能对任意已登录用户开放。操作手册正文见 [系统操作手册](./操作手册/系统操作手册.md)
 
 **不在本文范围：** 流式输出（SSE）、多模态、全局配置的管理 UI（`ai_global_config` 目前仅数据库/种子维护）。知识库的切块与向量检索见专用文档，不在此展开。**RFQ 物料情报 UI 渲染细节** 见专用文档；**实体解析建单交互与日志** 见专用文档，不在此重复。反馈助手会话层实现细节见专用文档，不在此重复。
 
@@ -37,7 +37,7 @@
 | **场景驱动** | 业务只传 `scenarioCode` + 结构化 `input`；Prompt、模型、厂商、缓存策略由配置决定 |
 | **密钥不入库** | API Key 通过环境变量名（`api_key_env`）引用，运行时 `Environment.GetEnvironmentVariable` 读取 |
 | **缓存与日志在 PG** | 响应缓存在 `ai_invocation_cache`；审计与用量在 `ai_invocation_log` |
-| **权限按场景** | 每个场景绑定 `permission_code`；系统管理员可 bypass |
+| **权限按场景** | 每个场景绑定 `permission_code`；系统管理员可 bypass。**例外：** 反馈收集、培训教材问答、操作手册问答在运行时对**任意已登录用户**放行（见 [AI交互模式](./AI交互模式-设计与实现.md)） |
 | **Mock 优先开发** | 种子数据默认 `mock` 厂商，本地/Debug 无 Key 也可联调 |
 | **OpenAI 兼容扩展** | 除 `mock` 外，统一走 `OpenAiCompatibleAiLlmProvider`（`/chat/completions`） |
 
@@ -233,8 +233,19 @@ AiOrchestrator.InvokeAsync
 | `biz.ai.admin` | AI 配置管理（厂商/场景/模板/日志） |
 | `biz.ai.material_spec.lookup` | 调用 `material.spec.lookup` 场景 |
 | `biz.ai.material_intel.lookup` | 调用 `material.intel.lookup` 场景（RFQ 首页 AI 查询） |
+| `biz.ai.data.query` | AI 交互「数据查询」技能 |
+| `biz.ai.kb.admin` | 知识库文档导入 / 启用版本 |
+| `biz.feedback.admin` | 运维「用户反馈」处理 |
 
-种子数据将上述权限赋给 `SYS_ADMIN`、`biz_all` 角色；`material.intel.lookup` 另按 `rfq.read` 批量授予（见 SQL 脚本）。
+**开放技能（不要求下列历史码即可用）：**
+
+| 历史权限码（种子可仍保留） | 运行时 |
+|---------------------------|--------|
+| `biz.feedback.submit` | 任意已登录：顶栏 AI 助手、交互层「反馈与建议」、`/ai-assistant/sessions*` |
+| `biz.ai.kb.qa` | 任意已登录：培训教材提问 / 浏览 |
+| `biz.ai.ops.qa` | 任意已登录：操作手册提问 |
+
+种子数据将情报类等权限赋给 `SYS_ADMIN`、`biz_all` 等角色；`material.intel.lookup` 另按 `rfq.read` 批量授予（见 SQL 脚本）。开放技能不依赖角色是否挂载上表历史码。
 
 ---
 
@@ -333,9 +344,12 @@ Key 与端点必须匹配：国内平台申请的 Key 不能用于 `.ai` 端点�
 | AI 配置 | `/system/ai-config` | `biz.ai.admin` |
 | AI Debug | `/debug/ai` | `sysAdminOnly` |
 | AI 物料情报对照 | `/debug/material-intel` | `sysAdminOnly` |
+| 培训问答 / 教材浏览 | `/knowledge/handbook`、`/knowledge/handbook/read` | 已登录 |
+| 知识库文档管理 | `/system/kb-documents` | `biz.ai.kb.admin` |
 | RFQ 首页 AI 查询 | `/rfq`（或需求管理首页） | `biz.ai.material_intel.lookup` |
 | 客户首页 AI 调查 | `/custome`（客户管理首页） | `biz.ai.customer_intel.lookup` |
 | 供应商首页 AI 调查 | `/vendor`（供应商管理首页） | `biz.ai.vendor_intel.lookup` |
+| AI 交互层（空格） | 业务页蒙版，非独立路由 | 已登录即可用反馈/教材/手册；数据查询另需 `biz.ai.data.query` |
 
 菜单项在 `AppLayout.vue`；i18n 键 `aiConfig.*`、`layout.menu.aiConfig`。
 

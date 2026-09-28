@@ -7,7 +7,7 @@ public static class AiAssistantScenarioCodes
 
 public static class AiAssistantPermissionCodes
 {
-    /// <summary>登录用户使用反馈助手（也可仅要求 authenticated）。</summary>
+    /// <summary>历史权限码；反馈助手现已对任意已登录用户开放，仅作场景/脚本兼容。</summary>
     public const string Submit = "biz.feedback.submit";
 
     /// <summary>运维查看与处理用户反馈。</summary>

@@ -1,17 +1,19 @@
 # AI 知识库问答（knowledge.handbook.qa）设计与实现
 
-**文档版本：** v0.1  
+**文档版本：** v0.2  
 **更新日期：** 2026-09-28  
-**状态：** 草案（未编码）  
+**状态：** 已实现  
 **项目名称：** FrontCRM_CSharp  
 **适用对象：** 后端 / 前端 / 运维  
 
 **关联文档：**
 
 - [AI模块架构与实现](./AI模块架构与实现.md)
+- [AI交互模式-设计与实现](./AI交互模式-设计与实现.md)
 - [PostgreSQL 增量脚本编写规范](../PRD/规范/业务规范/PostgreSQL增量脚本编写规范.md)
 
-**权限与脚本（落地时新增）：** `scripts/kb_handbook_postgresql.sql`  
+**权限：** 培训教材 / 操作手册**提问与浏览**对任意已登录用户开放（不再门控 `biz.ai.kb.qa` / `biz.ai.ops.qa`）。导入、启用版本仍要 `biz.ai.kb.admin`。  
+**脚本：** `scripts/kb_handbook_postgresql.sql`、`scripts/kb_ops_manual_postgresql.sql`（权限码可仍写入种子，运行时提问不依赖）  
 **EBS 对照：** 无  
 **QA 对照：** 功能落地后另写 `document/QA/`，编写前须先读 [测试规范总纲](../QA/测试规范总纲.md)。本文不替代测试对照说明。
 
@@ -49,10 +51,10 @@
 | 项 | 约定 |
 |----|------|
 | 页面 | 培训问答，路由 `/knowledge/handbook` |
-| 权限 | `biz.ai.kb.qa` |
+| 权限 | 任意已登录用户（不再依赖 `biz.ai.kb.qa` 门控；导入管理仍为 `biz.ai.kb.admin`） |
 | 输入 | 一个问题，1～500 字 |
 | 输出 | 答案、是否覆盖、教材名与版本号、检索到的章节摘录 |
-| 无权限 | 菜单不显示 |
+| 无权限 | 未登录不可用；已登录均可问 |
 | 超时 | 前端 180 秒，与现有 `aiApi.invoke` 一致 |
 
 答案区固定一句：**以下内容来自培训教材：**
@@ -85,7 +87,7 @@
 
 用户提问
   → POST /api/v1/kb/ask
-  → 权限 biz.ai.kb.qa，用户每分钟提问次数上限 10（含未覆盖）
+  → 任意已登录用户可问；用户每分钟提问次数上限 10（含未覆盖）
   → 查 kb_ask_cache（同一启用版本 + 规范化问题）
   → 未命中：同一 embedding 模型把问题变成向量
   → SQL：当前启用版本上按余弦距离取候选
@@ -303,7 +305,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 | 项 | 值 |
 |----|------|
 | 场景码 | `knowledge.handbook.qa` |
-| 权限 | `biz.ai.kb.qa` |
+| 权限 | 任意已登录用户（场景表可仍登记 `biz.ai.kb.qa`，运行时不再门控） |
 | 输出格式 | `json` |
 | 温度 | 0.2（Moonshot kimi-k2 系由现有 Provider 强制为 1.0 的逻辑保持不变） |
 | 最大输出 | 8192。kimi-k2.6 的思考和正文共用该上限；2048 时思考会占满额度，正文为空，页面显示「这次没有生成回答，请再问一次。」 |
@@ -338,7 +340,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 
 ## 8. API
 
-控制器 `KnowledgeBaseController`，路由前缀 `/api/v1/kb`。权限在服务内校验，与 `AiOrchestrator` 的场景权限方式一致。
+控制器 `KnowledgeBaseController`，路由前缀 `/api/v1/kb`。管理接口在服务内校验 `biz.ai.kb.admin`；提问 `/ask` 与教材阅读仅要求已登录（与 [AI交互模式](./AI交互模式-设计与实现.md) 一致）。`AiOrchestrator` 对场景权限码 `biz.ai.kb.qa` / `biz.ai.ops.qa` 同样按「已登录即可」放行。
 
 | 方法 | 路径 | 权限 | 作用 |
 |------|------|------|------|
@@ -347,7 +349,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 | POST | `/documents/{code}/versions/{versionId}/resume` | `biz.ai.kb.admin` | 失败或中断后继续嵌入 |
 | POST | `/documents/{code}/versions/{versionId}/activate` | `biz.ai.kb.admin` | 仅 `ready` 可启用 |
 | GET | `/documents/{code}/versions/{versionId}/chunks` | `biz.ai.kb.admin` | 分页查看切块，不含向量 |
-| POST | `/ask` | `biz.ai.kb.qa` |  body：`{ "question": "..." }` |
+| POST | `/ask` | 已登录 | body：`{ "question": "..." }`；操作手册传 `documentCode=ops.manual` |
 
 `/ask` 响应：
 
@@ -371,7 +373,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 | `CRM.Web/src/views/Knowledge/HandbookQaPage.vue` | 提问、答案、摘录 |
 | `CRM.Web/src/views/System/KbDocumentPage.vue` | 上传、进度、切块预览、启用版本 |
 | `routes.ts` | `/knowledge/handbook`、`/system/kb-documents` |
-| `AppLayout.vue` | 问答菜单对 `biz.ai.kb.qa` 可见；管理菜单对 `biz.ai.kb.admin` 可见 |
+| `AppLayout.vue` | 问答/浏览：已登录可用；管理菜单对 `biz.ai.kb.admin` 可见 |
 | `zh-CN.ts` / `en-US.ts` | 文案 |
 
 问答页在请求期间显示等待秒数。摘录默认折叠，展开后能看到章节标题和片段，便于核对 GP、货品状态、合规红线等【标准】。
@@ -397,9 +399,9 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 - 扩展、四张表、HNSW 索引、启用版本的部分唯一索引
 - `kb_embedding_profile` 种子（默认禁用，维度 1024）
 - `ai_global_config` 两条距离阈值
-- 场景 `knowledge.handbook.qa`、提示词模板、权限 `biz.ai.kb.qa` 与 `biz.ai.kb.admin`
-- 权限赋给 `SYS_ADMIN`、`biz_all`
-- `AiCodes` 增加场景码与权限码
+- 场景 `knowledge.handbook.qa` / `knowledge.ops.qa`、提示词模板；提问对任意已登录用户开放；导入管理权限 `biz.ai.kb.admin`
+- 权限码可仍赋给 `SYS_ADMIN`、`biz_all`（兼容历史）；运行时提问不依赖角色是否持有 `biz.ai.kb.qa` / `biz.ai.ops.qa`
+- `AiCodes` / `KbHandbookCodes` 保留场景码与历史权限码常量
 - EF 实体与 `ApplicationDbContext` 映射文档、版本、缓存；块的 `embedding` 排除在 LINQ 之外
 
 提示词入库不得在脚本文件中书写双花括号，用 CHR 拼接。
@@ -461,7 +463,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 
 按第 8、9 节接上页面与菜单。管理页能看到块标题和状态；问答页展示答案与摘录。
 
-**完成标准：** 有 `biz.ai.kb.qa` 的用户能打开问答页；只有管理权限的用户能上传并启用版本。无权限用户看不到对应菜单。
+**完成标准：** 任意已登录用户能打开问答页；只有管理权限的用户能上传并启用版本。
 
 ### 步骤 7 — 导入正式教材并校准
 
@@ -483,7 +485,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 ### 步骤 8 — 帮助与测试对照
 
 - `help/pages/` 用业务语言说明培训问答的用途和「不是公司制度」
-- `document/QA/` 测试对照说明：先读测试规范总纲再写。本功能无金额核销；文档中写明金额边界不适用。须包含：覆盖成功、未覆盖、无权限、启用新版本后旧答案失效
+- `document/QA/` 测试对照说明：先读测试规范总纲再写。本功能无金额核销；文档中写明金额边界不适用。须包含：覆盖成功、未覆盖、**未登录拒绝**、启用新版本后旧答案失效；**不适用**「无 biz.ai.kb.qa 则不能提问」（已改为任意已登录可问）
 
 ---
 

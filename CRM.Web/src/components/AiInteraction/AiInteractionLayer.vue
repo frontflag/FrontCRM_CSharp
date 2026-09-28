@@ -296,9 +296,10 @@ const createActions = computed<PasteCreateKind[]>(() => {
   if (authStore.hasPermission(AI_PERMISSION_ENTITY_PARSE_RFQ)) list.push('rfq')
   return list
 })
-const canFeedback = computed(() => authStore.hasPermission('biz.feedback.submit'))
-const canHandbook = computed(() => authStore.hasPermission('biz.ai.kb.qa'))
-const canOps = computed(() => authStore.hasPermission('biz.ai.ops.qa'))
+/** 反馈 / 培训教材 / 操作手册：任意已登录用户可用 */
+const canFeedback = computed(() => !!authStore.user)
+const canHandbook = computed(() => !!authStore.user)
+const canOps = computed(() => !!authStore.user)
 const canData = computed(() => authStore.hasPermission('biz.ai.data.query'))
 const skills = computed<AiInteractionSkill[]>(() => {
   const list: AiInteractionSkill[] = []

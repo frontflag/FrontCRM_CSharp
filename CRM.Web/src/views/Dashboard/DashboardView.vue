@@ -136,12 +136,7 @@ const canCreateVendor = computed(
     !authStore.isIdentityBlockedForPermission('vendor.write')
 )
 
-const canOpenHandbook = computed(
-  () =>
-    (authStore.hasPermission('biz.ai.kb.qa') || authStore.hasPermission('biz.ai.kb.admin')) &&
-    !authStore.isIdentityBlockedForPermission('biz.ai.kb.qa') &&
-    !authStore.isIdentityBlockedForPermission('biz.ai.kb.admin')
-)
+const canOpenHandbook = computed(() => !!authStore.user)
 
 /** null=未返回；失败当未验证，仍显示引导 */
 const hasVerifiedMailbox = ref<boolean | null>(null)

@@ -3,7 +3,6 @@ using CRM.API.Authorization;
 using CRM.API.Models.DTOs;
 using CRM.Core.Constants;
 using CRM.Core.Interfaces;
-using CRM.Core.Knowledge;
 using CRM.Core.Models.Ai;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -48,17 +47,15 @@ public class AiAssistantController : ControllerBase
         try
         {
             var summary = await _rbacService.GetUserPermissionSummaryAsync(userId);
-            var allowed = new List<string>();
-            if (AllowsBiz(summary, AiAssistantPermissionCodes.Submit))
-                allowed.Add(AiAssistantSkills.Feedback);
-            if (AllowsBiz(summary, KbHandbookCodes.AskPermission))
-                allowed.Add(AiAssistantSkills.Handbook);
-            if (AllowsBiz(summary, KbHandbookCodes.OpsAskPermission))
-                allowed.Add(AiAssistantSkills.Ops);
+            var allowed = new List<string>
+            {
+                // 反馈 / 培训教材 / 操作手册：任意已登录用户可用
+                AiAssistantSkills.Feedback,
+                AiAssistantSkills.Handbook,
+                AiAssistantSkills.Ops
+            };
             if (AllowsBiz(summary, AiAssistantPermissionCodes.DataQuery))
                 allowed.Add(AiAssistantSkills.Data);
-            if (allowed.Count == 0)
-                return StatusCode(403, ApiResponse<AiSkillRouteDto>.Fail("无权限使用 AI 交互", 403));
 
             var skill = await _assistantService.RouteSkillAsync(text, allowed, cancellationToken);
             return Ok(ApiResponse<AiSkillRouteDto>.Ok(new AiSkillRouteDto { Skill = skill }));
@@ -110,7 +107,6 @@ public class AiAssistantController : ControllerBase
     }
 
     [HttpPost("sessions")]
-    [RequirePermission(AiAssistantPermissionCodes.Submit)]
     public async Task<ActionResult<ApiResponse<AiAssistantSessionDto>>> CreateSession(
         [FromBody] CreateAiAssistantSessionRequest? request,
         CancellationToken cancellationToken)
@@ -136,7 +132,6 @@ public class AiAssistantController : ControllerBase
     }
 
     [HttpPost("sessions/{id}/messages")]
-    [RequirePermission(AiAssistantPermissionCodes.Submit)]
     [RequestSizeLimit(12 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<AiAssistantChatTurnDto>>> SendMessage(
         string id,

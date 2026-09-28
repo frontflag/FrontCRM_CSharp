@@ -47,27 +47,29 @@ public sealed class KbHandbookService : IKbHandbookService
             return;
         if (string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException("未登录。");
+        // 培训教材 / 操作手册问答：任意已登录用户可用（管理类权限仍走下方校验）
+        if (string.Equals(perm, KbHandbookCodes.AskPermission, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(perm, KbHandbookCodes.OpsAskPermission, StringComparison.OrdinalIgnoreCase))
+            return;
         var summary = await _rbac.GetUserPermissionSummaryAsync(userId.Trim());
         if (summary.IsSysAdmin)
+            return;
+        if (summary.HasBizDataBypass
+            && !string.Equals(perm, KbHandbookCodes.AdminPermission, StringComparison.OrdinalIgnoreCase))
             return;
         if (summary.PermissionCodes.Any(c => string.Equals(c, perm, StringComparison.OrdinalIgnoreCase)))
             return;
+        if (string.Equals(perm, KbHandbookCodes.AdminPermission, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("当前账号无权管理培训教材。");
         throw new InvalidOperationException("当前账号无权提问。");
     }
 
-    private async Task EnsureReadAsync(string? userId)
+    private Task EnsureReadAsync(string? userId)
     {
         if (string.IsNullOrWhiteSpace(userId))
             throw new InvalidOperationException("未登录。");
-        var summary = await _rbac.GetUserPermissionSummaryAsync(userId.Trim());
-        if (summary.IsSysAdmin)
-            return;
-        if (summary.PermissionCodes.Any(c =>
-                string.Equals(c, KbHandbookCodes.AskPermission, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(c, KbHandbookCodes.OpsAskPermission, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(c, KbHandbookCodes.AdminPermission, StringComparison.OrdinalIgnoreCase)))
-            return;
-        throw new InvalidOperationException("当前账号无权浏览培训教材。");
+        // 教材浏览与问答一致：任意已登录用户可读
+        return Task.CompletedTask;
     }
 
     public async Task<KbImportResultDto> EnqueueDocxAsync(
