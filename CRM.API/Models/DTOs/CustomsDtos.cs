@@ -53,6 +53,11 @@ public sealed class CustomsDeclarationItemListItemDto
     public string? PurchaseOrderId { get; set; }
     /// <summary>P0 原币采购单价；未拣货或脱敏时为空。</summary>
     public decimal? OriginalPurchasePrice { get; set; }
+    /// <summary>已保存的采购美金价（含手工）；脱敏时为空。</summary>
+    public decimal? CostUsd { get; set; }
+    public string? HsCode { get; set; }
+    /// <summary>供应商正式名，没有则简称或编码；脱敏时为空。</summary>
+    public string? VendorName { get; set; }
     public short? PurchaseCurrency { get; set; }
     /// <summary>P0 × 申报数量；未拣货或脱敏时为空。</summary>
     public decimal? OriginalPurchaseAmount { get; set; }

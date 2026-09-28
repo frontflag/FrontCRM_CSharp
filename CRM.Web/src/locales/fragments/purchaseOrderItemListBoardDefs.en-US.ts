@@ -21,6 +21,16 @@ export const purchaseOrderItemListBoardDefsEn = {
       dataSource: 'Purchase order items',
       text: 'Sum of line amounts (USD; original-currency split available). Masked without amount permission.'
     },
+    purchaseProfit: {
+      chart: 'Purchase profit',
+      dataSource: 'Purchase order items',
+      text: 'Sum of (sales USD unit price − purchase USD unit price) × qty for lines with a linked sales line and both unit prices above 0. Lines missing a price are skipped. Masked without amount permission.'
+    },
+    outboundProfit: {
+      chart: 'Outbound profit',
+      dataSource: 'Purchase order items',
+      text: 'Sum of outbound profit already posted against these purchase lines. Masked without amount permission.'
+    },
     inStockVendors: {
       chart: 'In-stock vendors',
       dataSource: 'Purchase order items',

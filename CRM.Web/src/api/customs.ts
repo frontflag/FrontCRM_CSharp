@@ -145,6 +145,9 @@ export interface CustomsDeclarationItemListItemDto {
   purchaseOrderItemCode?: string | null
   purchaseOrderId?: string | null
   originalPurchasePrice?: number | null
+  costUsd?: number | null
+  hsCode?: string | null
+  vendorName?: string | null
   purchaseCurrency?: number | null
   originalPurchaseAmount?: number | null
   declareUnitPrice: number

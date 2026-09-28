@@ -21,6 +21,16 @@ export const purchaseOrderItemListBoardDefsZh = {
       dataSource: '采购订单明细',
       text: '明细金额合计（美元；可对照原币）。无金额权限时为「—」。'
     },
+    purchaseProfit: {
+      chart: '采购利润',
+      dataSource: '采购订单明细',
+      text: '有关联销售、且销售与采购折算美金单价都大于 0 的行，按（销售折算美金单价 − 采购折算美金单价）× 采购数量汇总。缺单价的行不计入。无金额权限时为「—」。'
+    },
+    outboundProfit: {
+      chart: '出库利润',
+      dataSource: '采购订单明细',
+      text: '当前统计集合中采购明细已出库部分的出库利润合计。无金额权限时为「—」。'
+    },
     inStockVendors: {
       chart: '在库供应商数',
       dataSource: '采购订单明细',

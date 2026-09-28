@@ -31,6 +31,8 @@ export interface PurchaseOrderItemListAnalyticsSnapshot {
   approvedLineCount: number
   approvedAmountUsd?: number | null
   currencyLines: PurchaseOrderListAnalyticsCurrencyLine[]
+  purchaseProfitUsd?: number | null
+  outboundProfitUsd?: number | null
   inStockVendorCount: number
   inStockLineCount: number
   inStockAmountUsd?: number | null

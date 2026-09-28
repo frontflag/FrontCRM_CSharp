@@ -156,6 +156,15 @@
         </router-link>
         <CrmListCopyableTextCell v-else :text="row.purchaseOrderItemCode" />
       </template>
+      <template #col-costUsd="{ row }">
+        <span class="cdi-fee-amt">{{ formatCostUsd(row.costUsd) }}</span>
+      </template>
+      <template #col-hsCode="{ row }">
+        <CrmListCopyableTextCell :text="row.hsCode" />
+      </template>
+      <template #col-vendorName="{ row }">
+        <CrmListCopyableTextCell :text="row.vendorName" />
+      </template>
       <template #col-originalPurchasePrice="{ row }">
         <span v-if="row.originalPurchasePrice == null" class="cdi-list-dash">—</span>
         <div v-else class="cdi-list-amount-cell dock-tier-price-line">
@@ -346,6 +355,12 @@ function colW(label: string, extra = 0, align: 'left' | 'center' | 'right' = 'le
   return estimateListColumnHeaderMinWidth(label, { align, extra })
 }
 
+function formatCostUsd(value: number | null | undefined): string {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '—'
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 6, maximumFractionDigits: 6 })
+}
+
 const tableColumns = computed<CrmTableColumnDef[]>(() => {
   const cols: CrmTableColumnDef[] = [
     {
@@ -430,6 +445,27 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
         align: 'right'
       },
       {
+        key: 'costUsd',
+        label: t('customsPages.items.colCostUsd'),
+        prop: 'costUsd',
+        width: colW(t('customsPages.items.colCostUsd'), 24, 'right'),
+        minWidth: colW(t('customsPages.items.colCostUsd'), 24, 'right'),
+        align: 'right'
+      },
+      {
+        key: 'hsCode',
+        label: t('customsPages.items.colHs'),
+        prop: 'hsCode',
+        minWidth: Math.max(120, colW(t('customsPages.items.colHs')))
+      },
+      {
+        key: 'vendorName',
+        label: t('customsPages.items.colVendor'),
+        prop: 'vendorName',
+        minWidth: Math.max(180, colW(t('customsPages.items.colVendor'))),
+        showOverflowTooltip: true
+      },
+      {
         key: 'originalPurchaseAmount',
         label: t('customsPages.items.colOrigPurchaseAmount'),
         prop: 'originalPurchaseAmount',
@@ -438,6 +474,13 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
         align: 'right'
       }
     )
+  } else {
+    cols.push({
+      key: 'hsCode',
+      label: t('customsPages.items.colHs'),
+      prop: 'hsCode',
+      minWidth: Math.max(120, colW(t('customsPages.items.colHs')))
+    })
   }
 
   cols.push(
@@ -631,6 +674,12 @@ function exportCell(row: CustomsDeclarationItemListItemDto, key: string): string
       return row.originalPurchasePrice == null
         ? ''
         : `${formatUnitPriceNumber(row.originalPurchasePrice)} ${listAmountCurrencyIso(row.purchaseCurrency)}`
+    case 'costUsd':
+      return formatCostUsd(row.costUsd)
+    case 'hsCode':
+      return row.hsCode?.trim() || ''
+    case 'vendorName':
+      return row.vendorName?.trim() || ''
     case 'originalPurchaseAmount':
       return row.originalPurchaseAmount == null
         ? ''

@@ -3,7 +3,7 @@
 # 采购订单明细 · 看板
 
 <nav class="help-toc-nav" aria-label="区块速览">
-<a href="#help-po-item-board-overview">成单概览</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-stock">在库</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-payable">应付款</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-breakdown">分解</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-rankings">排行</a>
+<a href="#help-po-item-board-overview">成单概览</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-profit">利润</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-stock">在库</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-payable">应付款</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-breakdown">分解</a><span class="help-toc-sep">·</span><a href="#help-po-item-board-rankings">排行</a>
 </nav>
 
 ## 页面功能
@@ -29,6 +29,17 @@
 | --- | --- |
 | 供应商数 / 订单数 / 明细数 | 筛选结果中的去重供应商、订单张数、明细行数。 |
 | 金额 | 明细金额合计（美元；可对照原币）。 |
+
+---
+
+<h2 id="help-po-item-board-profit">利润</h2>
+
+在成单概览下面。无金额查看权限时两格都是「—」。
+
+| 指标 | 口径说明 |
+| --- | --- |
+| 采购利润 | 与明细列表同一算法：有关联销售、且销售和采购的折算美金单价都大于 0 时，（销售折算美金单价 − 采购折算美金单价）× 本行采购数量，再把当前结果集加总。缺单价的行不计入。 |
+| 出库利润 | 这些采购明细已经出库部分的出库利润合计（美元）。 |
 
 ---
 

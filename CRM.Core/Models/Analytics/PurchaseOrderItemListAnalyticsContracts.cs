@@ -16,6 +16,9 @@ public sealed class PurchaseOrderItemListAnalyticsSnapshotDto
     public IReadOnlyList<PurchaseOrderListAnalyticsCurrencyLineDto> CurrencyLines { get; set; } =
         Array.Empty<PurchaseOrderListAnalyticsCurrencyLineDto>();
 
+    public decimal? PurchaseProfitUsd { get; set; }
+    public decimal? OutboundProfitUsd { get; set; }
+
     public int InStockVendorCount { get; set; }
     public int InStockLineCount { get; set; }
     public decimal? InStockAmountUsd { get; set; }

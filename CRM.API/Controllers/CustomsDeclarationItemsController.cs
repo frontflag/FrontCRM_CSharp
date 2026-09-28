@@ -284,6 +284,29 @@ public class CustomsDeclarationItemsController : ControllerBase
                 .Where(p => poItemIds.Contains(p.Id))
                 .ToDictionaryAsync(p => p.Id, p => p.PurchaseOrderId, StringComparer.OrdinalIgnoreCase);
 
+            var vendorIds = rows
+                .Select(x => x.i.VendorId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            var vendorNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (!mask511 && vendorIds.Count > 0)
+            {
+                var vendors = await _db.Vendors.AsNoTracking()
+                    .Where(v => vendorIds.Contains(v.Id))
+                    .Select(v => new { v.Id, v.OfficialName, v.NickName, v.Code })
+                    .ToListAsync();
+                foreach (var vendor in vendors)
+                {
+                    var name = !string.IsNullOrWhiteSpace(vendor.OfficialName) ? vendor.OfficialName.Trim()
+                        : !string.IsNullOrWhiteSpace(vendor.NickName) ? vendor.NickName.Trim()
+                        : vendor.Code?.Trim();
+                    if (!string.IsNullOrWhiteSpace(name))
+                        vendorNames[vendor.Id.Trim()] = name;
+                }
+            }
+
             var packingByDec = await CustomsDeclarationPackingLookup.LoadByDeclarationsAsync(
                 _db,
                 rows.Select(x => (x.d.Id, x.d.PackingId)).ToList());
@@ -296,6 +319,8 @@ public class CustomsDeclarationItemsController : ControllerBase
                 string? poCode = null;
                 string? poId = null;
                 decimal? p0 = null;
+                decimal? costUsd = null;
+                string? vendorName = null;
                 short? ccy = null;
                 decimal? amount = null;
                 var layerId = x.i.SourceStockItemId?.Trim();
@@ -310,6 +335,14 @@ public class CustomsDeclarationItemsController : ControllerBase
                     p0 = x.i.OriginalPurchasePrice;
                     ccy = x.i.PurchaseCurrency;
                     amount = x.i.OriginalPurchasePrice * x.i.DeclareQty;
+                }
+
+                if (!mask511)
+                {
+                    costUsd = x.i.CostUsd;
+                    var vendorId = x.i.VendorId?.Trim();
+                    if (!string.IsNullOrWhiteSpace(vendorId) && vendorNames.TryGetValue(vendorId, out var resolvedVendor))
+                        vendorName = resolvedVendor;
                 }
 
                 return new CustomsDeclarationItemListItemDto
@@ -344,6 +377,9 @@ public class CustomsDeclarationItemsController : ControllerBase
                     PurchaseOrderItemCode = poCode,
                     PurchaseOrderId = poId,
                     OriginalPurchasePrice = p0,
+                    CostUsd = costUsd,
+                    HsCode = string.IsNullOrWhiteSpace(x.i.HsCode) ? null : x.i.HsCode.Trim(),
+                    VendorName = vendorName,
                     PurchaseCurrency = ccy,
                     OriginalPurchaseAmount = amount,
                     DeclareUnitPrice = x.i.DeclareUnitPrice,

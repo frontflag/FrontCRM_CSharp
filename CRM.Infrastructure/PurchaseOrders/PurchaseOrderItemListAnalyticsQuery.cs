@@ -55,6 +55,8 @@ public sealed partial class PurchaseOrderItemListQuery
                 ApprovedLineCount = metricRows.Count,
                 ApprovedAmountUsd = maskAmounts ? null : metricRows.Sum(r => CalcUsdLineTotal(r, rates) ?? 0m),
                 CurrencyLines = currencyLines,
+                PurchaseProfitUsd = maskAmounts ? null : await SumPurchaseProfitUsdAsync(metricRows, cancellationToken),
+                OutboundProfitUsd = maskAmounts ? null : await SumOutboundProfitUsdAsync(metricRows, cancellationToken),
                 InStockVendorCount = inStock.VendorCount,
                 InStockLineCount = inStock.LineCount,
                 InStockAmountUsd = maskAmounts ? null : inStock.AmountUsd,
@@ -429,6 +431,7 @@ public sealed partial class PurchaseOrderItemListQuery
                 Cost = x.Item.Cost,
                 Currency = x.Item.Currency,
                 ConvertPrice = x.Item.ConvertPrice,
+                SellOrderItemId = x.Item.SellOrderItemId,
                 PurchaseProgressStatus = x.Ext != null ? x.Ext.PurchaseProgressStatus : (short)0,
                 StockInProgressStatus = x.Ext != null ? x.Ext.StockInProgressStatus : (short)0,
                 PaymentProgressStatus = x.Ext != null ? x.Ext.PaymentProgressStatus : (short)0,
@@ -535,6 +538,68 @@ public sealed partial class PurchaseOrderItemListQuery
             .Select(s => s.Trim())
             .Where(s => s.Length > 0)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    /// 与采购明细列表同一公式：有关联销售且两侧折算美金单价都大于 0 才计入，否则该行按 0。
+    /// </summary>
+    private async Task<decimal> SumPurchaseProfitUsdAsync(
+        List<ItemLineAnalyticsRow> rows,
+        CancellationToken cancellationToken)
+    {
+        if (rows.Count == 0)
+            return 0m;
+
+        var sellIds = rows
+            .Select(r => r.SellOrderItemId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Select(id => id!.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var sellPrice = sellIds.Count == 0
+            ? new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase)
+            : await _db.SellOrderItems.AsNoTracking()
+                .Where(s => sellIds.Contains(s.Id))
+                .Select(s => new { s.Id, s.ConvertPrice })
+                .ToDictionaryAsync(
+                    x => x.Id,
+                    x => x.ConvertPrice,
+                    StringComparer.OrdinalIgnoreCase,
+                    cancellationToken);
+
+        decimal sum = 0m;
+        foreach (var row in rows)
+        {
+            decimal? sell = null;
+            var key = row.SellOrderItemId?.Trim();
+            if (!string.IsNullOrEmpty(key) && sellPrice.TryGetValue(key, out var usd))
+                sell = usd;
+            var profit = PurchaseOrderItemPurchaseProfitCalc.Compute(sell, row.ConvertPrice, row.Qty);
+            if (profit.HasValue)
+                sum += profit.Value;
+        }
+
+        return sum;
+    }
+
+    /// <summary>当前集合采购明细上，未删除出库扩展的出库业务利润合计。</summary>
+    private async Task<decimal> SumOutboundProfitUsdAsync(
+        List<ItemLineAnalyticsRow> rows,
+        CancellationToken cancellationToken)
+    {
+        var itemIds = rows
+            .Select(r => r.ItemId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (itemIds.Count == 0)
+            return 0m;
+
+        return await _db.StockOutItemExtends.AsNoTracking()
+            .Where(e => !e.IsDeleted
+                && e.PurchaseOrderItemId != null
+                && itemIds.Contains(e.PurchaseOrderItemId))
+            .SumAsync(e => (decimal?)e.ProfitOutBizUsd, cancellationToken) ?? 0m;
     }
 
     private static bool IsApprovedRow(ItemLineAnalyticsRow r) =>
@@ -749,6 +814,7 @@ public sealed partial class PurchaseOrderItemListQuery
         public decimal Cost { get; set; }
         public short Currency { get; set; }
         public decimal ConvertPrice { get; set; }
+        public string? SellOrderItemId { get; set; }
         public short PurchaseProgressStatus { get; set; }
         public short StockInProgressStatus { get; set; }
         public short PaymentProgressStatus { get; set; }

@@ -1,7 +1,7 @@
 # AI 知识库问答（knowledge.handbook.qa）设计与实现
 
 **文档版本：** v0.1  
-**更新日期：** 2026-09-23  
+**更新日期：** 2026-09-28  
 **状态：** 草案（未编码）  
 **项目名称：** FrontCRM_CSharp  
 **适用对象：** 后端 / 前端 / 运维  
@@ -306,6 +306,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 | 权限 | `biz.ai.kb.qa` |
 | 输出格式 | `json` |
 | 温度 | 0.2（Moonshot kimi-k2 系由现有 Provider 强制为 1.0 的逻辑保持不变） |
+| 最大输出 | 8192。kimi-k2.6 的思考和正文共用该上限；2048 时思考会占满额度，正文为空，页面显示「这次没有生成回答，请再问一次。」 |
 | 缓存 TTL | 604800 秒 |
 | 缓存字段 | `question`、`corpus_version_id`、`chunk_ids` |
 | 允许输入 | `question`、`corpus_version_id`、`chunk_ids`、`context`、`compliance_hint` |
@@ -494,6 +495,7 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 | 扩展或类型不存在 | 该 PostgreSQL 实例是否安装 pgvector |
 | 维度错误 | 模型是否返回 1024；禁止把 1536 维写入 `vector(1024)` |
 | 答非所问 | 管理页打开命中块。块错了就调阈值或切块；块对了再改提示词 |
+| 这次没有生成回答 | `knowledge.handbook.qa` 的 `max_tokens` 是否仍为 2048。kimi-k2.6 思考占满后正文为空，调用日志 `completion_tokens` 会正好等于上限 |
 | 换了 Word 仍是旧答案 | 是否启用了新版本；`kb_ask_cache` 是否仍指向旧 `document_version_id` |
 | 目录句子被当成正文 | 切块单测与该版本前几块的 `heading` |
 
@@ -505,3 +507,4 @@ LLM 成功结果仍由 `AiOrchestrator` 写入 `ai_invocation_cache`。两层缓
 |------|------|
 | 2026-09-23 | 草案：切块、pgvector、LLM 问答、分步落地。首份文档为分销行业新人教材 |
 | 2026-09-24 | 向量配置定为 SiliconFlow `BAAI/bge-m3`，环境变量名 `AI_EMBEDDING_API_KEY` |
+| 2026-09-28 | 培训教材问答 `max_tokens` 提到 8192，避免 kimi-k2.6 思考占满 2048 后正文为空 |

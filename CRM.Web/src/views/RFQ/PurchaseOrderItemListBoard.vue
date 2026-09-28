@@ -194,6 +194,27 @@ const orderKpiItems = computed(() => {
   ]
 })
 
+const profitKpiItems = computed(() => {
+  const s = dashboard.value?.snapshot
+  if (!s) return []
+  return [
+    {
+      key: 'purchaseProfit',
+      label: tt('kpi.purchaseProfit'),
+      value: maskAmounts.value ? '—' : formatMoney(s.purchaseProfitUsd),
+      valueFormat: 'money' as const,
+      ...def('kpi.purchaseProfit')
+    },
+    {
+      key: 'outboundProfit',
+      label: tt('kpi.outboundProfit'),
+      value: maskAmounts.value ? '—' : formatMoney(s.outboundProfitUsd),
+      valueFormat: 'money' as const,
+      ...def('kpi.outboundProfit')
+    }
+  ]
+})
+
 const inStockKpiItems = computed(() => {
   const s = dashboard.value?.snapshot
   if (!s) return []
@@ -494,6 +515,11 @@ defineExpose({ reload: () => loadData(true) })
     <section class="section">
       <h3 class="section-title">{{ tt('sections.orderKpi') }}</h3>
       <AnalyticsKpiGrid :items="orderKpiItems" />
+    </section>
+
+    <section class="section">
+      <h3 class="section-title">{{ tt('sections.profitKpi') }}</h3>
+      <AnalyticsKpiGrid :items="profitKpiItems" />
     </section>
 
     <section class="section">
