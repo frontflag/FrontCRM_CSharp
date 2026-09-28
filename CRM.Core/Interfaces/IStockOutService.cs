@@ -548,6 +548,11 @@ namespace CRM.Core.Interfaces
         /// <summary>销售币别（与 <see cref="Constants.CurrencyCode"/> 一致）。</summary>
         public short? SalesCurrency { get; set; }
 
+        /// <summary>
+        /// 销售总额（原币）：有有效销售单价时为 <c>OutQuantity × SalesPrice</c>（四舍五入至 2 位）；无单价时为 null。
+        /// </summary>
+        public decimal? SalesAmount { get; set; }
+
         /// <summary>关联报关单主键（报关出库 Type=20）。</summary>
         public string? CustomsDeclarationId { get; set; }
 

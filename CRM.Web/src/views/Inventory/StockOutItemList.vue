@@ -243,7 +243,7 @@
       v-show="viewMode === 'list'"
       ref="dataTableRef"
       class="stockout-item-list-crm-table"
-      column-layout-key="stock-out-item-list-main-v3"
+      column-layout-key="stock-out-item-list-main-v4"
       :columns="stockOutItemTableColumns"
       :show-column-settings="false"
       :density-toggle-anchor-el="rowDensityToggleAnchorEl"
@@ -337,6 +337,37 @@
       <template #col-outQuantity="{ row }">
         <span class="so-item-list-qty">{{ formatQtyCell(row.outQuantity) }}</span>
       </template>
+      <template #col-salesPrice="{ row }">
+        <span v-if="maskSaleSensitiveFields" class="so-item-list-dash">—</span>
+        <template v-else-if="row.salesPrice != null && unitPriceDockHasValue(row.salesPrice)">
+          <div class="dock-tier-price-line">
+            <template v-for="amt in [splitUnitPriceDockParts(row.salesPrice)]" :key="'sp-' + row.stockOutItemId">
+              <span class="dock-tier-amt">
+                <span class="dock-tier-amt-int">{{ amt.intPart }}</span
+                ><span class="dock-tier-amt-frac">{{ amt.fracPart }}</span>
+              </span>
+            </template>
+            <span class="dock-tier-ccy-gap">&nbsp;</span>
+            <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.salesCurrency)]">{{
+              listAmountCurrencyIso(row.salesCurrency)
+            }}</span>
+          </div>
+        </template>
+        <span v-else class="so-item-list-dash">{{ t('quoteList.na') }}</span>
+      </template>
+      <template #col-salesAmount="{ row }">
+        <span v-if="maskSaleSensitiveFields" class="so-item-list-dash">—</span>
+        <template v-else-if="row.salesAmount != null && Number.isFinite(Number(row.salesAmount))">
+          <div class="dock-tier-price-line">
+            <span class="dock-tier-amt">{{ formatTotalAmountNumber(row.salesAmount) }}</span>
+            <span class="dock-tier-ccy-gap">&nbsp;</span>
+            <span :class="['dock-tier-ccy', listAmountCurrencyDockClass(row.salesCurrency)]">{{
+              listAmountCurrencyIso(row.salesCurrency)
+            }}</span>
+          </div>
+        </template>
+        <span v-else class="so-item-list-dash">{{ t('quoteList.na') }}</span>
+      </template>
       <template #col-stockOutType="{ row }">
         <StockBizTypeTag
           biz="out"
@@ -398,6 +429,13 @@ import { parseStockOutAmountCurrencyDrillQuery } from '@/utils/logisticsAnalytic
 import type { StockOutItemListAnalyticsQuery } from '@/api/stockOutItemAnalytics'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
+import {
+  formatTotalAmountNumber,
+  listAmountCurrencyDockClass,
+  listAmountCurrencyIso,
+  splitUnitPriceDockParts,
+  unitPriceDockHasValue
+} from '@/utils/moneyFormat'
 import { buildStockOutItemListColumns } from '@/composables/buildStockOutItemListColumns'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CustomsExtendColumnHeader from '@/components/list/CustomsExtendColumnHeader.vue'
@@ -913,6 +951,7 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 @import '@/assets/styles/variables.scss';
+@import '@/assets/styles/crm-quote-tier-dock.scss';
 
 .stockout-item-list-page {
   padding: 24px;
@@ -1275,7 +1314,9 @@ html[data-theme='dark'] .soi-filter-tabs__item:not(.is-active) {
 
 .stockout-item-list-crm-table.table-wrapper {
   :deep(.el-table th.so-item-qty-col .cell),
-  :deep(.el-table td.so-item-qty-col .cell) {
+  :deep(.el-table td.so-item-qty-col .cell),
+  :deep(.el-table th.so-item-amount-col .cell),
+  :deep(.el-table td.so-item-amount-col .cell) {
     overflow: visible;
     text-overflow: clip;
     white-space: nowrap;

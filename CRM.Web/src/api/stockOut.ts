@@ -574,6 +574,8 @@ export interface StockOutItemListRow {
   salesPrice?: number | null
   /** 销售币别（1=RMB 2=USD …） */
   salesCurrency?: number | null
+  /** 销售总额（原币）：有有效单价时为 outQuantity × salesPrice；无单价时为 null */
+  salesAmount?: number | null
   /** 关联报关单主键（报关出库 Type=20） */
   customsDeclarationId?: string | null
   /** 关联报关单号 */
@@ -857,6 +859,8 @@ function normalizeStockOutItemListRow(row: unknown): StockOutItemListRow {
       r.salesPrice != null || r.SalesPrice != null ? Number(r.salesPrice ?? r.SalesPrice) : null,
     salesCurrency:
       r.salesCurrency != null || r.SalesCurrency != null ? Number(r.salesCurrency ?? r.SalesCurrency) : null,
+    salesAmount:
+      r.salesAmount != null || r.SalesAmount != null ? Number(r.salesAmount ?? r.SalesAmount) : null,
     customsDeclarationId: (r.customsDeclarationId ?? r.CustomsDeclarationId) as string | null | undefined,
     customsDeclarationCode: (r.customsDeclarationCode ?? r.CustomsDeclarationCode) as string | null | undefined,
     customsBrokerName: (r.customsBrokerName ?? r.CustomsBrokerName) as string | null | undefined,

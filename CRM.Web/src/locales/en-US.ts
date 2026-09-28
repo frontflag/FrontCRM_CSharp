@@ -9360,6 +9360,8 @@ const enUS = {
       purchasePn: 'Material model',
       purchaseBrand: 'Brand',
       outQuantity: 'Qty out',
+      salesPrice: 'Sales unit price',
+      salesAmount: 'Sales amount',
       stockOutType: 'Stock-out type',
       shipmentMethod: 'Shipment method',
       courierTrackingNo: 'Tracking no.',

@@ -2709,7 +2709,8 @@ namespace CRM.Core.Services
                     PackingId = packingDisplay.Id,
                     PackingCode = packingDisplay.Code,
                     SalesPrice = salesPrice,
-                    SalesCurrency = salesCurrency
+                    SalesCurrency = salesCurrency,
+                    SalesAmount = ComputeStockOutItemListSalesAmount(salesPrice, outQty)
                 });
             }
 
@@ -2956,7 +2957,8 @@ namespace CRM.Core.Services
                     PackingCode = packingDisplay.Code,
                     FreightForwarderOrderNo = freightForwarderOrderNo,
                     SalesPrice = salesPrice,
-                    SalesCurrency = salesCurrency
+                    SalesCurrency = salesCurrency,
+                    SalesAmount = ComputeStockOutItemListSalesAmount(salesPrice, outQty)
                 });
             }
 
@@ -3119,6 +3121,14 @@ namespace CRM.Core.Services
             }
 
             return (null, null);
+        }
+
+        /// <summary>原币销售总额：有效单价时为 qty×price（AwayFromZero 至 2 位）；否则 null。</summary>
+        private static decimal? ComputeStockOutItemListSalesAmount(decimal? salesPrice, int outQty)
+        {
+            if (salesPrice is not > 0)
+                return null;
+            return Math.Round(outQty * salesPrice.Value, 2, MidpointRounding.AwayFromZero);
         }
 
         private static bool TextContainsOptional(string? haystack, string? needleTrimmedOrNull)

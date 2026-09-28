@@ -119,6 +119,7 @@ public static class SaleSensitiveFieldMask521
         x.SalesUserName = null;
         x.SalesPrice = null;
         x.SalesCurrency = null;
+        x.SalesAmount = null;
     }
 
         public static void ApplyStockOutItemListRows(IEnumerable<StockOutItemListRowDto>? rows, bool mask)

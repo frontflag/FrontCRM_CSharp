@@ -9339,6 +9339,8 @@ const zhCN = {
       purchasePn: '物料型号',
       purchaseBrand: '品牌',
       outQuantity: '出库数量',
+      salesPrice: '销售单价',
+      salesAmount: '销售总额',
       stockOutType: '出库类型',
       shipmentMethod: '出货方式',
       courierTrackingNo: '快递单号',

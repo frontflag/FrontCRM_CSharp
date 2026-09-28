@@ -139,6 +139,26 @@ export function buildStockOutItemListColumns(p: BuildStockOutItemListColumnsPara
       labelClassName: 'so-item-qty-col'
     },
     {
+      key: 'salesPrice',
+      label: p.t('stockOutItemList.columns.salesPrice'),
+      prop: 'salesPrice',
+      minWidth: Math.max(132, headerMin('stockOutItemList.columns.salesPrice', 'right')),
+      width: Math.max(132, headerMin('stockOutItemList.columns.salesPrice', 'right')),
+      align: 'right',
+      className: 'so-item-amount-col',
+      labelClassName: 'so-item-amount-col'
+    },
+    {
+      key: 'salesAmount',
+      label: p.t('stockOutItemList.columns.salesAmount'),
+      prop: 'salesAmount',
+      minWidth: Math.max(128, headerMin('stockOutItemList.columns.salesAmount', 'right')),
+      width: Math.max(128, headerMin('stockOutItemList.columns.salesAmount', 'right')),
+      align: 'right',
+      className: 'so-item-amount-col',
+      labelClassName: 'so-item-amount-col'
+    },
+    {
       key: 'stockOutType',
       label: p.t('stockOutItemList.columns.stockOutType'),
       prop: 'stockOutType',
