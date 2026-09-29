@@ -1,11 +1,17 @@
 <template>
   <div v-if="context" class="customer-intel-crm-bar">
     <div class="customer-intel-crm-bar__row">
-      <span class="customer-intel-crm-bar__company-name">{{ context.companyName }}</span>
+      <span class="customer-intel-crm-bar__company-name">{{
+        maskSaleSensitiveFields ? '—' : context.companyName
+      }}</span>
     </div>
     <div class="customer-intel-crm-bar__row customer-intel-crm-bar__meta">
-      <span v-if="context.creditCode">信用代码 {{ context.creditCode }}</span>
-      <span v-if="context.salesPersonName">{{ context.salesPersonName }}</span>
+      <span v-if="!maskSaleSensitiveFields && context.creditCode"
+        >信用代码 {{ context.creditCode }}</span
+      >
+      <span v-if="!maskSaleSensitiveFields && context.salesPersonName">{{
+        context.salesPersonName
+      }}</span>
       <el-tag v-if="context.blackList" type="danger" size="small" effect="dark">黑名单</el-tag>
       <el-tag v-if="context.disenableStatus" type="warning" size="small" effect="dark">已冻结</el-tag>
     </div>
@@ -14,10 +20,13 @@
 
 <script setup lang="ts">
 import type { CustomerIntelCrmContext } from '@/stores/customerIntelLookup'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 
 defineProps<{
   context: CustomerIntelCrmContext | null
 }>()
+
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 </script>
 
 <style scoped lang="scss">

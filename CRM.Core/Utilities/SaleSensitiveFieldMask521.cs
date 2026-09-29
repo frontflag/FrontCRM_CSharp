@@ -37,6 +37,9 @@ public static class SaleSensitiveFieldMask521
         c.SalesUserId = null;
         c.CreditLine = 0m;
         c.CreditLineRemain = 0m;
+        // PRD §5.2.1：统一社会信用代码、邓白氏与名称类一并脱敏
+        c.CreditCode = null;
+        c.DUNS = null;
         if (c.Contacts == null) return;
         foreach (var ct in c.Contacts)
         {

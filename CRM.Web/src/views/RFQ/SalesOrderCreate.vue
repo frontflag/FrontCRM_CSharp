@@ -421,6 +421,7 @@ import SettlementCurrencyAmountInput from '@/components/SettlementCurrencyAmount
 import BizBrandSelect from '@/components/Biz/BizBrandSelect.vue'
 import { resolveBrandIdsForItems } from '@/utils/bizBrandMatch'
 import { useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { CURRENCY_CODE_TO_TEXT, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import { formatTotalAmountNumber, formatUnitPriceNumber } from '@/utils/moneyFormat'
 import {
@@ -434,6 +435,7 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask()
 
 /** 与采购订单一致：编辑走独立路由 `SalesOrderEdit`（/sales-orders/:id/edit） */
 const editId = computed(() => (route.name === 'SalesOrderEdit' ? String(route.params.id || '').trim() : ''))
@@ -756,9 +758,12 @@ async function initStaffPickFields(orderForEdit?: Record<string, unknown>) {
 }
 
 function syncInvoiceFromCustomer(c: Customer) {
-  const name = c.customerName || ''
-  const tax = c.unifiedSocialCreditCode || ''
-  formData.value.invoiceInfo = tax ? `${name} (${tax})` : name
+  // 销售敏感脱敏：不把客户名称 / 统一社会信用代码写入开票信息
+  if (!maskSaleSensitiveFields.value) {
+    const name = c.customerName || ''
+    const tax = c.unifiedSocialCreditCode || ''
+    formData.value.invoiceInfo = tax ? `${name} (${tax})` : name
+  }
   if (c.paymentTerms != null && c.paymentTerms > 0) {
     formData.value.paymentTermsLabel = `NET ${c.paymentTerms}`
   }

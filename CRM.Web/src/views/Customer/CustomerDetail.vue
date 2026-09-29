@@ -181,11 +181,15 @@
           <div class="info-grid info-grid--inline-labels info-grid--basic">
             <div class="info-item">
               <span class="info-label">统一社会信用代码</span>
-              <span class="info-value info-value--code">{{ customer.unifiedSocialCreditCode?.trim() || '—' }}</span>
+              <span class="info-value info-value--code">{{
+                maskSaleSensitiveFields ? '—' : (customer.unifiedSocialCreditCode?.trim() || '—')
+              }}</span>
             </div>
             <div class="info-item">
               <span class="info-label">邓白氏编码</span>
-              <span class="info-value info-value--code">{{ customerDunsText }}</span>
+              <span class="info-value info-value--code">{{
+                maskSaleSensitiveFields ? '—' : customerDunsText
+              }}</span>
             </div>
           </div>
           <div class="info-grid info-grid--inline-labels info-grid--basic">
@@ -1274,10 +1278,12 @@ const fetchCustomerDetail = async () => {
     customer.value = c;
     customerIntelLookupStore.bindContext({
       customerId: c.id,
-      companyName: (c.customerName || c.customerShortName || '').trim(),
-      creditCode: c.unifiedSocialCreditCode || null,
+      companyName: maskSaleSensitiveFields.value
+        ? '—'
+        : (c.customerName || c.customerShortName || '').trim(),
+      creditCode: maskSaleSensitiveFields.value ? null : c.unifiedSocialCreditCode || null,
       region: c.city || c.region || null,
-      salesPersonName: c.salesPersonName || null,
+      salesPersonName: maskSaleSensitiveFields.value ? null : c.salesPersonName || null,
       blackList: !!c.blackList,
       disenableStatus: !!c.disenableStatus
     });

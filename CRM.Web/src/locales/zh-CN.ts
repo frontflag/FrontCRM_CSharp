@@ -10720,6 +10720,43 @@ const zhCN = {
     createVendorContact: '新建供应商联系人',
     needVendor: '请先选择供应商后，再新建联系人'
   },
+  customerSelect: {
+    preview: {
+      title: '客户概况',
+      expandTip: '展开客户概况',
+      close: '关闭',
+      loadFailed: '加载客户详情失败',
+      customerCode: '客户编码',
+      nameZh: '中文全称',
+      nameEn: '英文全称',
+      shortName: '简称',
+      creditCode: '统一社会信用代码',
+      duns: '邓白氏编码',
+      customerType: '客户类型',
+      industry: '行业',
+      createDate: '客户创建日期',
+      salesPerson: '业务员'
+    }
+  },
+  vendorSelect: {
+    preview: {
+      title: '供应商概况',
+      expandTip: '展开供应商概况',
+      close: '关闭',
+      loadFailed: '加载供应商详情失败',
+      vendorCode: '供应商编码',
+      nameZh: '中文全称',
+      nameEn: '英文全称',
+      shortName: '简称',
+      creditCode: '统一社会信用代码',
+      duns: '邓白氏编码',
+      level: '等级',
+      identity: '身份',
+      industry: '行业',
+      createDate: '创建日期',
+      purchaser: '采购员'
+    }
+  },
   pendingApprovals: {
     title: '审批管理',
     openApprovalDesktop: '进入审批桌面',

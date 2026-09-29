@@ -138,19 +138,23 @@
             <el-col :span="8">
               <el-form-item :label="t('customerEdit.fields.creditCode')">
                 <el-input
+                  v-if="!maskSaleSensitiveFields"
                   v-model="formData.unifiedSocialCreditCode"
                   :placeholder="t('customerEdit.placeholders.creditCode')"
                   class="q-input"
                 />
+                <el-input v-else model-value="—" disabled class="q-input" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
               <el-form-item :label="t('customerEdit.fields.duns')">
                 <el-input
+                  v-if="!maskSaleSensitiveFields"
                   v-model="formData.duns"
                   :placeholder="t('customerEdit.placeholders.duns')"
                   class="q-input"
                 />
+                <el-input v-else model-value="—" disabled class="q-input" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -504,6 +508,7 @@ import { regionData } from '@/data/regions';
 import { type CreateCustomerRequest } from '@/types/customer';
 import { useCustomerDictStore } from '@/stores/customerDict';
 import { runValidatedFormSave } from '@/composables/useFormSubmit';
+import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask';
 import { SETTLEMENT_CURRENCY_OPTIONS, CurrencyCode, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency';
 import { logRecentApi } from '@/api/logRecent';
 import { CUSTOMER_RECENT_HISTORY_CHANGED_EVENT } from '@/constants/customerRecentHistory';
@@ -598,6 +603,32 @@ const customerId = computed(() => route.params.id as string);
 const formRef = ref<FormInstance>();
 const pageLoading = ref(false);
 const customerEditMeta = ref<{ createDateText: string; createUserText: string } | null>(null);
+const { maskSaleSensitiveFields } = useSaleSensitiveFieldMask();
+/** 脱敏时从表单移除明文，保存更新时再回填，避免误清空库内值 */
+const preservedSensitiveIds = ref({ creditCode: '', duns: '' });
+
+function stashAndMaskSensitiveIdentityFields() {
+  if (!maskSaleSensitiveFields.value) {
+    preservedSensitiveIds.value = { creditCode: '', duns: '' };
+    return;
+  }
+  preservedSensitiveIds.value = {
+    creditCode: String(formData.unifiedSocialCreditCode ?? '').trim(),
+    duns: String(formData.duns ?? '').trim()
+  };
+  formData.unifiedSocialCreditCode = '';
+  formData.duns = '';
+}
+
+function withSensitiveFieldsForSave<T extends Record<string, unknown>>(data: T): T {
+  if (!maskSaleSensitiveFields.value) return data;
+  return {
+    ...data,
+    unifiedSocialCreditCode:
+      preservedSensitiveIds.value.creditCode || String(data.unifiedSocialCreditCode ?? ''),
+    duns: preservedSensitiveIds.value.duns || String(data.duns ?? '')
+  };
+}
 
 const editCaptionTitle = computed(() => {
   const name = formData.customerName?.trim();
@@ -712,6 +743,7 @@ const fetchCustomerDetail = async () => {
       contacts: customer.contacts || []
     };
     Object.assign(formData, mappedData);
+    stashAndMaskSensitiveIdentityFields();
     normalizeInvoiceTypeModel();
     const rawCreate = customer.createdAt ?? customer.createTime ?? customerAny.CreateTime;
     const createDateText = rawCreate ? formatDisplayDate(rawCreate) : '—';
@@ -875,6 +907,7 @@ const applyDraftPayload = async (payload: any) => {
     delete p._businessCardAddress;
   }
   Object.assign(formData, p || {});
+  stashAndMaskSensitiveIdentityFields();
   normalizeInvoiceTypeModel();
   formData.contacts = Array.isArray(p?.contacts)
     ? p.contacts.map((c: any, idx: number) => normalizeContactRow(c, idx))
@@ -1025,10 +1058,29 @@ const handleSave = async () => {
       }
       let targetCustomerId = '';
       if (editing) {
-        await customerApi.updateCustomer(customerId.value, formData);
+        let savePayload: any = withSensitiveFieldsForSave({ ...formData });
+        // 脱敏编辑：若内存未保留明文（如草稿恢复），提交前从服务端回取，避免误清空
+        if (maskSaleSensitiveFields.value) {
+          const hasPreserved =
+            !!String(savePayload.unifiedSocialCreditCode ?? '').trim() ||
+            !!String(savePayload.duns ?? '').trim();
+          if (!hasPreserved) {
+            const fresh = await customerApi.getCustomerById(customerId.value);
+            const freshAny = fresh as any;
+            savePayload = {
+              ...savePayload,
+              unifiedSocialCreditCode:
+                fresh.unifiedSocialCreditCode || freshAny.creditCode || '',
+              duns: fresh.duns || freshAny.dUNS || freshAny.DUNS || ''
+            };
+          }
+        }
+        await customerApi.updateCustomer(customerId.value, savePayload);
         targetCustomerId = customerId.value;
       } else {
-        const created = await customerApi.createCustomer(formData);
+        const created = await customerApi.createCustomer(
+          withSensitiveFieldsForSave({ ...formData }) as any
+        );
         targetCustomerId = (created as any)?.id || (created as any)?.data?.id || '';
       }
 

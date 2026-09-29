@@ -267,12 +267,7 @@ public static class PurchaseSensitiveFieldMask511
     {
         if (!mask || items == null) return;
         foreach (var v in items)
-        {
-            v.OfficialName = null;
-            v.NickName = null;
-            v.EnglishOfficialName = null;
-            v.Code = string.Empty;
-        }
+            ApplyVendorInfo(v, true);
     }
 
     public static void ApplyVendorInfo(VendorInfo? v, bool mask)
@@ -282,6 +277,9 @@ public static class PurchaseSensitiveFieldMask511
         v.NickName = null;
         v.EnglishOfficialName = null;
         v.Code = string.Empty;
+        // PRD §5.1.1：统一社会信用代码、邓白氏与名称类一并脱敏
+        v.CreditCode = null;
+        v.DUNS = null;
     }
 
     /// <summary>报价单行：隐藏供应商身份，保留单价/数量等业务字段。</summary>

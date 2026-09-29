@@ -909,12 +909,15 @@ function onCreateDropdownCommand(cmd: string) {
   if (cmd === 'uploadCard') businessCardHostRef.value?.open();
 }
 function buildCustomerIntelContext(row: Customer) {
+  const mask = maskSaleSensitiveFields.value
   return {
     customerId: row.id,
-    companyName: (row.customerName || row.customerShortName || '').trim(),
-    creditCode: row.unifiedSocialCreditCode || (row as { creditCode?: string }).creditCode || null,
+    companyName: mask ? '—' : (row.customerName || row.customerShortName || '').trim(),
+    creditCode: mask
+      ? null
+      : row.unifiedSocialCreditCode || (row as { creditCode?: string }).creditCode || null,
     region: row.city || row.region || null,
-    salesPersonName: row.salesPersonName || null,
+    salesPersonName: mask ? null : row.salesPersonName || null,
     blackList: !!row.blackList,
     disenableStatus: !!row.disenableStatus
   }

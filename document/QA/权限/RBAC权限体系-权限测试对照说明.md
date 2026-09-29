@@ -148,16 +148,24 @@
 
 ### 6.2 销售敏感字段清单（SaleSensitiveFieldMask521）
 
-> 触发条件：采购侧用户查看销售单据且 `SaleDataScope=4`。字段由代码枚举，测试时应逐一检查以下字段是否被隐藏/置空。
+> 触发条件：采购侧用户查看销售单据且 `SaleDataScope=4`。字段由代码枚举，测试时应逐一检查以下字段是否被隐藏/置空。  
+> **身份编码专篇：** [客户供应商-信用代码与邓白氏脱敏-设计与实现](../../System/权限/客户供应商-信用代码与邓白氏脱敏-设计与实现.md)
 
 | 字段类型 | 字段示例 |
 |----------|----------|
 | 销售价格 | `SalePrice`、`SaleAmount`、`SalesAmountUsd`、`SalesAmountCny`、`TargetSalePrice`、`QuotedSalePrice` |
 | 客户信息 | `CustomerContactName`、`CustomerContactPhone`、`CustomerContactEmail`、`CustomerPaymentTerm`、`CustomerAddress` |
+| **客户工商身份编码** | **`CreditCode` / `unifiedSocialCreditCode`（统一社会信用代码）、`DUNS` / `duns`（邓白氏）** — 详情为 `—`；概况浮窗整行隐藏；编辑只读占位且保存不误清空 |
 | 销售利润 | `EstimatedProfit`、`ProfitMargin`、`GrossProfit`、`SalesCommission`、`SalesBonus` |
 | 销售备注 | `SalesInternalNote`、`SalesCustomerNote`、`SalesQuotationNote` |
 | 销售附件 | `SalesAttachmentUrl`、`SalesQuotationAttachmentId` |
 | 销售专属标识 | `SalesOrderNo`、`SalesContractNo`、`SalesQuoteNo`、`CustomerPoNo` |
+
+| 用例编号 | 用例标题 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
+|----------|----------|----------|----------|----------|--------|
+| MASK-C-CREDIT-001 | 客户详情信用代码/邓白氏打码 | 采购方向 + `SaleDataScope=4`，非 bypass | 1. 打开有信用代码与邓白氏的客户详情 | 两项均显示 `—` | P0 |
+| MASK-C-CREDIT-002 | 客户概况浮窗隐藏两项 | 同上 | 1. 任意业务页打开客户下拉 → 展开概况 | 无「统一社会信用代码」「邓白氏」行 | P0 |
+| MASK-C-CREDIT-003 | 客户编辑只读且保存不损库值 | 同上，可进编辑 | 1. 打开编辑 → 两项为 `—` 且不可改<br>2. 改其它字段保存后用有权限账号再看详情 | 库内原信用代码/邓白氏仍在 | P0 |
 
 ### 6.3 采购敏感字段清单（PurchaseSensitiveFieldMask511）
 
@@ -167,10 +175,17 @@
 |----------|----------|
 | 采购价格 | `PurchasePrice`、`PurchaseAmount`、`PurchaseAmountUsd`、`PurchaseAmountCny`、`TargetPurchasePrice`、`QuotedPurchasePrice` |
 | 供应商信息 | `VendorContactName`、`VendorContactPhone`、`VendorContactEmail`、`VendorPaymentTerm`、`VendorAddress`、`VendorBankInfo` |
+| **供应商工商身份编码** | **`CreditCode`（统一社会信用代码）、`DUNS` / `duns`（邓白氏）** — 详情为 `—`；概况浮窗整行隐藏 |
 | 采购成本 | `EstimatedCost`、`CostMargin`、`ActualCost`、`PurchaseCommission` |
 | 采购备注 | `PurchaseInternalNote`、`VendorNote`、`PurchaseQuotationNote` |
 | 采购附件 | `PurchaseAttachmentUrl`、`PurchaseQuotationAttachmentId` |
 | 采购专属标识 | `PurchaseOrderNo`、`PurchaseContractNo`、`VendorQuoteNo`、`VendorInvoiceNo` |
+
+| 用例编号 | 用例标题 | 前置条件 | 测试步骤 | 预期结果 | 优先级 |
+|----------|----------|----------|----------|----------|--------|
+| MASK-V-CREDIT-001 | 供应商详情信用代码/邓白氏打码 | 销售方向 + `PurchaseDataScope=4`，非 bypass | 1. 打开有信用代码与邓白氏的供应商详情 | 两项均显示 `—` | P0 |
+| MASK-V-CREDIT-002 | 供应商概况浮窗隐藏两项 | 同上 | 1. 报价/PO 等打开供应商下拉 → 展开概况 | 无「统一社会信用代码」「邓白氏」行 | P0 |
+| MASK-V-CREDIT-003 | 查重提醒仍可展示编码 | 有供应商维护权限 | 1. 新建供应商填与已有相同的信用代码后保存 | 查重弹窗仍可出现命中编码（防漏建）；详情页脱敏规则不变 | P1 |
 
 ### 6.4 附件跨业务线访问控制
 

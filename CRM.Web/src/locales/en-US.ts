@@ -10741,6 +10741,43 @@ const enUS = {
     createVendorContact: 'New vendor contact',
     needVendor: 'Select a vendor first to create a contact'
   },
+  customerSelect: {
+    preview: {
+      title: 'Customer overview',
+      expandTip: 'Expand customer overview',
+      close: 'Close',
+      loadFailed: 'Failed to load customer details',
+      customerCode: 'Customer code',
+      nameZh: 'Chinese name',
+      nameEn: 'English name',
+      shortName: 'Short name',
+      creditCode: 'Unified social credit code',
+      duns: 'D-U-N-S',
+      customerType: 'Customer type',
+      industry: 'Industry',
+      createDate: 'Created on',
+      salesPerson: 'Salesperson'
+    }
+  },
+  vendorSelect: {
+    preview: {
+      title: 'Vendor overview',
+      expandTip: 'Expand vendor overview',
+      close: 'Close',
+      loadFailed: 'Failed to load vendor details',
+      vendorCode: 'Vendor code',
+      nameZh: 'Chinese name',
+      nameEn: 'English name',
+      shortName: 'Short name',
+      creditCode: 'Unified social credit code',
+      duns: 'D-U-N-S',
+      level: 'Level',
+      identity: 'Identity',
+      industry: 'Industry',
+      createDate: 'Created on',
+      purchaser: 'Purchaser'
+    }
+  },
   pendingApprovals: {
     title: 'Approvals',
     openApprovalDesktop: 'Enter Approval Desktop',
