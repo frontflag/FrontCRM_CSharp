@@ -468,7 +468,8 @@ const enUS = {
       filterPoLine: 'PO line code',
       colPoLine: 'PO line code',
       colOrigPurchasePrice: 'Original purchase unit price',
-      colCostUsd: 'Purchase price (USD)',
+      colCostUsd: 'Customs purchase USD price',
+      colCustomsPurchaseUsdAmount: 'Customs purchase USD amount',
       colVendor: 'Vendor',
       colOrigPurchaseAmount: 'Original purchase amount',
       colDeclareDate: 'Declare date',
@@ -3530,7 +3531,16 @@ const enUS = {
       closed: 'Closed',
       unknown: 'Unknown'
     },
-    actions: { column: 'Actions', copy: 'Copy', edit: 'Edit', delete: 'Delete', copySuccess: 'Quote summary copied', copyFailed: 'Copy failed — please copy manually' },
+    actions: {
+      column: 'Actions',
+      copy: 'Copy',
+      copyWithTitle: 'Copy with labels',
+      edit: 'Edit',
+      delete: 'Delete',
+      copySuccess: 'Quote summary copied (incl. lead time & remark)',
+      copyWithTitleSuccess: 'Labeled quote summary copied',
+      copyFailed: 'Copy failed — please copy manually'
+    },
     warnings: {
       selectFirst: 'Add quotes to the multi-select basket from the list first, then generate the sales order.',
       invalidId: 'Unable to identify quote ID',
@@ -4034,7 +4044,17 @@ const enUS = {
       quoteCurrency: 'Currency',
       quoter: 'Quoter'
     },
-    actions: { column: 'Actions', detail: 'Detail', quote: 'Quote', markNoQuote: 'No Quote Found', copy: 'Copy', copySuccess: 'Copied RFQ line (MPN, brand, qty, currency)', copyFailed: 'Copy failed; copy manually' },
+    actions: {
+      column: 'Actions',
+      detail: 'Detail',
+      quote: 'Quote',
+      markNoQuote: 'No Quote Found',
+      copy: 'Copy',
+      copyWithTitle: 'Copy with labels',
+      copySuccess: 'Copied RFQ line (MPN, brand, qty, currency)',
+      copyWithTitleSuccess: 'Copied labeled RFQ line',
+      copyFailed: 'Copy failed; copy manually'
+    },
     basket: {
       batchCopy: 'Batch Copy',
       batchCopySuccess: 'Copied {count} RFQ line(s) from basket'

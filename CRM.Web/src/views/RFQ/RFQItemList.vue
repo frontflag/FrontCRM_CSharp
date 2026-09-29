@@ -351,7 +351,10 @@
                 class="action-btn action-btn--primary"
                 @click.stop="goDetail(row)"
               >{{ t('rfqItemList.actions.detail') }}</button>
-              <button type="button" class="action-btn" @click.stop="handleCopyRfqItemRow(row)">{{ t('rfqItemList.actions.copy') }}</button>
+              <button type="button" class="action-btn" @click.stop="handleCopyRfqItemRow(row)">
+                <el-icon :size="14"><CopyDocument /></el-icon>
+                {{ t('rfqItemList.actions.copy') }}
+              </button>
               <button
                 v-if="!isRfqItemReference && canQuoteRfqItemRow(row)"
                 type="button"
@@ -375,8 +378,30 @@
                 <el-dropdown-item v-if="!isRfqItemReference" @click.stop="goDetail(row)">
                   <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
                 </el-dropdown-item>
-                <el-dropdown-item @click.stop="handleCopyRfqItemRow(row)">
-                  <span class="op-more-item">{{ t('rfqItemList.actions.copy') }}</span>
+                <el-dropdown-item class="op-copy-flyout" @click.stop>
+                  <el-dropdown
+                    trigger="hover"
+                    placement="right-start"
+                    :show-timeout="80"
+                    :hide-timeout="150"
+                    teleported
+                  >
+                    <div
+                      class="op-copy-flyout__trigger"
+                      @click.stop="handleCopyRfqItemRow(row)"
+                    >
+                      <el-icon :size="14" class="op-more-item__icon"><CopyDocument /></el-icon>
+                      <span>{{ t('rfqItemList.actions.copy') }}</span>
+                      <el-icon :size="12" class="op-copy-flyout__arrow"><ArrowRight /></el-icon>
+                    </div>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item @click.stop="handleCopyRfqItemRowWithTitle(row)">
+                          <span class="op-more-item">{{ t('rfqItemList.actions.copyWithTitle') }}</span>
+                        </el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="!isRfqItemReference && canQuoteRfqItemRow(row)" @click.stop="goQuote(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
@@ -758,6 +783,7 @@
                       class="action-btn"
                       link
                       size="small"
+                      :icon="CopyDocument"
                       @click.stop="handleCopyDockQuote(row)"
                     >
                       {{ t('quoteList.actions.copy') }}
@@ -811,8 +837,30 @@
                   </div>
                   <template #dropdown>
                     <el-dropdown-menu>
-                      <el-dropdown-item @click.stop="handleCopyDockQuote(row)">
-                        <span class="op-more-item">{{ t('quoteList.actions.copy') }}</span>
+                      <el-dropdown-item class="op-copy-flyout" @click.stop>
+                        <el-dropdown
+                          trigger="hover"
+                          placement="right-start"
+                          :show-timeout="80"
+                          :hide-timeout="150"
+                          teleported
+                        >
+                          <div
+                            class="op-copy-flyout__trigger"
+                            @click.stop="handleCopyDockQuote(row)"
+                          >
+                            <el-icon :size="14" class="op-more-item__icon"><CopyDocument /></el-icon>
+                            <span>{{ t('quoteList.actions.copy') }}</span>
+                            <el-icon :size="12" class="op-copy-flyout__arrow"><ArrowRight /></el-icon>
+                          </div>
+                          <template #dropdown>
+                            <el-dropdown-menu>
+                              <el-dropdown-item @click.stop="handleCopyDockQuoteWithTitle(row)">
+                                <span class="op-more-item">{{ t('quoteList.actions.copyWithTitle') }}</span>
+                              </el-dropdown-item>
+                            </el-dropdown-menu>
+                          </template>
+                        </el-dropdown>
                       </el-dropdown-item>
                       <el-dropdown-item
                         v-if="!isRfqItemReference && canEditDockQuoteRow(row as Record<string, unknown>)"
@@ -1086,7 +1134,11 @@ import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/com
 import { useRfqItemListBasketStore } from '@/stores/rfqItemListBasket'
 import { canAccessQuoteDesktop, canQuoteRfqItem } from '@/utils/rfqItemQuoteAccessRules'
 import { canAccessRfqItemReference } from '@/utils/rfqItemReferenceAccess'
-import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
+import {
+  copyQuoteSummaryToClipboard,
+  copyQuoteSummaryWithTitlesToClipboard,
+  type QuoteSummaryCopyFieldLabels
+} from '@/utils/quoteSummaryCopy'
 import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay, quoteVendorTradeCountsDisplay } from '@/utils/quoteVendorDisplay'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import { useVendorDictStore } from '@/stores/vendorDict'
@@ -1132,7 +1184,7 @@ import {
 import { useQuoteListBasketStore } from '@/stores/quoteListBasket'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
-import { ArrowRight, Setting } from '@element-plus/icons-vue'
+import { ArrowRight, CopyDocument, Setting } from '@element-plus/icons-vue'
 import {
   RFQ_ITEM_TAB_MODE_OPTIONS,
   RFQ_ITEM_STATUS_TAB_VALUES,
@@ -2416,6 +2468,33 @@ function formatRfqItemCopyLine(row: RFQItem): string {
   return [mpn, brand, qty, currency].join('    ')
 }
 
+/** 方案 C：多行「标题: 值」 */
+function formatRfqItemCopyLineWithTitles(row: RFQItem): string {
+  const rowAny = row as RFQItem & { mpn?: string }
+  const mpn = String(rowAny.materialModel || rowAny.mpn || '').trim() || '—'
+  const brand = String(row.brand || '').trim() || '—'
+  const qty = row.quantity != null && Number.isFinite(row.quantity) ? String(row.quantity) : '—'
+  const currency = dockTierCurrencyCode(resolveRfqItemPriceCurrency(row))
+  return [
+    `${t('rfqItemList.columns.materialModel')}: ${mpn}`,
+    `${t('rfqItemList.columns.brand')}: ${brand}`,
+    `${t('rfqItemList.columns.quantity')}: ${qty}`,
+    `${t('rfqItemList.columns.priceCurrency')}: ${currency}`
+  ].join('\n')
+}
+
+function quoteSummaryCopyFieldLabels(): QuoteSummaryCopyFieldLabels {
+  return {
+    mpn: t('quoteList.columns.mpn'),
+    brand: t('quoteList.columns.brand'),
+    quantity: t('quoteList.columns.quantity'),
+    unitPrice: t('quoteList.columns.unitPrice'),
+    productionDate: t('quoteList.columns.productionDateDc'),
+    leadTime: t('quoteList.columns.leadTime'),
+    remark: t('rfqItemList.dockQuotes.remark')
+  }
+}
+
 async function copyRfqItemTextToClipboard(text: string): Promise<boolean> {
   if (copyTextToClipboard(text)) return true
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
@@ -2699,6 +2778,16 @@ async function handleCopyRfqItemRow(row: RFQItem) {
   ElMessage.error(t('rfqItemList.actions.copyFailed'))
 }
 
+async function handleCopyRfqItemRowWithTitle(row: RFQItem) {
+  const text = formatRfqItemCopyLineWithTitles(row)
+  const ok = await copyRfqItemTextToClipboard(text)
+  if (ok) {
+    ElMessage.success(t('rfqItemList.actions.copyWithTitleSuccess'))
+    return
+  }
+  ElMessage.error(t('rfqItemList.actions.copyFailed'))
+}
+
 async function handleCopyDockQuote(row: Record<string, unknown>) {
   const ok = await copyQuoteSummaryToClipboard(row, {
     naLabel: t('quoteList.na'),
@@ -2706,6 +2795,19 @@ async function handleCopyDockQuote(row: Record<string, unknown>) {
   })
   if (ok) {
     ElMessage.success(t('quoteList.actions.copySuccess'))
+    return
+  }
+  ElMessage.error(t('quoteList.actions.copyFailed'))
+}
+
+async function handleCopyDockQuoteWithTitle(row: Record<string, unknown>) {
+  const ok = await copyQuoteSummaryWithTitlesToClipboard(row, {
+    naLabel: t('quoteList.na'),
+    materialPdOptions: materialPdOptions.value,
+    labels: quoteSummaryCopyFieldLabels()
+  })
+  if (ok) {
+    ElMessage.success(t('quoteList.actions.copyWithTitleSuccess'))
     return
   }
   ElMessage.error(t('quoteList.actions.copyFailed'))

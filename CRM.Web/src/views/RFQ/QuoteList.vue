@@ -199,6 +199,7 @@
           <div @click.stop @dblclick.stop>
             <div v-if="opColExpanded" class="action-btns">
               <button type="button" class="action-btn" @click.stop="handleCopyQuoteSummary(row)">
+                <el-icon :size="14"><CopyDocument /></el-icon>
                 {{ t('quoteList.actions.copy') }}
               </button>
               <button
@@ -224,8 +225,30 @@
               </div>
               <template #dropdown>
                 <el-dropdown-menu>
-                  <el-dropdown-item @click.stop="handleCopyQuoteSummary(row)">
-                    <span class="op-more-item">{{ t('quoteList.actions.copy') }}</span>
+                  <el-dropdown-item class="op-copy-flyout" @click.stop>
+                    <el-dropdown
+                      trigger="hover"
+                      placement="right-start"
+                      :show-timeout="80"
+                      :hide-timeout="150"
+                      teleported
+                    >
+                      <div
+                        class="op-copy-flyout__trigger"
+                        @click.stop="handleCopyQuoteSummary(row)"
+                      >
+                        <el-icon :size="14" class="op-more-item__icon"><CopyDocument /></el-icon>
+                        <span>{{ t('quoteList.actions.copy') }}</span>
+                        <el-icon :size="12" class="op-copy-flyout__arrow"><ArrowRight /></el-icon>
+                      </div>
+                      <template #dropdown>
+                        <el-dropdown-menu>
+                          <el-dropdown-item @click.stop="handleCopyQuoteSummaryWithTitle(row)">
+                            <span class="op-more-item">{{ t('quoteList.actions.copyWithTitle') }}</span>
+                          </el-dropdown-item>
+                        </el-dropdown-menu>
+                      </template>
+                    </el-dropdown>
                   </el-dropdown-item>
                   <el-dropdown-item v-if="canEditQuoteRow(row)" @click.stop="handleEdit(row)">
                     <span class="op-more-item op-more-item--primary">{{ t('quoteList.actions.edit') }}</span>
@@ -397,12 +420,16 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import { Search, Setting, Document, Loading } from '@element-plus/icons-vue'
+import { Search, Setting, Document, Loading, CopyDocument, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi } from '@/api/quote'
 import { useQuoteListBasketStore } from '@/stores/quoteListBasket'
 import { listAmountCurrencyDockClass, listAmountCurrencyIso } from '@/utils/moneyFormat'
-import { copyQuoteSummaryToClipboard } from '@/utils/quoteSummaryCopy'
+import {
+  copyQuoteSummaryToClipboard,
+  copyQuoteSummaryWithTitlesToClipboard,
+  type QuoteSummaryCopyFieldLabels
+} from '@/utils/quoteSummaryCopy'
 import { assertQuotesSameCustomer } from '@/utils/quoteSalesOrderPrefill'
 import { formatDisplayDate, formatDisplayDateTime2DigitYearParts } from '@/utils/displayDateTime'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
@@ -751,6 +778,18 @@ function displayQuoteLeadTime(row: Record<string, unknown>): string {
   return t('quoteList.na')
 }
 
+function quoteSummaryCopyFieldLabels(): QuoteSummaryCopyFieldLabels {
+  return {
+    mpn: t('quoteList.columns.mpn'),
+    brand: t('quoteList.columns.brand'),
+    quantity: t('quoteList.columns.quantity'),
+    unitPrice: t('quoteList.columns.unitPrice'),
+    productionDate: t('quoteList.columns.productionDateDc'),
+    leadTime: t('quoteList.columns.leadTime'),
+    remark: t('rfqItemList.dockQuotes.remark')
+  }
+}
+
 async function handleCopyQuoteSummary(row: Record<string, unknown>) {
   const ok = await copyQuoteSummaryToClipboard(row, {
     naLabel: t('quoteList.na'),
@@ -758,6 +797,19 @@ async function handleCopyQuoteSummary(row: Record<string, unknown>) {
   })
   if (ok) {
     ElMessage.success(t('quoteList.actions.copySuccess'))
+    return
+  }
+  ElMessage.error(t('quoteList.actions.copyFailed'))
+}
+
+async function handleCopyQuoteSummaryWithTitle(row: Record<string, unknown>) {
+  const ok = await copyQuoteSummaryWithTitlesToClipboard(row, {
+    naLabel: t('quoteList.na'),
+    materialPdOptions: materialPdOptions.value,
+    labels: quoteSummaryCopyFieldLabels()
+  })
+  if (ok) {
+    ElMessage.success(t('quoteList.actions.copyWithTitleSuccess'))
     return
   }
   ElMessage.error(t('quoteList.actions.copyFailed'))
@@ -1398,8 +1450,15 @@ onMounted(() => {
 }
 
 .op-more-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item__icon {
+  flex-shrink: 0;
 }
 
 .op-more-item--primary {

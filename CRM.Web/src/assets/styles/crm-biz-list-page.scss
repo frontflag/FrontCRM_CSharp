@@ -329,8 +329,46 @@
 }
 
 .crm-biz-list-page .op-more-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.crm-biz-list-page .op-more-item__icon {
+  flex-shrink: 0;
+}
+
+.crm-biz-list-page .op-copy-flyout {
+  width: 100%;
+  padding: 0 !important;
+  line-height: normal !important;
+}
+
+.crm-biz-list-page .op-copy-flyout .el-tooltip__trigger,
+.crm-biz-list-page .op-copy-flyout > .el-dropdown {
+  display: block;
+  width: 100%;
+}
+
+.crm-biz-list-page .op-copy-flyout__trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 16px;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: inherit;
+  cursor: pointer;
+}
+
+.crm-biz-list-page .op-copy-flyout__arrow {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.55;
 }
 
 .crm-biz-list-page .op-more-item--primary {

@@ -466,7 +466,8 @@ const zhCN = {
       filterPoLine: '原币采购明细单号',
       colPoLine: '原币采购明细单号',
       colOrigPurchasePrice: '原币采购单价',
-      colCostUsd: '采购美金价',
+      colCostUsd: '报关采购美金价',
+      colCustomsPurchaseUsdAmount: '报关采购美金总额',
       colVendor: '供应商名称',
       colOrigPurchaseAmount: '原币采购总额',
       colDeclareDate: '申报日期',
@@ -3504,7 +3505,16 @@ const zhCN = {
       closed: '关闭',
       unknown: '未知'
     },
-    actions: { column: '操作', copy: '复制', edit: '编辑', delete: '删除', copySuccess: '已复制报价摘要', copyFailed: '复制失败，请手动复制' },
+    actions: {
+      column: '操作',
+      copy: '复制',
+      copyWithTitle: '带标题复制',
+      edit: '编辑',
+      delete: '删除',
+      copySuccess: '已复制报价摘要（含交期、备注）',
+      copyWithTitleSuccess: '已复制带标题报价摘要',
+      copyFailed: '复制失败，请手动复制'
+    },
     warnings: {
       selectFirst: '请先在列表中勾选报价加入复选篮子，再生成销售订单',
       invalidId: '无法识别报价主键',
@@ -4011,7 +4021,17 @@ const zhCN = {
       quoteCurrency: '币别',
       quoter: '报价员'
     },
-    actions: { column: '操作', detail: '详情', quote: '报价', markNoQuote: '查无报价', copy: '复制', copySuccess: '已复制需求明细（物料型号、品牌、数量、币别）', copyFailed: '复制失败，请手动复制' },
+    actions: {
+      column: '操作',
+      detail: '详情',
+      quote: '报价',
+      markNoQuote: '查无报价',
+      copy: '复制',
+      copyWithTitle: '带标题复制',
+      copySuccess: '已复制需求明细（物料型号、品牌、数量、币别）',
+      copyWithTitleSuccess: '已复制带标题需求明细',
+      copyFailed: '复制失败，请手动复制'
+    },
     basket: {
       batchCopy: '批量复制',
       batchCopySuccess: '已复制篮子中 {count} 条需求明细'

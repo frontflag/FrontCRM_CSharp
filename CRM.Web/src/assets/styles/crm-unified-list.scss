@@ -938,8 +938,15 @@ html[data-theme='dark'] .crm-items-table.crm-data-table td.op-col .op-more-dropd
 }
 
 .op-more-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   font-family: 'Noto Sans SC', sans-serif;
+}
+
+.op-more-item__icon {
+  flex-shrink: 0;
 }
 
 .op-more-item--primary {
@@ -960,6 +967,38 @@ html[data-theme='dark'] .crm-items-table.crm-data-table td.op-col .op-more-dropd
 
 .op-more-item--info {
   color: var(--crm-op-more-info);
+}
+
+/* 操作「复制」悬停展开右侧二级菜单 */
+.op-copy-flyout {
+  width: 100%;
+  padding: 0 !important;
+  line-height: normal !important;
+}
+
+.op-copy-flyout .el-tooltip__trigger,
+.op-copy-flyout > .el-dropdown {
+  display: block;
+  width: 100%;
+}
+
+.op-copy-flyout__trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 5px 16px;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: inherit;
+  cursor: pointer;
+}
+
+.op-copy-flyout__arrow {
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.55;
 }
 
 // --- 卡片型列表区（筛选 + 表格一体）---
