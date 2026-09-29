@@ -212,10 +212,22 @@
         <span>{{ row.customsBrokerName || '—' }}</span>
       </template>
       <template #col-totalTaxAmount="{ row }">
-        <span>{{ formatTotalAmountNumber(row.totalTaxAmount) }}</span>
+        <span class="amount-with-code">
+          <span>{{ formatTotalAmountNumber(row.totalTaxAmount) }}</span>
+          <span
+            v-if="formatTotalAmountNumber(row.totalTaxAmount) !== '—'"
+            class="dock-tier-ccy dock-tier-ccy--rmb"
+          >RMB</span>
+        </span>
       </template>
       <template #col-totalTaxAmountUsd="{ row }">
-        <span class="amount-text dock-quote-tier-line">{{ formatTotalTaxUsd(row.totalTaxAmountUsd) }}</span>
+        <span class="amount-with-code">
+          <span>{{ formatTotalTaxUsd(row.totalTaxAmountUsd) }}</span>
+          <span
+            v-if="formatTotalTaxUsd(row.totalTaxAmountUsd) !== '—'"
+            class="dock-tier-ccy dock-tier-ccy--usd"
+          >USD</span>
+        </span>
       </template>
       <template #col-remark="{ row }">
         <span>{{ row.remark || '—' }}</span>
@@ -569,8 +581,8 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => [
   { key: 'packingCode', label: t('customsPages.declarations.colPackingCode'), prop: 'packingCode', width: 150, minWidth: 130, showOverflowTooltip: true },
   { key: 'declareDate', label: t('customsPages.declarations.colDeclareDate'), prop: 'declareDate', width: 120 },
   { key: 'customsBrokerName', label: t('customsPages.declarations.colBroker'), prop: 'customsBrokerName', minWidth: 140, showOverflowTooltip: true },
-  { key: 'totalTaxAmount', label: t('customsPages.declarations.colTotalRmb'), prop: 'totalTaxAmount', width: 148, align: 'right' },
-  { key: 'totalTaxAmountUsd', label: t('customsPages.declarations.colTotalUsd'), prop: 'totalTaxAmountUsd', width: 148, align: 'right' },
+  { key: 'totalTaxAmount', label: t('customsPages.declarations.colTotalRmb'), prop: 'totalTaxAmount', width: 168, align: 'right' },
+  { key: 'totalTaxAmountUsd', label: t('customsPages.declarations.colTotalUsd'), prop: 'totalTaxAmountUsd', width: 168, align: 'right' },
   { key: 'remark', label: t('customsPages.declarations.colRemark'), prop: 'remark', minWidth: 120, showOverflowTooltip: true },
   { key: 'stockOutRequestCode', label: t('customsPages.declarations.colSor'), prop: 'stockOutRequestCode', minWidth: 160, showOverflowTooltip: true },
   { key: 'createTime', label: t('customsPages.declarations.colCreateTime'), prop: 'createTime', width: 170 },
@@ -916,6 +928,12 @@ onBeforeUnmount(() => {
   &:hover {
     text-decoration: underline;
   }
+}
+
+.amount-with-code {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
 .cdl-settings-gear-btn {
