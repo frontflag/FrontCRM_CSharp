@@ -308,28 +308,16 @@
               <template v-if="maskSaleSensitiveFields">
                 <el-input model-value="—" disabled style="width: 100%" />
               </template>
-              <el-select
+              <CustomerSelect
                 v-else
                 v-model="form.customerId"
                 :placeholder="t('financeSellInvoiceList.customerPh')"
-                style="width: 100%"
-                filterable
-                clearable
-                :filter-method="onCustomerFilterInput"
-                :loading="customerSearchLoading"
+                :empty-hint="t('financeSellInvoiceList.customerEmptyHint')"
                 :loading-text="t('financeSellInvoiceList.customerSearchLoading')"
-                @change="onCustomerChange"
-              >
-                <template #empty>
-                  <div class="select-hint">{{ t('financeSellInvoiceList.customerEmptyHint') }}</div>
-                </template>
-                <el-option
-                  v-for="c in customerOptions"
-                  :key="c.value"
-                  :label="c.label"
-                  :value="c.value"
-                />
-              </el-select>
+                :selected-label="form.customerName"
+                :selected-code="selectedCustomerCode"
+                @change="onCustomerSelectChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -418,7 +406,7 @@ import {
   splitListMoneyParts,
 } from '@/utils/moneyFormat'
 import { onCrmDetailListRowDblClick } from '@/utils/crmDetailListRowDblClick'
-import { customerApi } from '@/api/customer'
+import CustomerSelect, { type CustomerSelectOption } from '@/components/Customer/CustomerSelect.vue'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useAuthStore } from '@/stores/auth'
@@ -466,43 +454,16 @@ const matchStatusSelectKeys = Object.keys(SELL_INVOICE_MATCH_STATUS_MAP).map(k =
 const sellInvoiceTypeKeys = Object.keys(SELL_INVOICE_TYPE_MAP).map(k => Number(k))
 const invoiceTypeKeys = Object.keys(INVOICE_TYPE_MAP).map(k => Number(k))
 
-type CustomerOption = { value: string; label: string }
+const selectedCustomerCode = ref('')
 
-const customerOptions = ref<CustomerOption[]>([])
-const customerSearchLoading = ref(false)
-let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
-
-async function onCustomerFilterInput(query: string) {
-  if (customerSearchTimer) clearTimeout(customerSearchTimer)
-  if (!query || query.trim().length < 1) return
-  customerSearchTimer = setTimeout(async () => {
-    customerSearchLoading.value = true
-    try {
-      const res = await customerApi.searchCustomers({
-        pageNumber: 1,
-        pageSize: 30,
-        searchTerm: query.trim(),
-      })
-      customerOptions.value = (res.items || []).map((c) => ({
-        value: c.id,
-        label: c.customerName || (c as { officialName?: string }).officialName || t('financeSellInvoiceList.unknownCustomer'),
-      }))
-    } catch {
-      customerOptions.value = []
-    } finally {
-      customerSearchLoading.value = false
-    }
-  }, 300)
-}
-
-function onCustomerChange(val: string | undefined) {
-  const id = val?.trim() || ''
-  if (!id) {
+function onCustomerSelectChange(opt: CustomerSelectOption | null) {
+  if (opt?.id) {
+    form.customerName = opt.name
+    selectedCustomerCode.value = opt.code || ''
+  } else {
     form.customerName = ''
-    return
+    selectedCustomerCode.value = ''
   }
-  const found = customerOptions.value.find((c) => c.value === id)
-  if (found) form.customerName = found.label
 }
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
@@ -690,7 +651,7 @@ const form = reactive<Partial<FinanceSellInvoice>>({
 
 const openCreate = () => {
   editingId.value = null
-  customerOptions.value = []
+  selectedCustomerCode.value = ''
   Object.assign(form, {
     customerId: '',
     customerName: '',
@@ -708,9 +669,7 @@ const openCreate = () => {
 const openEdit = (row: FinanceSellInvoice) => {
   editingId.value = row.id
   Object.assign(form, { ...row })
-  customerOptions.value = row.customerId
-    ? [{ value: row.customerId, label: row.customerName || t('financeSellInvoiceList.customerFallback') }]
-    : []
+  selectedCustomerCode.value = ''
   dialogVisible.value = true
 }
 

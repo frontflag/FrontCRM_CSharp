@@ -82,25 +82,14 @@
             <!-- 客户 -->
             <el-col :span="6">
               <el-form-item label="客户" prop="customerId">
-                <el-select
-                  ref="customerSelectRef"
+                <CustomerSelect
                   v-model="formData.customerId"
-                  placeholder="请输入客户名称搜索"
-                  style="width: 100%"
-                  filterable
-                  :filter-method="onCustomerFilterInput"
-                  :loading="customerSearchLoading"
-                  loading-text="搜索中..."
                   class="q-select"
-                  @change="onCustomerChange"
-                >
-                  <template #empty>
-                    <div class="customer-search-hint">
-                      <span>请输入内容之后选择</span>
-                    </div>
-                  </template>
-                  <el-option v-for="c in customerOptions" :key="c.value" :label="c.label" :value="c.value" />
-                </el-select>
+                  placeholder="请输入客户名称搜索"
+                  :selected-label="selectedCustomerName"
+                  :selected-code="selectedCustomerCode"
+                  @change="onCustomerSelectChange"
+                />
               </el-form-item>
             </el-col>
             <!-- 客户联系人 -->
@@ -508,6 +497,7 @@ import { draftApi } from '@/api/draft'
 import type { CreateRFQRequest, CreateRFQItemRequest } from '@/types/rfq'
 import { getApiErrorMessage } from '@/utils/apiError'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import CustomerSelect, { type CustomerSelectOption } from '@/components/Customer/CustomerSelect.vue'
 import { SETTLEMENT_CURRENCY_STRING_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_STRING, DEFAULT_SETTLEMENT_CURRENCY_CODE } from '@/constants/currency'
 import {
   RFQ_TYPE_OPTIONS,
@@ -526,10 +516,9 @@ const currentDraftId = ref('')
 
 const isEdit = computed(() => !!route.params.id)
 
-// 客户选项（远程搜索）
-const customerOptions = ref<{ value: string; label: string }[]>([])
-const customerSearchLoading = ref(false)
-let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
+// 客户下拉（CustomerSelect）
+const selectedCustomerName = ref('')
+const selectedCustomerCode = ref('')
 
 // 联系人选项
 const contactOptions = ref<{ value: string; label: string; email?: string }[]>([])
@@ -675,15 +664,22 @@ async function checkDuplicates() {
   }
 }
 
-function onCustomerChange() {
-  // 客户变更时清除联系人和重复标记
+function onCustomerSelectChange(opt: CustomerSelectOption | null) {
+  if (opt?.id) {
+    selectedCustomerName.value = opt.name
+    selectedCustomerCode.value = opt.code || ''
+  } else {
+    selectedCustomerName.value = ''
+    selectedCustomerCode.value = ''
+  }
   formData.contactPersonId = ''
   formData.contactPersonName = ''
   formData.contactPersonEmail = ''
   contactOptions.value = []
-  formData.items.forEach(item => { item._isDuplicate = false })
-  // 加载联系人列表
-  loadContacts()
+  formData.items.forEach((item) => {
+    item._isDuplicate = false
+  })
+  void loadContacts()
 }
 
 // 加载联系人列表
@@ -713,38 +709,6 @@ const formRules = {
   importanceLevel: [{ required: true, message: '请输入重要程度', trigger: 'blur' }]
 }
 
-// 客户选择器 ref
-const customerSelectRef = ref<any>(null)
-
-// filter-method: 用户输入时触发，防抖远程搜索
-async function onCustomerFilterInput(query: string) {
-  if (customerSearchTimer) clearTimeout(customerSearchTimer)
-  if (!query || query.trim().length < 1) {
-    // 空查询时清空选项，显示提示文字
-    customerOptions.value = []
-    return
-  }
-  customerSearchTimer = setTimeout(async () => {
-    customerSearchLoading.value = true
-    try {
-      const { customerApi } = await import('@/api/customer')
-      const res = await customerApi.searchCustomers({
-        pageNumber: 1,
-        pageSize: 30,
-        searchTerm: query.trim()
-      })
-      customerOptions.value = (res.items || []).map((c: any) => ({
-        value: c.id,
-        label: c.customerName || (c as any).officialName || c.name || '未知客户'
-      }))
-    } catch {
-      customerOptions.value = []
-    } finally {
-      customerSearchLoading.value = false
-    }
-  }, 300)
-}
-
 // 加载编辑数据
 async function loadRFQ() {
   if (!isEdit.value) return
@@ -752,6 +716,8 @@ async function loadRFQ() {
     const data = await rfqApi.getRFQById(route.params.id as string)
     formData.rfqCode = data.rfqCode || ''
     formData.customerId = data.customerId || ''
+    selectedCustomerName.value = String(data.customerName || '').trim()
+    selectedCustomerCode.value = ''
     formData.contactPersonId = (data as any).contactId || data.contactPersonId || ''
     formData.contactPersonName = data.contactPersonName || ''
     formData.contactPersonEmail = (data as any).contactEmail || data.contactPersonEmail || ''
@@ -901,6 +867,8 @@ function buildCreatePayload(): CreateRFQRequest {
 
 async function applyDraftPayload(payload: any) {
   formData.customerId = payload.customerId || ''
+  selectedCustomerName.value = String(payload.customerName || '').trim()
+  selectedCustomerCode.value = String(payload.customerCode || '').trim()
   formData.contactPersonId = payload.contactId || payload.contactPersonId || ''
   formData.contactPersonEmail = payload.contactEmail || payload.contactPersonEmail || ''
   formData.salesUserId = payload.salesUserId || ''
@@ -1000,17 +968,15 @@ onMounted(async () => {
   await customerDict.ensureLoaded()
   if (isEdit.value) {
     await loadRFQ()
-    // 编辑模式下：确保当前客户在选项中（用 getCustomerById 精确回填）
+    // 编辑模式下：补全客户名称/编码用于下拉回填展示
     if (formData.customerId) {
       try {
         const { customerApi } = await import('@/api/customer')
         const c = await customerApi.getCustomerById(formData.customerId)
         if (c) {
-          const label = (c as any).officialName || c.customerName || '未知客户'
-          // 如果选项中没有当前客户，添加进去
-          if (!customerOptions.value.find(o => o.value === formData.customerId)) {
-            customerOptions.value.unshift({ value: formData.customerId, label })
-          }
+          selectedCustomerName.value =
+            String(c.customerName || (c as any).officialName || selectedCustomerName.value || '未知客户').trim()
+          selectedCustomerCode.value = String(c.customerCode ?? '').trim()
         }
       } catch { /* 静默失败 */ }
     }
@@ -1623,16 +1589,5 @@ onMounted(async () => {
   font-size: 14px;
   color: rgba(0, 212, 255, 0.55);
   cursor: help;
-}
-
-.customer-search-hint {
-  padding: 8px 16px;
-  text-align: center;
-  color: #999;
-  font-style: italic;
-  font-size: 12px;
-  cursor: default;
-  user-select: none;
-  pointer-events: none;
 }
 </style>

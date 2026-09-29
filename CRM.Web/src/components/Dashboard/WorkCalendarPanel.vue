@@ -112,21 +112,13 @@
   <el-dialog v-model="createOpen" :title="t('dashboard.calendar.newFollow')" width="480px" append-to-body>
     <el-form label-position="top">
       <el-form-item :label="t('dashboard.calendar.customer')" required>
-        <el-select
+        <CustomerSelect
           v-model="form.objectId"
-          filterable
-          remote
-          :remote-method="searchCustomers"
-          :loading="customerLoading"
           :placeholder="t('dashboard.calendar.customerPlaceholder')"
-        >
-          <el-option
-            v-for="c in customerOpts"
-            :key="c.id"
-            :label="c.label"
-            :value="c.id"
-          />
-        </el-select>
+          :selected-label="selectedCustomerName"
+          :selected-code="selectedCustomerCode"
+          @change="onCustomerSelectChange"
+        />
       </el-form-item>
       <el-form-item :label="t('dashboard.calendar.taskTitle')" required>
         <el-input v-model="form.title" maxlength="200" show-word-limit />
@@ -170,7 +162,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores'
-import { customerApi } from '@/api/customer'
+import CustomerSelect, { type CustomerSelectOption } from '@/components/Customer/CustomerSelect.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 import {
   workCalendarApi,
@@ -193,9 +185,14 @@ const dayLoading = ref(false)
 const dayDto = ref<WorkCalendarDay | null>(null)
 const createOpen = ref(false)
 const saving = ref(false)
-const customerLoading = ref(false)
-const customerOpts = ref<{ id: string; label: string }[]>([])
+const selectedCustomerName = ref('')
+const selectedCustomerCode = ref('')
 const assignees = ref<WorkTaskAssigneeOption[]>([])
+
+function onCustomerSelectChange(opt: CustomerSelectOption | null) {
+  selectedCustomerName.value = opt?.name || ''
+  selectedCustomerCode.value = opt?.code || ''
+}
 
 const form = reactive({
   objectId: '',
@@ -347,9 +344,10 @@ function openCreate() {
   form.startDate = selectedDate.value || todayYmd.value
   form.priority = 2
   form.assigneeUserId = authStore.user?.id ?? ''
+  selectedCustomerName.value = ''
+  selectedCustomerCode.value = ''
   createOpen.value = true
   void loadAssignees()
-  void searchCustomers('')
 }
 
 async function loadAssignees() {
@@ -358,21 +356,6 @@ async function loadAssignees() {
     assignees.value = (await workCalendarApi.assignees()) ?? []
   } catch {
     assignees.value = []
-  }
-}
-
-async function searchCustomers(q: string) {
-  customerLoading.value = true
-  try {
-    const res = await customerApi.searchCustomers({ searchTerm: q, page: 1, pageSize: 20 })
-    customerOpts.value = (res.items ?? []).map((c) => ({
-      id: c.id,
-      label: c.customerName || c.customerCode || c.id
-    }))
-  } catch {
-    customerOpts.value = []
-  } finally {
-    customerLoading.value = false
   }
 }
 

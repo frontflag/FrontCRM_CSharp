@@ -96,22 +96,15 @@
         <el-row :gutter="24">
           <el-col :span="12">
             <el-form-item v-if="showVendorPicker" label="供应商" prop="vendorId">
-              <el-select
+              <VendorSelect
                 v-model="formData.vendorId"
                 class="po-vendor-select"
                 placeholder="请搜索并选择供应商"
-                filterable
-                clearable
-                :filter-method="onVendorFilterInput"
-                :loading="vendorSearchLoading"
-                loading-text="搜索中..."
-                @change="onVendorChange"
-              >
-                <template #empty>
-                  <div class="po-vendor-search-hint">输入关键字搜索供应商</div>
-                </template>
-                <el-option v-for="v in vendorOptions" :key="v.value" :label="v.label" :value="v.value" />
-              </el-select>
+                empty-hint="输入关键字搜索供应商"
+                :selected-label="formData.vendorName"
+                :selected-code="selectedVendorCode"
+                @change="onVendorSelectChange"
+              />
             </el-form-item>
             <el-form-item v-else label="供应商">
               <vendor-name-readonly-field
@@ -387,11 +380,11 @@ import {
   resolvePurchaserFromPr,
   validatePrBatchForPoGeneration
 } from '@/utils/purchaseRequisitionBatchPo'
-import { vendorApi, vendorContactApi } from '@/api/vendor'
+import { vendorContactApi } from '@/api/vendor'
 import VendorNameReadonlyField from '@/components/Vendor/VendorNameReadonlyField.vue'
+import VendorSelect, { type VendorSelectOption } from '@/components/Vendor/VendorSelect.vue'
 import { runSaveTask, validateElFormOrWarn } from '@/composables/useFormSubmit'
 import { getApiErrorMessage } from '@/utils/apiError'
-import type { Vendor } from '@/types/vendor'
 import { useAuthStore } from '@/stores/auth'
 import { canSubmitPurchaseOrderCreate } from '@/utils/purchaseOrderCreateGate'
 import {
@@ -524,9 +517,7 @@ const canSubmitPurchaseOrder = computed(() => {
   })
 })
 
-const vendorOptions = ref<{ value: string; label: string }[]>([])
-const vendorSearchLoading = ref(false)
-let vendorSearchTimer: ReturnType<typeof setTimeout> | null = null
+const selectedVendorCode = ref('')
 const vendorContactOptions = ref<{ value: string; label: string }[]>([])
 const contactLoading = ref(false)
 
@@ -720,53 +711,24 @@ function syncLineVendorIds() {
   })
 }
 
-function onVendorFilterInput(query: string) {
-  if (vendorSearchTimer) clearTimeout(vendorSearchTimer)
-  if (!query || query.trim().length < 1) {
-    if (formData.value.vendorId && formData.value.vendorName) {
-      vendorOptions.value = [{ value: formData.value.vendorId, label: formData.value.vendorName }]
-    } else {
-      vendorOptions.value = []
-    }
-    return
-  }
-  vendorSearchTimer = setTimeout(async () => {
-    vendorSearchLoading.value = true
-    try {
-      const res = await vendorApi.searchVendors({
-        pageNumber: 1,
-        pageSize: 30,
-        keyword: query.trim()
-      })
-      vendorOptions.value = (res.items || []).map((v: Vendor) => ({
-        value: v.id,
-        label: v.officialName || v.nickName || v.code || '供应商'
-      }))
-    } catch {
-      vendorOptions.value = []
-    } finally {
-      vendorSearchLoading.value = false
-    }
-  }, 300)
-}
-
-function onVendorChange(val: string | null | undefined) {
+function onVendorSelectChange(opt: VendorSelectOption | null) {
   formData.value.vendorContactId = ''
   formData.value.vendorContactName = ''
   vendorContactOptions.value = []
-  if (!val) {
+  if (!opt?.id) {
     formData.value.vendorName = ''
     formData.value.vendorId = ''
+    selectedVendorCode.value = ''
     formData.value.items.forEach((it) => {
       it.vendorId = undefined
     })
     clearVendorChangeTip()
     return
   }
-  const found = vendorOptions.value.find((x) => x.value === val)
-  if (found) formData.value.vendorName = found.label
+  formData.value.vendorName = opt.name
+  selectedVendorCode.value = opt.code || ''
   syncLineVendorIds()
-  void loadVendorContacts(val)
+  void loadVendorContacts(opt.id)
   scheduleVendorChangeTipPreview()
 }
 
@@ -891,9 +853,7 @@ async function loadOrderForEdit(id: string) {
   clearVendorChangeTip()
   formData.value.vendorContactId = String(o.vendorContactId ?? '')
   formData.value.vendorContactName = String((o as { vendorContactName?: string }).vendorContactName ?? '')
-  if (formData.value.vendorId && formData.value.vendorName) {
-    vendorOptions.value = [{ value: formData.value.vendorId, label: formData.value.vendorName }]
-  }
+  selectedVendorCode.value = String((o as { vendorCode?: string }).vendorCode ?? '').trim()
   if (formData.value.vendorId) {
     await loadVendorContacts(formData.value.vendorId)
   }
@@ -1268,6 +1228,7 @@ async function applyPrsToPurchaseOrderForm(prs: Record<string, unknown>[]) {
   formData.value.type = getPrPrefillPoType(first)
   formData.value.vendorName = String(first.intendedVendorName ?? first.IntendedVendorName ?? '')
   formData.value.vendorId = String(first.quoteVendorId ?? first.QuoteVendorId ?? '')
+  selectedVendorCode.value = ''
   formData.value.vendorContactId = String(first.intendedVendorContactId ?? first.IntendedVendorContactId ?? '')
   formData.value.vendorContactName = String(first.intendedVendorContactName ?? first.IntendedVendorContactName ?? '')
 

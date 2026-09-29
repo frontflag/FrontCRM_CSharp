@@ -110,25 +110,14 @@
           <template v-if="!maskPurchaseSensitiveFields">
             <el-col :span="8">
               <el-form-item label="供应商" prop="vendorId">
-                <el-select
+                <VendorSelect
                   v-model="formData.vendorId"
                   class="q-select"
                   placeholder="请选择供应商"
-                  style="width: 100%"
-                  filterable
-                  clearable
-                  :filter-method="onVendorFilterInput"
-                  :loading="vendorSearchLoading"
-                  loading-text="搜索中..."
-                  @change="onVendorChange"
-                >
-                  <template #empty>
-                    <div class="vendor-search-hint">
-                      <span>请输入内容之后选择</span>
-                    </div>
-                  </template>
-                  <el-option v-for="v in vendorOptions" :key="v.value" :label="v.label" :value="v.value" />
-                </el-select>
+                  :selected-label="formData.vendorName"
+                  :selected-level="formData.vendorLevel"
+                  @change="onVendorSelectChange"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="16">
@@ -648,8 +637,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi, type QuoteFieldChangeLogRow } from '@/api/quote'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
 import { rfqApi } from '@/api/rfq'
-import type { Vendor, VendorContactInfo } from '@/types/vendor'
+import type { VendorContactInfo } from '@/types/vendor'
 import VendorContactDialog from '@/views/Vendor/components/VendorContactDialog.vue'
+import VendorSelect, { type VendorSelectOption } from '@/components/Vendor/VendorSelect.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import {
@@ -857,10 +847,6 @@ const formRef = ref()
 const rfqDetailLocked = ref(false)
 /** 需求明细原型号：顶部摘要「物料号」固定展示，与可编辑 formData.mpn 独立 */
 const rfqSourceMpn = ref('')
-
-const vendorOptions = ref<{ value: string; label: string; level?: number }[]>([])
-const vendorSearchLoading = ref(false)
-let vendorSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 const contactOptions = ref<{ value: string; label: string }[]>([])
 const contactLoading = ref(false)
@@ -1262,43 +1248,6 @@ async function loadPurchaseUserSelectOptions() {
   }
 }
 
-function onVendorFilterInput(query: string) {
-  if (vendorSearchTimer) clearTimeout(vendorSearchTimer)
-  if (!query || query.trim().length < 1) {
-    if (formData.value.vendorId && formData.value.vendorName) {
-      vendorOptions.value = [
-        {
-          value: formData.value.vendorId,
-          label: formData.value.vendorName,
-          level: formData.value.vendorLevel
-        }
-      ]
-    } else {
-      vendorOptions.value = []
-    }
-    return
-  }
-  vendorSearchTimer = setTimeout(async () => {
-    vendorSearchLoading.value = true
-    try {
-      const res = await vendorApi.searchVendors({
-        pageNumber: 1,
-        pageSize: 30,
-        keyword: query.trim()
-      })
-      vendorOptions.value = (res.items || []).map((v: Vendor) => ({
-        value: v.id,
-        label: v.officialName || v.nickName || v.code || '供应商',
-        level: typeof v.level === 'number' ? v.level : undefined
-      }))
-    } catch {
-      vendorOptions.value = []
-    } finally {
-      vendorSearchLoading.value = false
-    }
-  }, 300)
-}
-
 function normalizeQuoteVendorLevel(raw: unknown): number {
   const n = Number(raw)
   return Number.isFinite(n) && n >= 1 && n <= 4 ? n : VENDOR_LEVEL_DEFAULT
@@ -1317,19 +1266,18 @@ async function applyVendorLevelForVendor(vendorId: string, hint?: number) {
   }
 }
 
-function onVendorChange(val: string | null | undefined) {
+function onVendorSelectChange(opt: VendorSelectOption | null) {
   formData.value.vendorContactId = ''
   formData.value.contactName = ''
   contactOptions.value = []
-  if (!val) {
+  if (!opt?.id) {
     formData.value.vendorName = ''
     formData.value.vendorLevel = undefined
     return
   }
-  const found = vendorOptions.value.find((x) => x.value === val)
-  if (found) formData.value.vendorName = found.label
-  void applyVendorLevelForVendor(val, found?.level)
-  void loadVendorContacts(val)
+  formData.value.vendorName = opt.name
+  void applyVendorLevelForVendor(opt.id, opt.level)
+  void loadVendorContacts(opt.id)
 }
 
 /** 编辑回填：联系人 ID 可能不在下拉列表中（已删/接口延迟），仍保留选中态 */
@@ -1465,13 +1413,6 @@ async function applyQuoteToForm(q: Record<string, unknown>) {
       tp != null && tp !== '' ? Number(tp as number) : formData.value.targetPrice
 
     if (formData.value.vendorId) {
-      vendorOptions.value = [
-        {
-          value: formData.value.vendorId,
-          label: formData.value.vendorName || formData.value.vendorId,
-          level: formData.value.vendorLevel
-        }
-      ]
       await loadVendorContacts(formData.value.vendorId, savedContactId, savedContactName)
       if (formData.value.vendorLevel == null) {
         await applyVendorLevelForVendor(formData.value.vendorId)

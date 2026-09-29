@@ -22,23 +22,13 @@
             <el-row :gutter="16">
               <el-col :span="12">
                 <el-form-item label="客户" prop="customerId">
-                  <el-select
+                  <CustomerSelect
                     v-model="formData.customerId"
-                    filterable
-                    remote
-                    :remote-method="searchCustomers"
-                    :loading="customerLoading"
                     placeholder="搜索客户名称..."
-                    class="w-full"
-                    @change="handleCustomerChange"
-                  >
-                    <el-option
-                      v-for="c in customerOptions"
-                      :key="c.id"
-                      :label="c.name"
-                      :value="c.id"
-                    />
-                  </el-select>
+                    :selected-label="selectedCustomerName"
+                    :selected-code="selectedCustomerCode"
+                    @change="onCustomerSelectChange"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -224,6 +214,7 @@ import { ElMessage } from 'element-plus'
 import * as XLSX from 'xlsx'
 import { bomApi } from '@/api/bom'
 import type { BOM, CreateBOMItemRequest } from '@/types/bom'
+import CustomerSelect, { type CustomerSelectOption } from '@/components/Customer/CustomerSelect.vue'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import { SETTLEMENT_CURRENCY_STRING_OPTIONS, DEFAULT_SETTLEMENT_CURRENCY_STRING } from '@/constants/currency'
 import { pickCrmCopyableRowField } from '@/utils/crmListCopyableField'
@@ -245,23 +236,13 @@ const formRules = {
   customerId: [{ required: true, message: '请选择客户', trigger: 'change' }],
 }
 
-// ── 客户搜索 ──
-const customerLoading = ref(false)
-const customerOptions = ref<{ id: string; name: string }[]>([])
-const searchCustomers = async (query: string) => {
-  if (!query) return
-  customerLoading.value = true
-  try {
-    const { customerApi } = await import('@/api/customer')
-    const res = await customerApi.searchCustomers({ searchTerm: query, pageSize: 20 })
-    customerOptions.value = (res.items || []).map((c: any) => ({ id: c.id, name: c.name }))
-  } catch {
-    customerOptions.value = []
-  } finally {
-    customerLoading.value = false
-  }
+// ── 客户选择 ──
+const selectedCustomerName = ref('')
+const selectedCustomerCode = ref('')
+function onCustomerSelectChange(opt: CustomerSelectOption | null) {
+  selectedCustomerName.value = opt?.name || ''
+  selectedCustomerCode.value = opt?.code || ''
 }
-const handleCustomerChange = () => {}
 
 // ── Excel 解析 ──
 const fileInputRef = ref<HTMLInputElement>()

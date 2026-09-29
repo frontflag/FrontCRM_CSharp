@@ -63,29 +63,14 @@
         <el-row :gutter="12" class="rfq-basic-triple-row">
           <el-col :span="8">
             <el-form-item label="客户" prop="customerId">
-              <el-select
-                ref="customerSelectRef"
+              <CustomerSelect
                 v-model="formData.customerId"
-                placeholder="请输入客户名称搜索"
-                style="width: 100%"
-                filterable
-                :filter-method="onCustomerFilterInput"
-                :loading="customerSearchLoading"
-                loading-text="搜索中..."
                 class="q-select"
-              >
-                <template #empty>
-                  <div class="customer-search-hint">
-                    <span>请输入内容之后选择</span>
-                  </div>
-                </template>
-                <el-option
-                  v-for="c in customerOptions"
-                  :key="c.value"
-                  :label="c.label"
-                  :value="c.value"
-                />
-              </el-select>
+                placeholder="请输入客户名称搜索"
+                :selected-label="formData.customerName"
+                :selected-code="selectedCustomerCode"
+                @change="onCustomerSelectChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -542,6 +527,7 @@ import { useAuthStore } from '@/stores/auth'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import CustomerSelect, { type CustomerSelectOption } from '@/components/Customer/CustomerSelect.vue'
 import {
   RFQ_TYPE_OPTIONS,
   QUOTE_METHOD_OPTIONS,
@@ -708,11 +694,8 @@ function handleBack() {
   router.push({ name: 'RFQList' })
 }
 
-// 客户下拉搜索
-const customerOptions = ref<{ value: string; label: string }[]>([])
-const customerSearchLoading = ref(false)
-const customerSelectRef = ref<any>(null)
-let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
+// 客户下拉（CustomerSelect）；编码用于选项右侧回填展示
+const selectedCustomerCode = ref('')
 
 const contactOptions = ref<
   { value: string; label: string; email?: string; isDefault?: boolean }[]
@@ -721,6 +704,16 @@ const contactOptions = ref<
 const contactSelectPlaceholder = computed(() =>
   formData.value.customerId ? '请选择联系人' : '请先选择客户'
 )
+
+function onCustomerSelectChange(opt: CustomerSelectOption | null) {
+  if (opt?.id) {
+    formData.value.customerName = opt.name
+    selectedCustomerCode.value = opt.code || ''
+  } else {
+    formData.value.customerName = ''
+    selectedCustomerCode.value = ''
+  }
+}
 
 function contactEmailFromRaw(c: Record<string, unknown>): string {
   const v = c.email ?? c.Email
@@ -940,6 +933,7 @@ async function resetFormForCreate() {
     items: [createEmptyRfqItem()]
   }
   contactOptions.value = []
+  selectedCustomerCode.value = ''
   const user = authStore.user
   if (user) {
     formData.value.salesUserId = user.id || ''
@@ -962,9 +956,9 @@ async function applyPrefillCustomerFromQuery() {
       c.customerCode ||
       '客户'
     const id = String(c.id)
-    customerOptions.value = [{ value: id, label: name }]
     formData.value.customerId = id
     formData.value.customerName = name
+    selectedCustomerCode.value = String(c.customerCode ?? '').trim()
     const ext = c as unknown as Record<string, unknown>
     const fromCustomer = pickIndustryFromCustomerRecord(ext)
     formData.value.industry = await customerDict.resolveIndustryStorageLabel(fromCustomer || undefined)
@@ -987,6 +981,7 @@ async function applyDraftPayload(payload: Record<string, unknown>) {
   }
   formData.value.customerId = String(p.customerId || '')
   formData.value.customerName = String(p.customerName || '')
+  selectedCustomerCode.value = String((p as { customerCode?: string }).customerCode || '').trim()
   formData.value.contactId = String(p.contactId || '')
   formData.value.contactEmail = String(p.contactEmail || '')
   formData.value.salesUserId = String(p.salesUserId || formData.value.salesUserId || '')
@@ -1011,10 +1006,6 @@ async function applyDraftPayload(payload: Record<string, unknown>) {
       }))
     : [createEmptyRfqItem()]
   if (formData.value.customerId) {
-    const label = formData.value.customerName || '客户'
-    if (!customerOptions.value.some((o) => o.value === formData.value.customerId)) {
-      customerOptions.value = [{ value: formData.value.customerId, label }]
-    }
     await loadContactsForCustomer(formData.value.customerId)
     applyDefaultContactAndEmail()
   }
@@ -1112,13 +1103,6 @@ async function loadRfqForEdit() {
   try {
     const data = await rfqApi.getRFQById(rfqId.value)
     const d = data as any
-    if (data.customerId) {
-      customerOptions.value = [
-        { value: data.customerId, label: data.customerName || d.customerName || '客户' }
-      ]
-    } else {
-      customerOptions.value = []
-    }
     await loadContactsForCustomer(data.customerId || '')
     formData.value = {
       rfqCode: data.rfqCode || '',
@@ -1141,6 +1125,7 @@ async function loadRfqForEdit() {
       remark: data.remark || '',
       items: data.items?.length ? mapItemsFromApi(data.items) : []
     }
+    selectedCustomerCode.value = String(d.customerCode ?? '').trim()
     await resolveBrandIdsForItems(formData.value.items, {
       onWarning: (msg) => ElMessage.warning(msg)
     })
@@ -1243,10 +1228,6 @@ watch(
       formData.value.contactId = ''
       formData.value.contactEmail = ''
     }
-    const found = customerOptions.value.find((c) => c.value === id)
-    if (found) {
-      formData.value.customerName = found.label
-    }
     await Promise.all([loadContactsForCustomer(id), applyIndustryFromCustomer(id)])
     applyDefaultContactAndEmail()
   }
@@ -1264,34 +1245,6 @@ const formRules = computed(() => ({
 
 function onRfqCreateSalesUserChange(p: { id: string; label: string }) {
   formData.value.salesUserName = p.label || ''
-}
-
-// 客户搜索防抖
-async function onCustomerFilterInput(query: string) {
-  if (customerSearchTimer) clearTimeout(customerSearchTimer)
-  if (!query || query.trim().length < 1) {
-    customerOptions.value = []
-    return
-  }
-  customerSearchTimer = setTimeout(async () => {
-    customerSearchLoading.value = true
-    try {
-      const { customerApi } = await import('@/api/customer')
-      const res = await customerApi.searchCustomers({
-        pageNumber: 1,
-        pageSize: 30,
-        searchTerm: query.trim()
-      })
-      customerOptions.value = (res.items || []).map((c: any) => ({
-        value: c.id,
-        label: c.customerName || (c as any).officialName || c.name || '未知客户'
-      }))
-    } catch {
-      customerOptions.value = []
-    } finally {
-      customerSearchLoading.value = false
-    }
-  }, 300)
 }
 
 function onContactChange(contactId: string | null | undefined) {
@@ -1815,14 +1768,6 @@ const handleSubmit = async () => {
   :deep(.el-rate__icon) {
     font-size: 20px;
   }
-}
-
-// 客户搜索提示
-.customer-search-hint {
-  padding: 8px 12px;
-  color: $text-muted;
-  font-size: 12px;
-  text-align: center;
 }
 
 .items-panel-list {

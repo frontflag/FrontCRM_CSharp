@@ -271,24 +271,17 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item :label="t('financePurchaseInvoiceList.formVendor')" required>
-              <el-select
+              <VendorSelect
                 v-model="form.vendorId"
                 class="fpi-vendor-select"
                 :placeholder="t('financePurchaseInvoiceList.formVendorPh')"
-                style="width: 100%"
-                filterable
-                clearable
-                :disabled="!!editingId"
-                :filter-method="onVendorFilterInput"
-                :loading="vendorSearchLoading"
+                :empty-hint="t('financePurchaseInvoiceList.vendorSearchHint')"
                 :loading-text="t('financePurchaseInvoiceList.vendorSearchLoading')"
-                @change="onVendorChange"
-              >
-                <template #empty>
-                  <div class="vendor-search-hint">{{ t('financePurchaseInvoiceList.vendorSearchHint') }}</div>
-                </template>
-                <el-option v-for="v in vendorOptions" :key="v.value" :label="v.label" :value="v.value" />
-              </el-select>
+                :disabled="!!editingId"
+                :selected-label="form.vendorName"
+                :selected-code="selectedVendorCode"
+                @change="onVendorSelectChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -377,8 +370,7 @@ import {
   splitListMoneyParts,
 } from '@/utils/moneyFormat'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
-import { vendorApi } from '@/api/vendor'
-import type { Vendor } from '@/types/vendor'
+import VendorSelect, { type VendorSelectOption } from '@/components/Vendor/VendorSelect.vue'
 import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiveFieldMask'
 import VendorNameReadonlyText from '@/components/Vendor/VendorNameReadonlyText.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -564,52 +556,21 @@ const form = reactive<Partial<FinancePurchaseInvoice>>({
   remark: ''
 })
 
-const vendorOptions = ref<{ value: string; label: string }[]>([])
-const vendorSearchLoading = ref(false)
-let vendorSearchTimer: ReturnType<typeof setTimeout> | null = null
+const selectedVendorCode = ref('')
 
-function onVendorFilterInput(query: string) {
-  if (vendorSearchTimer) clearTimeout(vendorSearchTimer)
-  if (!query || query.trim().length < 1) {
-    if (form.vendorId && form.vendorName) {
-      vendorOptions.value = [{ value: String(form.vendorId), label: String(form.vendorName) }]
-    } else {
-      vendorOptions.value = []
-    }
-    return
-  }
-  vendorSearchTimer = setTimeout(async () => {
-    vendorSearchLoading.value = true
-    try {
-      const res = await vendorApi.searchVendors({
-        pageNumber: 1,
-        pageSize: 30,
-        keyword: query.trim()
-      })
-      vendorOptions.value = (res.items || []).map((v: Vendor) => ({
-        value: v.id,
-        label: v.officialName || v.nickName || v.code || '—'
-      }))
-    } catch {
-      vendorOptions.value = []
-    } finally {
-      vendorSearchLoading.value = false
-    }
-  }, 300)
-}
-
-function onVendorChange(val: string | null | undefined) {
-  if (!val) {
+function onVendorSelectChange(opt: VendorSelectOption | null) {
+  if (opt?.id) {
+    form.vendorName = opt.name
+    selectedVendorCode.value = opt.code || ''
+  } else {
     form.vendorName = ''
-    return
+    selectedVendorCode.value = ''
   }
-  const found = vendorOptions.value.find((x) => x.value === val)
-  if (found) form.vendorName = found.label
 }
 
 const openCreate = () => {
   editingId.value = null
-  vendorOptions.value = []
+  selectedVendorCode.value = ''
   Object.assign(form, {
     vendorId: '',
     vendorName: '',
@@ -627,13 +588,7 @@ const openCreate = () => {
 const openEdit = (row: FinancePurchaseInvoice) => {
   editingId.value = row.id
   Object.assign(form, { ...row })
-  const vid = String(row.vendorId ?? '').trim()
-  const vname = String(row.vendorName ?? '').trim()
-  if (vid) {
-    vendorOptions.value = [{ value: vid, label: vname || vid }]
-  } else {
-    vendorOptions.value = []
-  }
+  selectedVendorCode.value = String((row as { vendorCode?: string }).vendorCode ?? '').trim()
   dialogVisible.value = true
 }
 

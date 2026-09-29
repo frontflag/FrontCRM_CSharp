@@ -55,21 +55,15 @@
           <el-row :gutter="20">
             <el-col :span="8">
               <el-form-item :label="t('salesOrderCreate.fields.customer')" prop="customerId">
-                <el-select
+                <CustomerSelect
                   v-model="formData.customerId"
                   :placeholder="t('salesOrderCreate.placeholders.searchCustomer')"
-                  style="width: 100%"
-                  filterable
-                  :filter-method="onCustomerFilterInput"
-                  :loading="customerSearchLoading"
+                  :empty-hint="t('salesOrderCreate.placeholders.customerSearchHint')"
                   :loading-text="t('salesOrderCreate.placeholders.searching')"
-                  @change="onCustomerChange"
-                >
-                  <template #empty>
-                    <div class="select-hint">{{ t('salesOrderCreate.placeholders.customerSearchHint') }}</div>
-                  </template>
-                  <el-option v-for="c in customerOptions" :key="c.value" :label="c.label" :value="c.value" />
-                </el-select>
+                  :selected-label="formData.customerName"
+                  :selected-code="selectedCustomerCode"
+                  @change="onCustomerSelectChange"
+                />
               </el-form-item>
             </el-col>
             <el-col :span="8">
@@ -415,6 +409,7 @@ import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { useAuthStore } from '@/stores/auth'
 import SalesUserCascader from '@/components/SalesUserCascader.vue'
+import CustomerSelect, { type CustomerSelectOption } from '@/components/Customer/CustomerSelect.vue'
 import SalesOpsAssistorSelect from '@/components/SalesOpsAssistorSelect.vue'
 import { authApi, type SalesDeptStaffUserOption } from '@/api/auth'
 import {
@@ -503,10 +498,8 @@ const salesUserOptionsLoading = ref(false)
 
 const collapseActive = ref(['order', 'customer', 'items'])
 
-const customerOptions = ref<{ value: string; label: string }[]>([])
-const customerSearchLoading = ref(false)
+const selectedCustomerCode = ref('')
 const contactOptions = ref<{ value: string; label: string }[]>([])
-let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 const getYYMMDD = (d: Date) => {
   const yy = String(d.getFullYear()).slice(-2)
@@ -762,31 +755,6 @@ async function initStaffPickFields(orderForEdit?: Record<string, unknown>) {
   }
 }
 
-async function onCustomerFilterInput(query: string) {
-  if (customerSearchTimer) clearTimeout(customerSearchTimer)
-  if (!query || query.trim().length < 1) {
-    return
-  }
-  customerSearchTimer = setTimeout(async () => {
-    customerSearchLoading.value = true
-    try {
-      const res = await customerApi.searchCustomers({
-        pageNumber: 1,
-        pageSize: 30,
-        searchTerm: query.trim()
-      })
-      customerOptions.value = (res.items || []).map((c) => ({
-        value: c.id,
-        label: c.customerName || (c as { officialName?: string }).officialName || t('salesOrderCreate.unknownCustomer')
-      }))
-    } catch {
-      customerOptions.value = []
-    } finally {
-      customerSearchLoading.value = false
-    }
-  }, 300)
-}
-
 function syncInvoiceFromCustomer(c: Customer) {
   const name = c.customerName || ''
   const tax = c.unifiedSocialCreditCode || ''
@@ -803,6 +771,9 @@ async function loadCustomerDetail(id: string, opts?: { skipInvoiceSync?: boolean
   }
   try {
     const c = await customerApi.getCustomerById(id)
+    if (!selectedCustomerCode.value) {
+      selectedCustomerCode.value = String(c.customerCode ?? '').trim()
+    }
     if (!opts?.skipInvoiceSync) {
       syncInvoiceFromCustomer(c)
     }
@@ -823,13 +794,19 @@ async function loadCustomerDetail(id: string, opts?: { skipInvoiceSync?: boolean
   }
 }
 
-function onCustomerChange(val: string) {
-  const found = customerOptions.value.find((c) => c.value === val)
-  if (found) formData.value.customerName = found.label
-  prefillCustomerId.value = val || undefined
+function onCustomerSelectChange(opt: CustomerSelectOption | null) {
+  if (opt?.id) {
+    formData.value.customerName = opt.name
+    selectedCustomerCode.value = opt.code || ''
+    prefillCustomerId.value = opt.id
+  } else {
+    formData.value.customerName = ''
+    selectedCustomerCode.value = ''
+    prefillCustomerId.value = undefined
+  }
   formData.value.customerContactId = ''
   formData.value.customerContactName = ''
-  void loadCustomerDetail(val)
+  void loadCustomerDetail(opt?.id || '')
   scheduleCustomerChangeTipPreview()
 }
 
@@ -1115,9 +1092,7 @@ function applyRfqHeaderToForm(rfq: RFQ) {
   if (rfq.customerId) {
     formData.value.customerId = rfq.customerId
     formData.value.customerName = String(rfq.customerName ?? '').trim()
-    customerOptions.value = [
-      { value: rfq.customerId, label: formData.value.customerName || t('salesOrderCreate.customerFallback') }
-    ]
+    selectedCustomerCode.value = ''
     void loadCustomerDetail(rfq.customerId)
   }
   if (rfq.salesUserId) {
@@ -1244,12 +1219,7 @@ async function loadOrderForEdit(id: string) {
   formData.value.customerContactName = contactNameApi || blocks.customerContactName
 
   if (formData.value.customerId) {
-    customerOptions.value = [
-      {
-        value: formData.value.customerId,
-        label: formData.value.customerName || t('salesOrderCreate.unknownCustomer')
-      }
-    ]
+    selectedCustomerCode.value = ''
     await loadCustomerDetail(formData.value.customerId, { skipInvoiceSync: hasStructuredHeaderComment })
     if (formData.value.customerContactName) {
       const hit = contactOptions.value.find(

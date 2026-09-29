@@ -379,28 +379,16 @@
               <template v-if="maskSaleSensitiveFields">
                 <el-input model-value="—" disabled style="width: 100%" />
               </template>
-              <el-select
+              <CustomerSelect
                 v-else
                 v-model="form.customerId"
                 :placeholder="t('financeReceiptList.customerPh')"
-                style="width: 100%"
-                filterable
-                clearable
-                :filter-method="onCustomerFilterInput"
-                :loading="customerSearchLoading"
+                :empty-hint="t('financeReceiptList.customerEmptyHint')"
                 :loading-text="t('financeReceiptList.customerSearchLoading')"
-                @change="onCustomerChange"
-              >
-                <template #empty>
-                  <div class="select-hint">{{ t('financeReceiptList.customerEmptyHint') }}</div>
-                </template>
-                <el-option
-                  v-for="c in customerOptions"
-                  :key="c.value"
-                  :label="c.label"
-                  :value="c.value"
-                />
-              </el-select>
+                :selected-label="form.customerName"
+                :selected-code="selectedCustomerCode"
+                @change="onCustomerSelectChange"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -606,7 +594,7 @@ import { parseReceivedCurrencyDrillQuery } from '@/utils/financeAnalyticsDrill'
 import { SETTLEMENT_CURRENCY_OPTIONS } from '@/constants/currency'
 import { formatDisplayDate, formatDisplayDateTime } from '@/utils/displayDateTime'
 import { downloadCsvBlob } from '@/utils/exportFileName'
-import { customerApi } from '@/api/customer'
+import CustomerSelect, { type CustomerSelectOption } from '@/components/Customer/CustomerSelect.vue'
 import salesOrderApi from '@/api/salesOrder'
 import type { CrmTableColumnDef } from '@/composables/usePersistedTableColumns'
 import CustomerExtendColumnHeader from '@/components/list/CustomerExtendColumnHeader.vue'
@@ -688,43 +676,16 @@ function receiptRowCreatedAt(row: FinanceReceipt): string | undefined {
   return v != null && String(v).trim() !== '' ? String(v) : undefined
 }
 
-type CustomerOption = { value: string; label: string }
+const selectedCustomerCode = ref('')
 
-const customerOptions = ref<CustomerOption[]>([])
-const customerSearchLoading = ref(false)
-let customerSearchTimer: ReturnType<typeof setTimeout> | null = null
-
-async function onCustomerFilterInput(query: string) {
-  if (customerSearchTimer) clearTimeout(customerSearchTimer)
-  if (!query || query.trim().length < 1) return
-  customerSearchTimer = setTimeout(async () => {
-    customerSearchLoading.value = true
-    try {
-      const res = await customerApi.searchCustomers({
-        pageNumber: 1,
-        pageSize: 30,
-        searchTerm: query.trim(),
-      })
-      customerOptions.value = (res.items || []).map((c) => ({
-        value: c.id,
-        label: c.customerName || (c as { officialName?: string }).officialName || t('financeReceiptList.unknownCustomer'),
-      }))
-    } catch {
-      customerOptions.value = []
-    } finally {
-      customerSearchLoading.value = false
-    }
-  }, 300)
-}
-
-function onCustomerChange(val: string | undefined) {
-  const id = val?.trim() || ''
-  if (!id) {
+function onCustomerSelectChange(opt: CustomerSelectOption | null) {
+  if (opt?.id) {
+    form.customerName = opt.name
+    selectedCustomerCode.value = opt.code || ''
+  } else {
     form.customerName = ''
-    return
+    selectedCustomerCode.value = ''
   }
-  const found = customerOptions.value.find((c) => c.value === id)
-  if (found) form.customerName = found.label
 }
 
 const query = reactive<PageQuery & { page: number; pageSize: number }>({
@@ -1109,7 +1070,7 @@ function goWriteOffDesktop() {
 
 const openCreate = () => {
   editingId.value = null
-  customerOptions.value = []
+  selectedCustomerCode.value = ''
   receiptDocs.value = []
   pendingSlipFiles.value = []
   Object.assign(form, {
@@ -1137,9 +1098,7 @@ const openEdit = (row: FinanceReceipt) => {
   form.isFfPayment = !!row.isFreightForwarderPayment
   form.freightForwarderCompanyId = row.freightForwarderCompanyId || ''
   form.isAdvanceReceipt = row.receiptPurpose === 20
-  customerOptions.value = row.customerId
-    ? [{ value: row.customerId, label: row.customerName || t('financeReceiptList.customerFallback') }]
-    : []
+  selectedCustomerCode.value = ''
   dialogVisible.value = true
   void loadReceiptDocs(row.id)
 }
