@@ -114,6 +114,13 @@
         <template #col-rfqCode="{ row }">
           <span>{{ displayRfqCode(row) }}</span>
         </template>
+        <template #col-mpn="{ row }">
+          <CrmListCopyableTextCell
+            :text="firstQuoteItemMpn(row)"
+            :tone="isQuoteRowMpnMismatch(row) ? 'danger' : 'default'"
+            :hint="quoteRowMpnMismatchHint(row)"
+          />
+        </template>
         <template #col-brand="{ row }">
           <CrmListCopyableTextCell :text="firstItemBrandRaw(row)" />
         </template>
@@ -362,7 +369,11 @@
             />
             <el-table-column :label="t('quoteList.columns.mpn')" min-width="130">
               <template #default="{ row }">
-                <CrmListCopyableTextCell :text="row.mpn || firstQuoteItemMpn(row) || ''" />
+                <CrmListCopyableTextCell
+                  :text="row.mpn || firstQuoteItemMpn(row) || ''"
+                  :tone="isQuoteRowMpnMismatch(row) ? 'danger' : 'default'"
+                  :hint="quoteRowMpnMismatchHint(row)"
+                />
               </template>
             </el-table-column>
             <el-table-column :label="t('quoteList.columns.status')" width="100" align="center">
@@ -460,6 +471,7 @@ import { usePurchaseSensitiveFieldMask } from '@/composables/usePurchaseSensitiv
 import { useSaleSensitiveFieldMask } from '@/composables/useSaleSensitiveFieldMask'
 import { useVendorDictStore } from '@/stores/vendorDict'
 import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay } from '@/utils/quoteVendorDisplay'
+import { isQuoteMpnMismatch, quoteRowRfqItemMpn } from '@/utils/quoteMpnMismatch'
 import { productionDateDisplayLabel, useMaterialProductionDateDict } from '@/composables/useMaterialProductionDateDict'
 import {
   isQuoteDeleteForbidden,
@@ -703,6 +715,16 @@ function firstQuoteItemMpn(row: Record<string, unknown>): string {
   if (!it) return ''
   const m = it.mpn ?? it.Mpn ?? it.MPN
   return m != null && String(m).trim() !== '' ? String(m).trim() : ''
+}
+
+function isQuoteRowMpnMismatch(row: Record<string, unknown>): boolean {
+  return isQuoteMpnMismatch(firstQuoteItemMpn(row), quoteRowRfqItemMpn(row))
+}
+
+function quoteRowMpnMismatchHint(row: Record<string, unknown>): string {
+  if (!isQuoteRowMpnMismatch(row)) return ''
+  const rfqMpn = quoteRowRfqItemMpn(row)
+  return t('quoteList.mpnMismatchTip', { rfqMpn })
 }
 
 function firstItemBrandRaw(row: Record<string, unknown>) {

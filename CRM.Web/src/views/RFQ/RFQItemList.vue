@@ -644,6 +644,13 @@
               <template #col-brand="{ row }">
                 {{ dockQuoteBrandDisplay(row as Record<string, unknown>) }}
               </template>
+              <template #col-mpn="{ row }">
+                <CrmListCopyableTextCell
+                  :text="dockQuoteMpnDisplay(row as Record<string, unknown>)"
+                  :tone="isDockQuoteMpnMismatch(row as Record<string, unknown>) ? 'danger' : 'default'"
+                  :hint="dockQuoteMpnMismatchHint(row as Record<string, unknown>)"
+                />
+              </template>
               <template #col-productionDateDc="{ row }">
                 <div class="dock-quote-tiers dock-quote-tiers--left">
                   <template v-if="dockQuoteLineItems(row as Record<string, unknown>).length">
@@ -1161,6 +1168,7 @@ import {
   syncOpCopyFlyoutPlacementClass
 } from '@/utils/opCopyFlyout'
 import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay, quoteVendorTradeCountsDisplay } from '@/utils/quoteVendorDisplay'
+import { isQuoteMpnMismatch, quoteRowRfqItemMpn } from '@/utils/quoteMpnMismatch'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import { useVendorDictStore } from '@/stores/vendorDict'
 import {
@@ -1641,7 +1649,6 @@ const dockQuoteTableColumns = computed((): CrmTableColumnDef[] => {
     {
       key: 'mpn',
       label: t('rfqItemList.dockQuotes.mpn'),
-      prop: 'mpn',
       minWidth: 120,
       showOverflowTooltip: true,
       resizable: true
@@ -2080,6 +2087,27 @@ function dockQuoteBrandDisplay(quoteRow: Record<string, unknown>): string {
   const hb = quoteRow.brand ?? quoteRow.Brand
   if (hb != null && String(hb).trim() !== '') return String(hb).trim()
   return '—'
+}
+
+/** 采购报价表：物料型号（报价头优先，否则首行明细） */
+function dockQuoteMpnDisplay(quoteRow: Record<string, unknown>): string {
+  const hdr = quoteRow.mpn ?? quoteRow.Mpn ?? quoteRow.MPN
+  if (hdr != null && String(hdr).trim() !== '') return String(hdr).trim()
+  const items = dockQuoteItemsRaw(quoteRow)
+  for (const o of items) {
+    const m = o.mpn ?? o.Mpn ?? o.MPN
+    if (m != null && String(m).trim() !== '') return String(m).trim()
+  }
+  return ''
+}
+
+function isDockQuoteMpnMismatch(quoteRow: Record<string, unknown>): boolean {
+  return isQuoteMpnMismatch(dockQuoteMpnDisplay(quoteRow), quoteRowRfqItemMpn(quoteRow))
+}
+
+function dockQuoteMpnMismatchHint(quoteRow: Record<string, unknown>): string {
+  if (!isDockQuoteMpnMismatch(quoteRow)) return ''
+  return t('rfqItemList.dockQuotes.mpnMismatchTip', { rfqMpn: quoteRowRfqItemMpn(quoteRow) })
 }
 
 /** 采购报价表：供应商名称（多供应商去重后顿号拼接） */

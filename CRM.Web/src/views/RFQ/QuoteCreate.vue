@@ -80,7 +80,7 @@
               </template>
             </span>
             <span class="la-pre">{{ linkAlertSep8Ideo }}</span>
-            <span class="la-block-detail"><span class="la-muted">物料号</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formData.mpn || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">品牌</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formData.brand || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">数量</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formatNumber(formData.quantity) }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">目标价</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ targetPriceText }}</span></span>
+            <span class="la-block-detail"><span class="la-muted">物料号</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ linkAlertRfqMpn || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">品牌</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formData.brand || '—' }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">数量</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ formatNumber(formData.quantity) }}</span><span class="la-pre">{{ linkAlertSep4Ideo }}</span><span class="la-muted">目标价</span><span class="la-pre">{{ linkAlertGap2 }}</span><span class="la-value-brown">{{ targetPriceText }}</span></span>
           </div>
         </template>
       </el-alert>
@@ -212,8 +212,7 @@
             <el-form-item label="物料型号" prop="mpn">
               <el-input
                 v-model="formData.mpn"
-                :placeholder="rfqDetailLocked ? '来自需求明细' : '请输入MPN'"
-                :disabled="rfqDetailLocked"
+                placeholder="请输入MPN"
               />
             </el-form-item>
           </el-col>
@@ -825,7 +824,10 @@ const linkAlertSep4Ideo = '\u3000'.repeat(4)
 const submitLoading = ref(false)
 const pageLoading = ref(false)
 const formRef = ref()
+/** 关联需求明细时锁定品牌（型号可改） */
 const rfqDetailLocked = ref(false)
+/** 需求明细原型号：顶部摘要「物料号」固定展示，与可编辑 formData.mpn 独立 */
+const rfqSourceMpn = ref('')
 
 const vendorOptions = ref<{ value: string; label: string; level?: number }[]>([])
 const vendorSearchLoading = ref(false)
@@ -900,6 +902,9 @@ const captionAvatarChar = computed(() => {
   if (code) return code.charAt(0).toUpperCase()
   return 'Q'
 })
+
+/** 摘要「物料号」固定需求原型号；无快照时回退表单型号 */
+const linkAlertRfqMpn = computed(() => rfqSourceMpn.value.trim() || formData.value.mpn || '')
 
 const quoteBasicCreateDateText = computed(() => {
   const raw = formData.value.createTime?.trim()
@@ -1029,6 +1034,7 @@ async function loadLinkedRfqItem() {
   const { rfqId, rfqItemId, rfqItemIds } = rfqLink.value
   const itemId = rfqItemId || (rfqItemIds.length === 1 ? rfqItemIds[0] : '')
   rfqDetailLocked.value = false
+  rfqSourceMpn.value = ''
   if (!itemId) {
     if (formData.value.quotePriceRows.length === 0) {
       formData.value.quotePriceRows = [emptyPriceRow()]
@@ -1054,6 +1060,7 @@ async function loadLinkedRfqItem() {
     const targetPrice = tp != null && tp !== '' ? Number(tp) : undefined
 
     formData.value.mpn = mpn
+    rfqSourceMpn.value = mpn
     formData.value.brand = brand
     formData.value.rfqItemId = itemId
     formData.value.rfqId = String(item['rfqId'] ?? item['RfqId'] ?? rfqId ?? '')
@@ -1105,6 +1112,7 @@ async function loadLinkedRfqItem() {
   } catch (e) {
     ElMessage.warning(getApiErrorMessage(e, '加载需求明细失败，请手动填写物料型号与品牌'))
     rfqDetailLocked.value = false
+    rfqSourceMpn.value = ''
   } finally {
     pageLoading.value = false
   }
@@ -1447,6 +1455,26 @@ async function loadQuoteForEdit() {
     void fetchDocumentCount()
     const itemId = formData.value.rfqItemId?.trim()
     const rfqId = (formData.value.rfqId || rfqLink.value.rfqId || '').trim()
+    const apiRfqMpn = String(q.rfqItemMpn ?? q.RfqItemMpn ?? '').trim()
+    if (apiRfqMpn) {
+      rfqSourceMpn.value = apiRfqMpn
+    }
+    if (itemId) {
+      rfqDetailLocked.value = true
+      if (!rfqSourceMpn.value && rfqId) {
+        try {
+          const loaded = await fetchLinkedRfqItemRecord(rfqId, itemId)
+          if (loaded) {
+            rfqSourceMpn.value = extractMpn(loaded.item)
+            if (!formData.value.brand) {
+              formData.value.brand = extractBrand(loaded.item)
+            }
+          }
+        } catch {
+          /* 摘要原型号失败时仍可编辑报价型号 */
+        }
+      }
+    }
     if (itemId && rfqId) {
       await ensureQuoteAccessForRfqItemId(rfqId, itemId)
     }

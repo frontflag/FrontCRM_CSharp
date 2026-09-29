@@ -82,6 +82,10 @@ namespace CRM.Core.Models.Quote
         [NotMapped]
         public string? RfqCode { get; set; }
 
+        /// <summary>展示用：关联需求明细原型号（由服务层按 RFQItemId 现读 rfqitem.mpn，非表字段；报价 MPN 可改时用于列表/Dock 一致性提示）</summary>
+        [NotMapped]
+        public string? RfqItemMpn { get; set; }
+
         /// <summary>展示用：创建人登录名（由服务层按 CreateByUserId 填充，非表字段）</summary>
         [NotMapped]
         public string? CreateUserName { get; set; }

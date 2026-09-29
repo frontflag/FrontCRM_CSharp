@@ -3551,6 +3551,7 @@ const enUS = {
     deleteConfirm: 'Are you sure you want to delete quote {code}?',
     loadFailed: 'Failed to load data',
     na: '—',
+    mpnMismatchTip: 'Differs from RFQ MPN ({rfqMpn})',
     board: {
       datasetTag: 'Filter',
       hint: 'Stats match the current search filters (no extra approved-only constraint; includes cancelled lines). Amount masking follows list rules.',
@@ -4024,6 +4025,7 @@ const enUS = {
       remark: 'Remark',
       actions: 'Actions',
       edit: 'Edit',
+      mpnMismatchTip: 'Differs from RFQ MPN ({rfqMpn})',
       genSalesOrder: 'Generate Sales Order',
       addCustomerQuoteDraft: 'Add to customer quote draft',
       addCustomerQuoteDraftSuccess: 'Added {count} draft row(s)',

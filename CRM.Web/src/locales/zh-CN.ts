@@ -3525,6 +3525,7 @@ const zhCN = {
     deleteConfirm: '确定要删除报价单 {code} 吗？',
     loadFailed: '加载数据失败',
     na: '—',
+    mpnMismatchTip: '与需求原型号不一致（需求：{rfqMpn}）',
     board: {
       datasetTag: '筛选',
       hint: '统计范围与当前搜索栏筛选结果一致（无额外成单硬过滤；含取消单等）。金额脱敏规则与列表一致。',
@@ -4001,6 +4002,7 @@ const zhCN = {
       remark: '备注',
       actions: '操作',
       edit: '编辑',
+      mpnMismatchTip: '与需求原型号不一致（需求：{rfqMpn}）',
       genSalesOrder: '生成销售订单',
       addCustomerQuoteDraft: '加入客户报价单草稿',
       addCustomerQuoteDraftSuccess: '已加入 {count} 条草稿',

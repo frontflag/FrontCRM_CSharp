@@ -91,6 +91,28 @@ namespace CRM.Core.Services
             }
         }
 
+        /// <summary>为列表/详情 JSON 填充需求明细原型号（与 RFQItemId 对应；报价头 Mpn 可改后用于前端比对）。</summary>
+        private async Task HydrateQuoteRfqItemMpnAsync(IReadOnlyCollection<Quote> quotes)
+        {
+            if (quotes.Count == 0) return;
+            var ids = quotes
+                .Select(q => q.RFQItemId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Select(id => id!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            if (ids.Count == 0) return;
+
+            var items = (await _rfqItemRepository.FindAsync(i => ids.Contains(i.Id))).ToList();
+            var byId = items.ToDictionary(i => i.Id, StringComparer.OrdinalIgnoreCase);
+            foreach (var q in quotes)
+            {
+                if (string.IsNullOrWhiteSpace(q.RFQItemId)) continue;
+                if (byId.TryGetValue(q.RFQItemId.Trim(), out var item) && !string.IsNullOrWhiteSpace(item.Mpn))
+                    q.RfqItemMpn = item.Mpn.Trim();
+            }
+        }
+
         private static string? FormatQuoteCustomerDisplayName(CustomerInfo c)
         {
             if (!string.IsNullOrWhiteSpace(c.OfficialName)) return c.OfficialName.Trim();
@@ -350,6 +372,7 @@ namespace CRM.Core.Services
             await ApplyVendorLevelsFromQuoteItemsAsync(request.Items, actingUserId);
             await _unitOfWork.SaveChangesAsync();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
+            await HydrateQuoteRfqItemMpnAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             quote.Items = createdItems;
@@ -370,6 +393,7 @@ namespace CRM.Core.Services
             var items = await _quoteItemRepository.FindAsync(i => i.QuoteId == id);
             quote.Items = items.Where(i => !i.IsDeleted).ToList();
             await HydrateQuoteRfqCodeAsync(new[] { quote });
+            await HydrateQuoteRfqItemMpnAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             await HydrateQuoteItemVendorLevelAsync(new[] { quote });
@@ -417,6 +441,7 @@ namespace CRM.Core.Services
                 q.Items = byQuoteId.TryGetValue(q.Id, out var list) ? list : new List<QuoteItem>();
 
             await HydrateQuoteRfqCodeAsync(quotes);
+            await HydrateQuoteRfqItemMpnAsync(quotes);
             await HydrateQuoteCustomerDisplayAsync(quotes);
             await HydrateQuoteUserDisplayAsync(quotes);
             await HydrateQuoteItemVendorLevelAsync(quotes);
@@ -547,6 +572,7 @@ namespace CRM.Core.Services
                     $"编辑报价单 {quote.QuoteCode} 时删除明细行");
             }
             await HydrateQuoteRfqCodeAsync(new[] { quote });
+            await HydrateQuoteRfqItemMpnAsync(new[] { quote });
             await HydrateQuoteCustomerDisplayAsync(new[] { quote });
             await HydrateQuoteUserDisplayAsync(new[] { quote });
             await HydrateQuoteItemVendorLevelAsync(new[] { quote });
