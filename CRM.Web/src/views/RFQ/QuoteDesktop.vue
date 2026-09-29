@@ -42,6 +42,7 @@ import QuoteCreate from '@/views/RFQ/QuoteCreate.vue'
 import { WorkspaceLayoutKey } from '@/composables/useWorkspaceLayout'
 import { useQuoteDesktopQueueStore } from '@/stores/quoteDesktopQueue'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
+import { useQuoteOpsPanelStore } from '@/stores/quoteOpsPanel'
 import { useAuthStore } from '@/stores/auth'
 import { resolveRfqItemMaterialPn } from '@/utils/materialPn'
 import { AI_PERMISSION_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
@@ -52,6 +53,7 @@ const router = useRouter()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const queueStore = useQuoteDesktopQueueStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
+const quoteOpsPanelStore = useQuoteOpsPanelStore()
 const authStore = useAuthStore()
 const { loading, selected, total, canPrev, canNext } = storeToRefs(queueStore)
 
@@ -132,6 +134,7 @@ watch(
 
 onUnmounted(() => {
   materialIntelLookupStore.clearBound()
+  quoteOpsPanelStore.clear()
 })
 </script>
 

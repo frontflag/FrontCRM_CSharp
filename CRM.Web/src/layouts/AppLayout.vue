@@ -1919,6 +1919,7 @@
             :mpn="quoteHistoryContextMpn"
             :brand="quoteHistoryContextBrand"
           />
+          <QuoteOpsPanel v-show="showQuoteOpsPanel" class="aux-panel-tab-body" />
           <ReceiptWriteOffStockOutPanel
             v-show="showReceiptWriteOffStockOutPanel"
             class="aux-panel-tab-body"
@@ -2013,6 +2014,7 @@ import PurchaseInvoiceWriteOffStockInPanel from '@/components/Finance/PurchaseIn
 import SellInvoiceWriteOffDesktopQueuePanel from '@/components/Finance/SellInvoiceWriteOffDesktopQueuePanel.vue'
 import SellInvoiceWriteOffStockOutPanel from '@/components/Finance/SellInvoiceWriteOffStockOutPanel.vue'
 import QuoteHistoryPanel from '@/components/RFQ/QuoteHistoryPanel.vue'
+import QuoteOpsPanel from '@/components/RFQ/QuoteOpsPanel.vue'
 import { useQuoteDesktopQueueStore } from '@/stores/quoteDesktopQueue'
 import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
 import HelpManualPanel from '@/components/workspace/HelpManualPanel.vue'
@@ -2143,6 +2145,13 @@ const isQuoteHistoryRoute = computed(
 )
 const showQuoteHistoryPanel = computed(
   () => rightActiveTabId.value === 'r-quote-history' && isQuoteHistoryRoute.value
+)
+const showQuoteOpsPanel = computed(
+  () =>
+    rightActiveTabId.value === 'r-ops' &&
+    (route.name === 'QuoteDesktop' ||
+      route.name === 'QuoteCreate' ||
+      route.name === 'QuoteEdit')
 )
 const quoteHistoryContextMpn = computed(() => {
   if (route.name === 'QuoteDesktop') {
@@ -2837,6 +2846,7 @@ watch(
       rightTabs.value = [
         { id: 'r-quote-history', labelKey: 'quoteDesktop.tabs.history' },
         { id: 'r-material', labelKey: 'layout.auxTabs.material' },
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-quote-history' })
@@ -2933,6 +2943,7 @@ watch(
       rightTabs.value = [
         { id: 'r-quote-history', labelKey: 'quoteDesktop.tabs.history' },
         { id: 'r-material', labelKey: 'layout.auxTabs.material' },
+        { id: 'r-ops', labelKey: 'layout.auxTabs.ops' },
         { id: 'r4', labelKey: 'layout.auxTabs.help' }
       ]
       restoreAuxTabsForRoute(name, { left: 'l1', right: 'r-quote-history' })

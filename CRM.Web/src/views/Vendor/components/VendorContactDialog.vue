@@ -87,7 +87,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void;
-  (e: 'success'): void;
+  (e: 'success', contact: VendorContactInfo): void;
 }>();
 
 const formRef = ref<FormInstance>();
@@ -110,6 +110,14 @@ const formRules: FormRules = {
   cName: [{ required: true, message: '请输入中文名', trigger: 'blur' }]
 };
 
+const resetForm = () => {
+  formData.value = {
+    cName: '', eName: '', title: '', department: '',
+    mobile: '', tel: '', email: '', isMain: false, remark: ''
+  };
+  formRef.value?.resetFields();
+};
+
 watch(() => props.contact, (newVal) => {
   if (newVal) {
     formData.value = {
@@ -128,14 +136,6 @@ watch(() => props.contact, (newVal) => {
   }
 }, { immediate: true });
 
-const resetForm = () => {
-  formData.value = {
-    cName: '', eName: '', title: '', department: '',
-    mobile: '', tel: '', email: '', isMain: false, remark: ''
-  };
-  formRef.value?.resetFields();
-};
-
 const handleClosed = () => { resetForm(); };
 
 const handleSubmit = async () => {
@@ -143,14 +143,18 @@ const handleSubmit = async () => {
   if (!valid) return;
   submitting.value = true;
   try {
+    let saved: VendorContactInfo;
     if (isEdit.value && props.contact) {
-      await vendorContactApi.updateContact(props.contact.id, formData.value as UpdateVendorContactRequest);
+      saved = await vendorContactApi.updateContact(
+        props.contact.id,
+        formData.value as UpdateVendorContactRequest
+      );
       ElMessage.success('更新成功');
     } else {
-      await vendorContactApi.createContact(props.vendorId, formData.value);
+      saved = await vendorContactApi.createContact(props.vendorId, formData.value);
       ElMessage.success('添加成功');
     }
-    emit('success');
+    emit('success', saved);
     emit('update:modelValue', false);
   } catch (error) {
     console.error('保存失败:', error);

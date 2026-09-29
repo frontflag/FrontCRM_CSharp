@@ -503,9 +503,11 @@ export const vendorContactApi = {
       remark: data.remark?.trim()
     };
     const response = await apiClient.post<any>(`/api/v1/vendors/${vendorId}/contacts`, payload);
-    if (response && typeof response === 'object' && 'data' in response && response.data)
-      return response.data as VendorContactInfo;
-    return response as VendorContactInfo;
+    const raw =
+      response && typeof response === 'object' && 'data' in response && response.data
+        ? response.data
+        : response;
+    return normalizeVendorContactFromApi(raw);
   },
 
   async updateContact(contactId: string, data: UpdateVendorContactRequest): Promise<VendorContactInfo> {
@@ -522,9 +524,11 @@ export const vendorContactApi = {
       remark: data.remark?.trim()
     };
     const response = await apiClient.put<any>(`/api/v1/vendor-contacts/${contactId}`, payload);
-    if (response && typeof response === 'object' && 'data' in response && response.data)
-      return response.data as VendorContactInfo;
-    return response as VendorContactInfo;
+    const raw =
+      response && typeof response === 'object' && 'data' in response && response.data
+        ? response.data
+        : response;
+    return normalizeVendorContactFromApi(raw);
   },
 
   async deleteContact(contactId: string): Promise<void> {

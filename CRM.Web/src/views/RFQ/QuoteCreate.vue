@@ -150,19 +150,35 @@
                   </el-select>
                 </el-form-item>
                 <el-form-item label="联系人" prop="vendorContactId">
-                  <el-select
-                    v-model="formData.vendorContactId"
-                    class="q-select"
-                    placeholder="请先选择供应商"
-                    style="width: 100%"
-                    filterable
-                    clearable
-                    :disabled="!formData.vendorId"
-                    :loading="contactLoading"
-                    @change="onContactChange"
-                  >
-                    <el-option v-for="c in contactOptions" :key="c.value" :label="c.label" :value="c.value" />
-                  </el-select>
+                  <div class="quote-contact-field">
+                    <el-select
+                      v-model="formData.vendorContactId"
+                      class="q-select"
+                      placeholder="请先选择供应商"
+                      style="width: 100%"
+                      filterable
+                      clearable
+                      :disabled="!formData.vendorId"
+                      :loading="contactLoading"
+                      @change="onContactChange"
+                    >
+                      <el-option v-for="c in contactOptions" :key="c.value" :label="c.label" :value="c.value" />
+                    </el-select>
+                    <el-tooltip
+                      :content="formData.vendorId ? t('quoteOpsPanel.createVendorContact') : '请先选择供应商'"
+                      placement="top"
+                    >
+                      <span class="quote-contact-add-wrap">
+                        <el-button
+                          class="quote-contact-add-btn"
+                          :disabled="!formData.vendorId"
+                          @click="openCreateVendorContact"
+                        >
+                          <el-icon><Plus /></el-icon>
+                        </el-button>
+                      </span>
+                    </el-tooltip>
+                  </div>
                 </el-form-item>
                 <el-form-item label="失效日期" prop="expiryDate">
                   <el-date-picker
@@ -214,6 +230,9 @@
                 v-model="formData.mpn"
                 placeholder="请输入MPN"
               />
+              <div v-if="showRfqMpnMismatchHint" class="quote-mpn-mismatch-hint">
+                {{ t('quoteUpsert.rfqMpnHint', { pn: rfqSourceMpn.trim() }) }}
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -610,6 +629,13 @@
       </template>
     </div>
     </div>
+
+    <VendorContactDialog
+      v-if="contactDialogVisible && formData.vendorId"
+      v-model="contactDialogVisible"
+      :vendor-id="formData.vendorId"
+      @success="onVendorContactCreated"
+    />
   </div>
 </template>
 
@@ -622,7 +648,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { quoteApi, type QuoteFieldChangeLogRow } from '@/api/quote'
 import { vendorApi, vendorContactApi } from '@/api/vendor'
 import { rfqApi } from '@/api/rfq'
-import type { Vendor } from '@/types/vendor'
+import type { Vendor, VendorContactInfo } from '@/types/vendor'
+import VendorContactDialog from '@/views/Vendor/components/VendorContactDialog.vue'
 import { getApiErrorMessage } from '@/utils/apiError'
 import { runValidatedFormSave } from '@/composables/useFormSubmit'
 import {
@@ -633,6 +660,7 @@ import {
 } from '@/utils/rfqLinkedItemSummary'
 import { useAuthStore } from '@/stores/auth'
 import { useQuoteHistoryContextStore } from '@/stores/quoteHistoryContext'
+import { useQuoteOpsPanelStore } from '@/stores/quoteOpsPanel'
 import { useMaterialIntelLookupStore } from '@/stores/materialIntelLookup'
 import { AI_PERMISSION_MATERIAL_INTEL_LOOKUP } from '@/api/ai'
 import { resolveRfqItemMaterialPn } from '@/utils/materialPn'
@@ -690,6 +718,7 @@ const router = useRouter()
 const { t } = useI18n()
 const authStore = useAuthStore()
 const quoteHistoryContextStore = useQuoteHistoryContextStore()
+const quoteOpsPanelStore = useQuoteOpsPanelStore()
 const materialIntelLookupStore = useMaterialIntelLookupStore()
 const workspaceLayout = inject(WorkspaceLayoutKey, null)
 const { maskPurchaseSensitiveFields } = usePurchaseSensitiveFieldMask()
@@ -835,6 +864,19 @@ let vendorSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 const contactOptions = ref<{ value: string; label: string }[]>([])
 const contactLoading = ref(false)
+const contactDialogVisible = ref(false)
+
+function openCreateVendorContact() {
+  if (!formData.value.vendorId) return
+  contactDialogVisible.value = true
+}
+
+function onVendorContactCreated(contact: VendorContactInfo) {
+  const vendorId = (formData.value.vendorId || contact.vendorId || '').trim()
+  if (!vendorId || !contact?.id) return
+  const label = [contact.cName, contact.mobile].filter(Boolean).join(' / ') || contact.id
+  void loadVendorContacts(vendorId, contact.id, label)
+}
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
@@ -905,6 +947,13 @@ const captionAvatarChar = computed(() => {
 
 /** 摘要「物料号」固定需求原型号；无快照时回退表单型号 */
 const linkAlertRfqMpn = computed(() => rfqSourceMpn.value.trim() || formData.value.mpn || '')
+
+/** 表单物料型号与需求原型号不一致时，在输入框下方提示需求原型号 */
+const showRfqMpnMismatchHint = computed(() => {
+  const source = rfqSourceMpn.value.trim()
+  if (!source) return false
+  return formData.value.mpn.trim() !== source
+})
 
 const quoteBasicCreateDateText = computed(() => {
   const raw = formData.value.createTime?.trim()
@@ -1539,9 +1588,34 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => [formData.value.vendorId, formData.value.vendorName] as const,
+  ([vendorId, vendorName]) => {
+    quoteOpsPanelStore.bind({ vendorId, vendorName })
+  },
+  { immediate: true }
+)
+
+watch(
+  () => quoteOpsPanelStore.createdContact,
+  (contact) => {
+    if (!contact?.id) return
+    const saved = quoteOpsPanelStore.consumeCreatedContact()
+    if (!saved?.id) return
+    const vendorId = (formData.value.vendorId || saved.vendorId || '').trim()
+    if (!vendorId) return
+    const label = [saved.cName, saved.mobile].filter(Boolean).join(' / ') || saved.id
+    void loadVendorContacts(vendorId, saved.id, label)
+  }
+)
+
 onMounted(async () => {
   workspaceLayout?.toggleRightPanel(true)
   quoteHistoryContextStore.bind({ mpn: formData.value.mpn, brand: formData.value.brand })
+  quoteOpsPanelStore.bind({
+    vendorId: formData.value.vendorId,
+    vendorName: formData.value.vendorName
+  })
   syncMaterialIntelFromForm()
   await refreshExchangeRatesFromApi()
   await ensureMaterialPdDict()
@@ -1552,6 +1626,10 @@ onMounted(async () => {
     reconcileQuotePurchaseUserWithSelectOptions(true)
     recalcAllConvertedPrices()
     quoteHistoryContextStore.bind({ mpn: formData.value.mpn, brand: formData.value.brand })
+    quoteOpsPanelStore.bind({
+      vendorId: formData.value.vendorId,
+      vendorName: formData.value.vendorName
+    })
     syncMaterialIntelFromForm()
     return
   }
@@ -1562,6 +1640,7 @@ onUnmounted(() => {
   // 嵌入报价桌面时由队列 selected 提供 MPN，避免切换明细时右栏闪空
   if (!embedded.value) {
     quoteHistoryContextStore.clear()
+    quoteOpsPanelStore.clear()
     materialIntelLookupStore.clearBound()
   }
 })
@@ -2100,6 +2179,37 @@ async function handleMarkNoQuote() {
       flex: 1;
       min-width: 0;
     }
+  }
+
+  .quote-contact-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+
+    .q-select {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  .quote-contact-add-wrap {
+    flex-shrink: 0;
+    display: inline-flex;
+  }
+
+  .quote-contact-add-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+  }
+
+  .quote-mpn-mismatch-hint {
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--el-color-warning);
   }
 
   .quote-remark-item {

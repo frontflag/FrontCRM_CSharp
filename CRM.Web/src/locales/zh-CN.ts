@@ -3828,7 +3828,8 @@ const zhCN = {
     purchaseQuoteActions: {
       removeRow: '删除本行',
       insertRow: '下方插入一行'
-    }
+    },
+    rfqMpnHint: '需求物料型号：{pn}'
   },
   rfqItemList: {
     title: '需求明细',
@@ -10713,6 +10714,11 @@ const zhCN = {
       markNoQuoteOk: '已标记为查无报价',
       markNoQuoteFail: '标记失败'
     }
+  },
+  quoteOpsPanel: {
+    title: '操作',
+    createVendorContact: '新建供应商联系人',
+    needVendor: '请先选择供应商后，再新建联系人'
   },
   pendingApprovals: {
     title: '审批管理',

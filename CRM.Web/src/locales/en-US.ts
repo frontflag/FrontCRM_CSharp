@@ -3851,7 +3851,8 @@ const enUS = {
     purchaseQuoteActions: {
       removeRow: 'Remove row',
       insertRow: 'Insert row below'
-    }
+    },
+    rfqMpnHint: 'RFQ material PN: {pn}'
   },
   rfqItemList: {
     title: 'RFQ Item List',
@@ -10734,6 +10735,11 @@ const enUS = {
       markNoQuoteOk: 'Marked as no quote found',
       markNoQuoteFail: 'Failed to mark'
     }
+  },
+  quoteOpsPanel: {
+    title: 'Actions',
+    createVendorContact: 'New vendor contact',
+    needVendor: 'Select a vendor first to create a contact'
   },
   pendingApprovals: {
     title: 'Approvals',
