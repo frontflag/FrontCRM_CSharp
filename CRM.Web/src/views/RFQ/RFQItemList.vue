@@ -379,29 +379,37 @@
                   <span class="op-more-item op-more-item--primary">{{ t('rfqItemList.actions.detail') }}</span>
                 </el-dropdown-item>
                 <el-dropdown-item class="op-copy-flyout" @click.stop>
-                  <el-dropdown
+                  <el-popover
                     trigger="hover"
                     placement="right-start"
-                    :show-timeout="80"
-                    :hide-timeout="150"
+                    :fallback-placements="[...OP_COPY_FLYOUT_FALLBACK_PLACEMENTS]"
+                    :show-arrow="false"
+                    :show-after="80"
+                    :hide-after="150"
+                    :offset="4"
                     teleported
+                    :popper-class="OP_COPY_FLYOUT_POPPER_CLASS"
+                    @after-enter="syncOpCopyFlyoutPlacementClass"
+                    @hide="syncOpCopyFlyoutPlacementClass"
                   >
-                    <div
-                      class="op-copy-flyout__trigger"
-                      @click.stop="handleCopyRfqItemRow(row)"
-                    >
-                      <el-icon :size="14" class="op-more-item__icon"><CopyDocument /></el-icon>
-                      <span>{{ t('rfqItemList.actions.copy') }}</span>
-                      <el-icon :size="12" class="op-copy-flyout__arrow"><ArrowRight /></el-icon>
-                    </div>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click.stop="handleCopyRfqItemRowWithTitle(row)">
-                          <span class="op-more-item">{{ t('rfqItemList.actions.copyWithTitle') }}</span>
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
+                    <template #reference>
+                      <div
+                        class="op-copy-flyout__trigger"
+                        @click.stop="handleCopyRfqItemRow(row)"
+                      >
+                        <el-icon :size="14" class="op-more-item__icon"><CopyDocument /></el-icon>
+                        <span>{{ t('rfqItemList.actions.copy') }}</span>
+                        <el-icon :size="12" class="op-copy-flyout__arrow"><ArrowRight /></el-icon>
+                      </div>
                     </template>
-                  </el-dropdown>
+                    <button
+                      type="button"
+                      class="op-copy-flyout-subitem"
+                      @click.stop="handleCopyRfqItemRowWithTitle(row)"
+                    >
+                      {{ t('rfqItemList.actions.copyWithTitle') }}
+                    </button>
+                  </el-popover>
                 </el-dropdown-item>
                 <el-dropdown-item v-if="!isRfqItemReference && canQuoteRfqItemRow(row)" @click.stop="goQuote(row)">
                   <span class="op-more-item op-more-item--warning">{{ t('rfqItemList.actions.quote') }}</span>
@@ -838,29 +846,37 @@
                   <template #dropdown>
                     <el-dropdown-menu>
                       <el-dropdown-item class="op-copy-flyout" @click.stop>
-                        <el-dropdown
+                        <el-popover
                           trigger="hover"
                           placement="right-start"
-                          :show-timeout="80"
-                          :hide-timeout="150"
+                          :fallback-placements="[...OP_COPY_FLYOUT_FALLBACK_PLACEMENTS]"
+                          :show-arrow="false"
+                          :show-after="80"
+                          :hide-after="150"
+                          :offset="4"
                           teleported
+                          :popper-class="OP_COPY_FLYOUT_POPPER_CLASS"
+                          @after-enter="syncOpCopyFlyoutPlacementClass"
+                          @hide="syncOpCopyFlyoutPlacementClass"
                         >
-                          <div
-                            class="op-copy-flyout__trigger"
-                            @click.stop="handleCopyDockQuote(row)"
-                          >
-                            <el-icon :size="14" class="op-more-item__icon"><CopyDocument /></el-icon>
-                            <span>{{ t('quoteList.actions.copy') }}</span>
-                            <el-icon :size="12" class="op-copy-flyout__arrow"><ArrowRight /></el-icon>
-                          </div>
-                          <template #dropdown>
-                            <el-dropdown-menu>
-                              <el-dropdown-item @click.stop="handleCopyDockQuoteWithTitle(row)">
-                                <span class="op-more-item">{{ t('quoteList.actions.copyWithTitle') }}</span>
-                              </el-dropdown-item>
-                            </el-dropdown-menu>
+                          <template #reference>
+                            <div
+                              class="op-copy-flyout__trigger"
+                              @click.stop="handleCopyDockQuote(row)"
+                            >
+                              <el-icon :size="14" class="op-more-item__icon"><CopyDocument /></el-icon>
+                              <span>{{ t('quoteList.actions.copy') }}</span>
+                              <el-icon :size="12" class="op-copy-flyout__arrow"><ArrowRight /></el-icon>
+                            </div>
                           </template>
-                        </el-dropdown>
+                          <button
+                            type="button"
+                            class="op-copy-flyout-subitem"
+                            @click.stop="handleCopyDockQuoteWithTitle(row)"
+                          >
+                            {{ t('quoteList.actions.copyWithTitle') }}
+                          </button>
+                        </el-popover>
                       </el-dropdown-item>
                       <el-dropdown-item
                         v-if="!isRfqItemReference && canEditDockQuoteRow(row as Record<string, unknown>)"
@@ -1139,6 +1155,11 @@ import {
   copyQuoteSummaryWithTitlesToClipboard,
   type QuoteSummaryCopyFieldLabels
 } from '@/utils/quoteSummaryCopy'
+import {
+  OP_COPY_FLYOUT_FALLBACK_PLACEMENTS,
+  OP_COPY_FLYOUT_POPPER_CLASS,
+  syncOpCopyFlyoutPlacementClass
+} from '@/utils/opCopyFlyout'
 import { quoteVendorNamesDisplay, quoteVendorLevelsDisplay, quoteVendorTradeCountsDisplay } from '@/utils/quoteVendorDisplay'
 import { copyTextToClipboard } from '@/utils/clipboard'
 import { useVendorDictStore } from '@/stores/vendorDict'

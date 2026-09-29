@@ -1001,6 +1001,34 @@ html[data-theme='dark'] .crm-items-table.crm-data-table td.op-col .op-more-dropd
   opacity: 0.55;
 }
 
+.op-copy-flyout__trigger.is-left .op-copy-flyout__arrow {
+  transform: rotate(180deg);
+}
+
+.op-copy-flyout-popper.el-popper {
+  min-width: 128px;
+  padding: 4px 0 !important;
+}
+
+.op-copy-flyout-subitem {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 5px 16px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-family: 'Noto Sans SC', sans-serif;
+  color: inherit;
+  cursor: pointer;
+}
+
+.op-copy-flyout-subitem:hover {
+  background: var(--el-fill-color-light, #f5f7fa);
+}
+
 // --- 卡片型列表区（筛选 + 表格一体）---
 .crm-list-card {
   background: $layer-2;

@@ -371,6 +371,10 @@
   opacity: 0.55;
 }
 
+.crm-biz-list-page .op-copy-flyout__trigger.is-left .op-copy-flyout__arrow {
+  transform: rotate(180deg);
+}
+
 .crm-biz-list-page .op-more-item--primary {
   color: $cyan-primary;
 }
