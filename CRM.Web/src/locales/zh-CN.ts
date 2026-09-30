@@ -503,6 +503,15 @@ const zhCN = {
       agencyRateHint: '等价 {pct}%',
       agencyRateSourceCurrent: '(当前参数)',
       agencyRateSourceHistory: '(历史参数)',
+      agencyRateBrokerCurrent: '公司当前 {rate}',
+      btnRefreshAgencyRate: '刷新自报关公司',
+      refreshAgencyConfirmTitle: '刷新代理费率',
+      refreshAgencyConfirm:
+        '将把本单代理费率从 {from} 更新为报关公司当前费率 {to}，并重算费用、回写到货/入库/库存成本。是否继续？',
+      refreshAgencyDiscardDrafts: '请先保存或放弃其它未保存的费用修改，再刷新代理费率',
+      refreshAgencyOk: '代理费率已刷新并重算',
+      refreshAgencyOkWithDownstream:
+        '代理费率已刷新并重算；已更新到货通知 {notices}、入库明细 {stockIns}、库存层 {layers}',
       purchaseRatio: '采购系数',
       purchaseCurrency: '采购币别',
       costUsd: '采购美金价',

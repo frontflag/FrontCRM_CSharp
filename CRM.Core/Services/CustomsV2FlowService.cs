@@ -736,7 +736,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
 
         if (shouldRecalculate && dec.ExchangeRate > 0m)
             await RecalculateDeclarationFeesAsync(
-                dec.Id, actingUserId, canCorrectLockedCostUsd, cascadeInbound: true, cancellationToken);
+                dec.Id, actingUserId, canCorrectLockedCostUsd, cascadeInbound: true, cancellationToken: cancellationToken);
     }
 
     public async Task UpdateDeclarationItemAsync(
@@ -800,7 +800,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             await _unitOfWork.SaveChangesAsync();
             if ((footer.OtherChanged || footer.InspectionChanged || costUsdChanged) && dec.ExchangeRate > 0m)
                 await RecalculateDeclarationFeesAsync(
-                    dec.Id, actingUserId, canCorrectLockedCostUsd: true, cascadeInbound: false, cancellationToken);
+                    dec.Id, actingUserId, canCorrectLockedCostUsd: true, cascadeInbound: false, cancellationToken: cancellationToken);
             return;
         }
 
@@ -831,7 +831,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             {
                 await _unitOfWork.SaveChangesAsync();
                 await RecalculateDeclarationFeesAsync(
-                    dec.Id, actingUserId, canCorrectLockedCostUsd: true, cascadeInbound: false, cancellationToken);
+                    dec.Id, actingUserId, canCorrectLockedCostUsd: true, cascadeInbound: false, cancellationToken: cancellationToken);
                 return;
             }
 
@@ -894,7 +894,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
 
         if (shouldRecalculate && dec.ExchangeRate > 0m)
             await RecalculateDeclarationFeesAsync(
-                dec.Id, actingUserId, canCorrectLockedCostUsd, cascadeInbound: true, cancellationToken);
+                dec.Id, actingUserId, canCorrectLockedCostUsd, cascadeInbound: true, cancellationToken: cancellationToken);
     }
 
     public async Task<RecalculateCustomsDeclarationFeesResultDto> RecalculateDeclarationFeesAsync(
@@ -902,6 +902,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         string? actingUserId,
         bool canCorrectLockedCostUsd = false,
         bool cascadeInbound = true,
+        bool refreshAgencyRateFromBroker = false,
         CancellationToken cancellationToken = default)
     {
         _ = cancellationToken;
@@ -917,6 +918,15 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             completed: dec.InternalStatus == CustomsDeclarationInternalStatus.Completed);
         if (dec.ExchangeRate <= 0m)
             throw new InvalidOperationException("请填写报关汇率。");
+
+        if (refreshAgencyRateFromBroker)
+        {
+            if (!canCorrectLockedCostUsd)
+                throw new InvalidOperationException("无权刷新代理费率。");
+            if (!dec.FeesLocked && dec.InternalStatus != CustomsDeclarationInternalStatus.Completed)
+                throw new InvalidOperationException("仅已结关或已完成报关单可由管理员刷新代理费率。");
+            cascadeInbound = true;
+        }
 
         var items = (await _declarationItemRepo.FindAsync(i => i.DeclarationId == dec.Id && !i.IsDeleted))
             .OrderBy(i => i.LineNo)
@@ -950,17 +960,49 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         var costParam = await _purchaseCostParamService.GetEffectiveAsync();
         var broker = await _brokerRepo.GetByIdAsync(dec.CustomsBrokerId.Trim())
                      ?? throw new InvalidOperationException("报关公司不存在。");
-        var preserveAgency = canCorrectLockedCostUsd
-            && dec.BrokerAgencyRate > 0m
-            && (dec.FeesLocked || dec.InternalStatus == CustomsDeclarationInternalStatus.Completed);
-        if (!preserveAgency)
+
+        var oldAgencyRate = dec.BrokerAgencyRate;
+        var oldAgencyManual = dec.AgencyRateManual;
+        decimal brokerRate;
+        if (refreshAgencyRateFromBroker)
+        {
+            if (broker.AgencyRate < CustomsAgencyRateRules.MinInclusive)
+                throw new InvalidOperationException("报关公司代理费率无效。");
+            brokerRate = broker.AgencyRate;
             dec.AgencyRateManual = false;
-        var brokerRate = preserveAgency
-            ? dec.BrokerAgencyRate
-            : CustomsAgencyRateRules.ResolveForCalculation(
-                false,
-                dec.BrokerAgencyRate,
-                broker.AgencyRate);
+            await AppendDeclarationFieldChangeAlwaysAsync(
+                dec,
+                "refreshAgencyRateFromBroker",
+                "刷新代理费率自报关公司",
+                FormatAgencyRate(oldAgencyRate),
+                FormatAgencyRate(brokerRate),
+                actingUserId);
+            if (oldAgencyManual)
+            {
+                await AppendDeclarationFieldChangeAsync(
+                    dec,
+                    "agencyRateManual",
+                    "代理费率手工",
+                    "是",
+                    "否",
+                    actingUserId);
+            }
+        }
+        else
+        {
+            var preserveAgency = canCorrectLockedCostUsd
+                && dec.BrokerAgencyRate > 0m
+                && (dec.FeesLocked || dec.InternalStatus == CustomsDeclarationInternalStatus.Completed);
+            if (!preserveAgency)
+                dec.AgencyRateManual = false;
+            brokerRate = preserveAgency
+                ? dec.BrokerAgencyRate
+                : CustomsAgencyRateRules.ResolveForCalculation(
+                    false,
+                    dec.BrokerAgencyRate,
+                    broker.AgencyRate);
+        }
+
         var systemFx = await _financeExchangeRateService.GetCurrentAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var actor = ActingUserIdNormalizer.Normalize(actingUserId);
@@ -1875,6 +1917,29 @@ ORDER BY c.""ChangedAt"" DESC";
             actorName);
     }
 
+    /// <summary>无论新旧值是否相同都写入（用于「刷新代理费率」等动作痕迹）。</summary>
+    private async Task AppendDeclarationFieldChangeAlwaysAsync(
+        CustomsDeclaration dec,
+        string fieldName,
+        string fieldLabel,
+        string? oldValue,
+        string? newValue,
+        string? actingUserId)
+    {
+        var (actorId, actorName) = await OperationLogActorResolver.ResolveAsync(_userService, actingUserId);
+        await FieldChangeLogAppender.AppendAsync(
+            _unitOfWork,
+            BusinessLogTypes.CustomsDeclaration,
+            dec.Id,
+            dec.DeclarationCode,
+            fieldName,
+            fieldLabel,
+            FieldChangeLogAppender.NormalizeValue(oldValue),
+            FieldChangeLogAppender.NormalizeValue(newValue),
+            actorId,
+            actorName);
+    }
+
     private async Task AppendItemFieldChangeAsync(
         CustomsDeclarationItem row,
         string recordCode,
@@ -1899,6 +1964,8 @@ ORDER BY c.""ChangedAt"" DESC";
     }
 
     private static string FormatCostUsd(decimal value) => value.ToString("0.######");
+
+    private static string FormatAgencyRate(decimal value) => value.ToString("0.000000");
 
     private static string FormatMoney2(decimal value) => value.ToString("0.00");
 

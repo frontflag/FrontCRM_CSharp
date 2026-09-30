@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { InfoFilled, Lock } from '@element-plus/icons-vue'
 import {
   fetchEffectivePurchaseCostParam,
@@ -179,6 +179,18 @@ const canEditHeaderRate = computed(() => props.canWrite && canMaintainFees.value
 const canCorrectLocked = computed(
   () => Boolean(props.canCorrectLockedCostUsd) && props.canWrite && !props.maskPurchase
 )
+
+const canRefreshAgencyFromBroker = computed(
+  () =>
+    canCorrectLocked.value &&
+    (panelMode.value === 'readonly_locked' || panelMode.value === 'readonly_completed')
+)
+
+const brokerMasterAgencyRateText = computed(() => {
+  const n = Number(props.detail.brokerMasterAgencyRate)
+  if (!Number.isFinite(n) || n <= 0) return ''
+  return n.toFixed(6)
+})
 
 const feeHeaderLocks = computed(() =>
   resolveFeeHeaderLocks({
@@ -714,6 +726,74 @@ async function handleRecalculate() {
   }
 }
 
+function hasUnsavedFeeDrafts(): boolean {
+  const serverRate = Number(props.detail.exchangeRate) || 0
+  if (canEditHeaderRate.value && Math.abs(headerExchangeRate.value - serverRate) > 0.000001) return true
+  for (const row of props.detail.items ?? []) {
+    const draft = rowDraft(row)
+    if (Math.abs(draft.dutyRate - Number(row.dutyRate ?? 0)) > 0.000001) return true
+    if (Math.abs(draft.vatRate - Number(row.vatRate ?? 0)) > 0.000001) return true
+    if ((draft.hsCode || '') !== ((row.hsCode ?? '').trim())) return true
+    if (Math.abs(draft.otherFee - Number(row.otherFee ?? 0)) > 0.000001) return true
+    if (Math.abs(draft.inspectionFee - Number(row.inspectionFee ?? 0)) > 0.000001) return true
+    if (costUsdManual.value && draft.costUsdManual) {
+      const serverManual = Boolean(row.costUsdManual)
+      const serverCost = Number(row.costUsd ?? 0)
+      if (!serverManual || Math.abs(draft.costUsd - serverCost) > 0.000001) return true
+    }
+    if (canEditLineRemark.value && draft.remark.trim() !== (row.remark ?? '').trim()) return true
+  }
+  return false
+}
+
+async function handleRefreshAgencyFromBroker() {
+  if (!canRefreshAgencyFromBroker.value) return
+  if (hasUnsavedFeeDrafts()) {
+    ElMessage.warning(t('customsPages.fees.refreshAgencyDiscardDrafts'))
+    return
+  }
+  const fromRate = headerBrokerAgencyRate.value.toFixed(6)
+  const toRate = brokerMasterAgencyRateText.value || '—'
+  try {
+    await ElMessageBox.confirm(
+      t('customsPages.fees.refreshAgencyConfirm', { from: fromRate, to: toRate }),
+      t('customsPages.fees.refreshAgencyConfirmTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('customsPages.fees.btnRefreshAgencyRate'),
+        cancelButtonText: t('common.cancel')
+      }
+    )
+  } catch {
+    return
+  }
+  recalculating.value = true
+  try {
+    const result = await recalculateCustomsDeclarationFees(props.detail.id, {
+      refreshAgencyRateFromBroker: true,
+      cascadeInbound: true
+    })
+    const downstream =
+      Number(result.arrivalNoticesUpdated ?? 0) +
+      Number(result.stockInItemsUpdated ?? 0) +
+      Number(result.stockItemLayersUpdated ?? 0)
+    ElMessage.success(
+      downstream > 0
+        ? t('customsPages.fees.refreshAgencyOkWithDownstream', {
+            notices: Number(result.arrivalNoticesUpdated ?? 0),
+            stockIns: Number(result.stockInItemsUpdated ?? 0),
+            layers: Number(result.stockItemLayersUpdated ?? 0)
+          })
+        : t('customsPages.fees.refreshAgencyOk')
+    )
+    emit('refresh')
+  } catch (e: unknown) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  } finally {
+    recalculating.value = false
+  }
+}
+
 async function handleSaveLockedFooter() {
   recalculating.value = true
   try {
@@ -867,6 +947,20 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
             <span>{{ maskPurchase ? '—' : headerBrokerAgencyRate.toFixed(6) }}</span>
             <span v-if="!maskPurchase" class="fees-hint">{{ agencyRateHint(headerBrokerAgencyRate) }}</span>
             <span v-if="!maskPurchase && agencyRateSourceLabel" class="fees-hint">{{ agencyRateSourceLabel }}</span>
+            <template v-if="!maskPurchase && canRefreshAgencyFromBroker && brokerMasterAgencyRateText">
+              <span
+                v-if="Math.abs(headerBrokerAgencyRate - Number(brokerMasterAgencyRateText)) > 0.000001"
+                class="fees-hint"
+              >{{ t('customsPages.fees.agencyRateBrokerCurrent', { rate: brokerMasterAgencyRateText }) }}</span>
+              <el-button
+                size="small"
+                :loading="recalculating"
+                class="fees-refresh-agency-btn"
+                @click="handleRefreshAgencyFromBroker"
+              >
+                {{ t('customsPages.fees.btnRefreshAgencyRate') }}
+              </el-button>
+            </template>
           </span>
         </div>
         <div class="info-item">

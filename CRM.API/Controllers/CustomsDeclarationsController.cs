@@ -508,6 +508,8 @@ public class CustomsDeclarationsController : ControllerBase
     {
         /// <summary>默认 true；已完成/锁定管理员改费传 false，不回写下游。</summary>
         public bool CascadeInbound { get; set; } = true;
+        /// <summary>已结关/已完成时管理员从报关公司刷新代理费率并重算（强制回写下游）。</summary>
+        public bool RefreshAgencyRateFromBroker { get; set; }
     }
 
     [HttpPost("{id}/recalculate-fees")]
@@ -525,10 +527,19 @@ public class CustomsDeclarationsController : ControllerBase
 
             var uid = CustomsLockedCostUsdHttp.UserId(User);
             var canCorrect = await CustomsLockedCostUsdHttp.CanCorrectAsync(_rbacService, User);
-            var cascade = body?.CascadeInbound ?? true;
+            var refreshAgency = body?.RefreshAgencyRateFromBroker == true;
+            if (refreshAgency && !canCorrect)
+                return StatusCode(403, ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Fail("无权刷新代理费率", 403));
+            var cascade = refreshAgency || (body?.CascadeInbound ?? true);
             var result = await _customsV2FlowService.RecalculateDeclarationFeesAsync(
-                id, uid, canCorrect, cascadeInbound: cascade);
-            return Ok(ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Ok(result, "试算成功"));
+                id,
+                uid,
+                canCorrect,
+                cascadeInbound: cascade,
+                refreshAgencyRateFromBroker: refreshAgency);
+            return Ok(ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Ok(
+                result,
+                refreshAgency ? "代理费率已刷新并试算成功" : "试算成功"));
         }
         catch (InvalidOperationException ex)
         {

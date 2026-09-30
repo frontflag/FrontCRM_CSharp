@@ -76,11 +76,15 @@ public interface ICustomsV2FlowService
 
     /// <summary>全单报关费用试算（对齐 EBS §3.3）。结关锁定后仅纠正采购美金价时可放行。</summary>
     /// <param name="cascadeInbound">是否回写到货/入库/库存含税单价；已完成/锁定管理员改费时传 false。</param>
+    /// <param name="refreshAgencyRateFromBroker">
+    /// 已结关或已完成时，管理员从报关公司主数据刷新单头代理费率后再试算；为 true 时强制级联下游且不保留历史费率快照。
+    /// </param>
     Task<RecalculateCustomsDeclarationFeesResultDto> RecalculateDeclarationFeesAsync(
         string declarationId,
         string? actingUserId,
         bool canCorrectLockedCostUsd = false,
         bool cascadeInbound = true,
+        bool refreshAgencyRateFromBroker = false,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<CustomsDeclarationFieldChangeLogDto>> GetFieldChangeLogsAsync(

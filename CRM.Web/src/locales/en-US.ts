@@ -505,6 +505,15 @@ const enUS = {
       agencyRateHint: 'equiv. {pct}%',
       agencyRateSourceCurrent: '(Current parameter)',
       agencyRateSourceHistory: '(Historical parameter)',
+      agencyRateBrokerCurrent: 'Broker now {rate}',
+      btnRefreshAgencyRate: 'Refresh from broker',
+      refreshAgencyConfirmTitle: 'Refresh agency rate',
+      refreshAgencyConfirm:
+        'Update this declaration agency rate from {from} to the broker current rate {to}, recalculate fees, and refresh arrival/inbound/stock cost. Continue?',
+      refreshAgencyDiscardDrafts: 'Save or discard other unsaved fee edits before refreshing the agency rate',
+      refreshAgencyOk: 'Agency rate refreshed and fees recalculated',
+      refreshAgencyOkWithDownstream:
+        'Agency rate refreshed; updated arrival notices {notices}, inbound lines {stockIns}, stock layers {layers}',
       purchaseRatio: 'Purchase ratio',
       purchaseCurrency: 'Purchase currency',
       costUsd: 'Cost (USD)',

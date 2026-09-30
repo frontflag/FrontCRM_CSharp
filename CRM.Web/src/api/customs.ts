@@ -749,11 +749,14 @@ export async function fetchCustomsDeclarationChangeLogs(
 
 export async function recalculateCustomsDeclarationFees(
   id: string,
-  options?: { cascadeInbound?: boolean }
+  options?: { cascadeInbound?: boolean; refreshAgencyRateFromBroker?: boolean }
 ): Promise<RecalculateCustomsDeclarationFeesResultDto> {
   return apiClient.post<RecalculateCustomsDeclarationFeesResultDto>(
     `/api/v1/customs-declarations/${encodeURIComponent(id)}/recalculate-fees`,
-    { cascadeInbound: options?.cascadeInbound ?? true }
+    {
+      cascadeInbound: options?.cascadeInbound ?? true,
+      refreshAgencyRateFromBroker: options?.refreshAgencyRateFromBroker === true
+    }
   )
 }
 
