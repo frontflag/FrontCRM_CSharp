@@ -310,6 +310,11 @@ public class CustomsDeclarationItem : BaseGuidEntity, ISoftDeletable
     [Column(TypeName = "numeric(18,6)")]
     public decimal TaxIncludedUnitPrice { get; set; }
 
+    /// <summary>费用行备注（最长 1000）；作废只读；已完成/锁定仅 SYS_ADMIN/SYS_MANAGER 可改。</summary>
+    [StringLength(1000)]
+    [Column("remark")]
+    public string? Remark { get; set; }
+
     [ForeignKey(nameof(DeclarationId))]
     public virtual CustomsDeclaration? Declaration { get; set; }
 

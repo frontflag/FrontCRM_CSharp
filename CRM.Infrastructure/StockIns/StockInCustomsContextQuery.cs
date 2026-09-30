@@ -264,7 +264,7 @@ public sealed class StockInCustomsContextQuery : IStockInCustomsContextQuery
                 VatAmount = cdi.VatAmount > 0m ? cdi.VatAmount : null,
                 CustomsPaymentGoods = cdi.CustomsPaymentGoods > 0m ? cdi.CustomsPaymentGoods : null,
                 CustomsAgencyFee = cdi.CustomsAgencyFee > 0m ? cdi.CustomsAgencyFee : null,
-                OtherFee = cdi.OtherFee > 0m ? cdi.OtherFee : null,
+                OtherFee = cdi.OtherFee != 0m ? cdi.OtherFee : null,
                 InspectionFee = cdi.InspectionFee > 0m ? cdi.InspectionFee : null,
                 TotalValueTax = cdi.TotalValueTax > 0m ? cdi.TotalValueTax : null,
                 DeclareDate = CustomsDeclarationDeclareDateLookup.ForPacking(dec.PackingId, dateByPacking),

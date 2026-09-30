@@ -159,6 +159,7 @@ export interface CustomsDeclarationItemListItemDto {
   inspectionFee: number
   totalValueTax: number
   taxIncludedUnitPrice: number
+  remark?: string | null
   createTime: string
   createUserDisplay?: string | null
 }
@@ -212,6 +213,7 @@ export interface CustomsDeclarationDetailItemViewDto {
   vendorName?: string | null
   stockOutRequestId: string
   arrivalNotifyCode?: string | null
+  remark?: string | null
 }
 
 export interface CreateCustomsArrivalNotifiesResultDto {
@@ -704,6 +706,8 @@ export interface PatchCustomsDeclarationItemBody {
   inspectionFee?: number | null
   costUsd?: number | null
   costUsdManual?: boolean | null
+  remark?: string | null
+  updateRemark?: boolean
 }
 
 export async function patchCustomsDeclarationItem(
@@ -744,11 +748,12 @@ export async function fetchCustomsDeclarationChangeLogs(
 }
 
 export async function recalculateCustomsDeclarationFees(
-  id: string
+  id: string,
+  options?: { cascadeInbound?: boolean }
 ): Promise<RecalculateCustomsDeclarationFeesResultDto> {
   return apiClient.post<RecalculateCustomsDeclarationFeesResultDto>(
     `/api/v1/customs-declarations/${encodeURIComponent(id)}/recalculate-fees`,
-    {}
+    { cascadeInbound: options?.cascadeInbound ?? true }
   )
 }
 

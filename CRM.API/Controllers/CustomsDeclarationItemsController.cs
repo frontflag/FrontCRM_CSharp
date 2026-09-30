@@ -46,6 +46,8 @@ public class CustomsDeclarationItemsController : ControllerBase
         public decimal? InspectionFee { get; set; }
         public decimal? CostUsd { get; set; }
         public bool? CostUsdManual { get; set; }
+        public string? Remark { get; set; }
+        public bool UpdateRemark { get; set; }
     }
 
     [HttpPatch("{id}")]
@@ -70,7 +72,9 @@ public class CustomsDeclarationItemsController : ControllerBase
                 OtherFee = body?.OtherFee,
                 InspectionFee = body?.InspectionFee,
                 CostUsd = body?.CostUsd,
-                CostUsdManual = body?.CostUsdManual
+                CostUsdManual = body?.CostUsdManual,
+                Remark = body?.Remark,
+                UpdateRemark = body?.UpdateRemark == true
             }, uid, canCorrect);
             return Ok(ApiResponse<object>.Ok(null, "已更新报关明细"));
         }
@@ -391,6 +395,7 @@ public class CustomsDeclarationItemsController : ControllerBase
                     InspectionFee = x.i.InspectionFee,
                     TotalValueTax = x.i.TotalValueTax,
                     TaxIncludedUnitPrice = x.i.TaxIncludedUnitPrice,
+                    Remark = string.IsNullOrWhiteSpace(x.i.Remark) ? null : x.i.Remark.Trim(),
                     CreateTime = x.i.CreateTime,
                     CreateByUserId = string.IsNullOrWhiteSpace(x.d.CreateByUserId) ? null : x.d.CreateByUserId.Trim(),
                     CreateUserDisplay = x.creator != null && !string.IsNullOrWhiteSpace(x.creator.UserName)

@@ -5,7 +5,7 @@
  *
  * 占位正文为用户向简短文案，不含开发指引；完稿须符合《扩展面板.帮助规范》§2.6。
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -26,6 +26,42 @@ const STUB = (label, catalogHref, catalogTitle) => `[${catalogTitle}](${catalogH
 
 如有疑问，请联系系统管理员。
 `
+
+/** Windows 偶发 UNKNOWN/-4094（文件被占用）；先写临时文件再替换，并重试。 */
+function writeFileReliable(path, content, encoding = 'utf-8') {
+  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`
+  const maxAttempts = 5
+  let lastErr
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      writeFileSync(tmp, content, encoding)
+      try {
+        renameSync(tmp, path)
+      } catch {
+        // 目标被占用时 rename 可能失败：回退为直接覆盖写
+        writeFileSync(path, content, encoding)
+        try {
+          unlinkSync(tmp)
+        } catch {
+          /* ignore */
+        }
+      }
+      return
+    } catch (err) {
+      lastErr = err
+      const start = Date.now()
+      while (Date.now() - start < 150 * (i + 1)) {
+        /* busy wait short backoff */
+      }
+    }
+  }
+  try {
+    unlinkSync(tmp)
+  } catch {
+    /* ignore */
+  }
+  throw lastErr
+}
 
 function main() {
   if (!existsSync(helpRoot)) {
@@ -65,7 +101,7 @@ function main() {
     lines.push(`- [${e.label}](${entryDocRel(e)})`)
   }
   lines.push('')
-  writeFileSync(join(helpRoot, catalogFile), lines.join('\n'), 'utf-8')
+  writeFileReliable(join(helpRoot, catalogFile), lines.join('\n'), 'utf-8')
 
   for (const e of entries) {
     const rel = entryDocRel(e)
@@ -75,7 +111,7 @@ function main() {
       const depth = rel.split('/').length - 1
       const catalogHref = `${'../'.repeat(Math.max(depth, 1))}${catalogFile}`
       const catalogTitle = catalogFile.replace(/\.md$/, '')
-      writeFileSync(fpath, STUB(e.label, catalogHref, catalogTitle), 'utf-8')
+      writeFileReliable(fpath, STUB(e.label, catalogHref, catalogTitle), 'utf-8')
       console.log('[sync-help] 新建占位:', fpath)
     }
   }

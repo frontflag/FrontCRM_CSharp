@@ -167,6 +167,23 @@ try
                 .CreateLogger("WorkCalendarSchemaEnsure");
             await CRM.Infrastructure.WorkCalendar.WorkCalendarSchemaEnsure.EnsureAsync(context, schemaLogger);
 
+            var bbsSchemaLogger = services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("BbsSchemaEnsure");
+            await CRM.Infrastructure.Bbs.BbsSchemaEnsure.EnsureAsync(context, bbsSchemaLogger);
+
+            try
+            {
+                await context.Database.ExecuteSqlRawAsync(
+                    """
+                    ALTER TABLE public.customs_declaration_item
+                      ADD COLUMN IF NOT EXISTS remark character varying(1000) NULL;
+                    """);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "customs_declaration_item.remark 列对齐失败（可手动执行 scripts/ensure_customs_declaration_item_remark_postgresql.sql）");
+            }
+
             Log.Information("数据库连接成功");
         }
         catch (Exception ex) when (ex is not InvalidOperationException)

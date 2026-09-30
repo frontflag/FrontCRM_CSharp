@@ -365,7 +365,8 @@ public class CustomsDeclarationsController : ControllerBase
                     VendorId = i.VendorId,
                     VendorName = vendorName,
                     StockOutRequestId = i.StockOutRequestId,
-                    ArrivalNotifyCode = notifyCodeByCdi.TryGetValue(i.Id.Trim(), out var nc) ? nc : null
+                    ArrivalNotifyCode = notifyCodeByCdi.TryGetValue(i.Id.Trim(), out var nc) ? nc : null,
+                    Remark = i.Remark
                 };
             }).ToList()
         };
@@ -503,8 +504,16 @@ public class CustomsDeclarationsController : ControllerBase
         public bool? CostUsdManual { get; set; }
     }
 
+    public class RecalculateFeesRequest
+    {
+        /// <summary>默认 true；已完成/锁定管理员改费传 false，不回写下游。</summary>
+        public bool CascadeInbound { get; set; } = true;
+    }
+
     [HttpPost("{id}/recalculate-fees")]
-    public async Task<ActionResult<ApiResponse<RecalculateCustomsDeclarationFeesResultDto>>> RecalculateFees(string id)
+    public async Task<ActionResult<ApiResponse<RecalculateCustomsDeclarationFeesResultDto>>> RecalculateFees(
+        string id,
+        [FromBody] RecalculateFeesRequest? body)
     {
         try
         {
@@ -516,7 +525,9 @@ public class CustomsDeclarationsController : ControllerBase
 
             var uid = CustomsLockedCostUsdHttp.UserId(User);
             var canCorrect = await CustomsLockedCostUsdHttp.CanCorrectAsync(_rbacService, User);
-            var result = await _customsV2FlowService.RecalculateDeclarationFeesAsync(id, uid, canCorrect);
+            var cascade = body?.CascadeInbound ?? true;
+            var result = await _customsV2FlowService.RecalculateDeclarationFeesAsync(
+                id, uid, canCorrect, cascadeInbound: cascade);
             return Ok(ApiResponse<RecalculateCustomsDeclarationFeesResultDto>.Ok(result, "试算成功"));
         }
         catch (InvalidOperationException ex)

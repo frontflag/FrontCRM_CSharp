@@ -7,6 +7,9 @@ import { unitLocalToUsd, type ExchangeRatesUsdBase } from '@/utils/exchangeRateT
  * 采购美金价折合与费用面板展示同一条 unitLocalToUsd 链。
  */
 
+/** 报关公司账单核对用综合费率（固定 0.3%），仅演示区展示，不参与落库。 */
+export const BROKER_COMPREHENSIVE_FEE_RATE = 0.003
+
 export type CustomsFeeFormulaStepId =
   | 'costUsd'
   | 'goods'
@@ -57,6 +60,19 @@ export type CustomsFeeFormulaExpr =
     }
   | { kind: 'unit'; total: number; qty: number; result: number }
 
+/** 报关公司公式核对（挂在⑤代理费步骤下，不单独编号）。 */
+export type BrokerAgencyFormulaCheck = {
+  costUsd: number
+  qty: number
+  exchangeRate: number
+  dutyRate: number
+  vatRate: number
+  comprehensiveRate: number
+  result: number
+  systemAgency: number
+  mismatch: boolean
+}
+
 export type CustomsFeeFormulaStep = {
   id: CustomsFeeFormulaStepId
   expr: CustomsFeeFormulaExpr | null
@@ -64,6 +80,8 @@ export type CustomsFeeFormulaStep = {
   /** 对照用的表格列数值；不一致时展示。 */
   tableValue: number | null
   reason: CustomsFeeFormulaUnavailableReason | null
+  /** 仅 agency 步骤：报关公司公式再算一遍代理费。 */
+  brokerAgency?: BrokerAgencyFormulaCheck | null
 }
 
 export type CustomsFeeFormulaTable = {
@@ -187,6 +205,38 @@ function costStep(
   return { id: 'costUsd', expr, mismatch, tableValue: displayedCostUsd, reason: null }
 }
 
+/** 报关公司公式：一次乘完再 Round2；综合费率固定 0.3%。 */
+export function buildBrokerAgencyFormulaCheck(input: {
+  costUsd: number
+  qty: number
+  exchangeRate: number
+  dutyRate: number
+  vatRate: number
+  systemAgency: number
+}): BrokerAgencyFormulaCheck {
+  const costUsd = Number(input.costUsd)
+  const qty = Number(input.qty)
+  const exchangeRate = Number(input.exchangeRate)
+  const dutyRate = Number(input.dutyRate) || 0
+  const vatRate = Number(input.vatRate) || 0
+  const comprehensiveRate = BROKER_COMPREHENSIVE_FEE_RATE
+  const raw =
+    costUsd * qty * exchangeRate * (1 + dutyRate) * (1 + vatRate) * comprehensiveRate
+  const result = round2(raw)
+  const systemAgency = Number(input.systemAgency)
+  return {
+    costUsd,
+    qty,
+    exchangeRate,
+    dutyRate,
+    vatRate,
+    comprehensiveRate,
+    result,
+    systemAgency,
+    mismatch: !sameAt(result, systemAgency, 2)
+  }
+}
+
 export function buildCustomsFeeLineDemo(input: CustomsFeeFormulaDemoInput): CustomsFeeFormulaStep[] {
   const displayed = Number(input.displayedCostUsd)
   let first: CustomsFeeFormulaStep
@@ -252,6 +302,14 @@ export function buildCustomsFeeLineDemo(input: CustomsFeeFormulaDemoInput): Cust
   const other = Number(input.otherFee) || 0
   const total = round2(goods + duty + vat + agency + other)
   const unit = round6(total / qty)
+  const brokerAgency = buildBrokerAgencyFormulaCheck({
+    costUsd,
+    qty,
+    exchangeRate,
+    dutyRate,
+    vatRate,
+    systemAgency: agency
+  })
 
   return [
     first,
@@ -263,7 +321,8 @@ export function buildCustomsFeeLineDemo(input: CustomsFeeFormulaDemoInput): Cust
       expr: { kind: 'agency', goods, duty, vat, agencyRate, result: agency },
       mismatch: !sameAt(agency, input.table.customsAgencyFee, 2),
       tableValue: Number(input.table.customsAgencyFee),
-      reason: null
+      reason: null,
+      brokerAgency
     },
     {
       id: 'total',

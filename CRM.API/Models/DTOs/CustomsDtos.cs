@@ -70,6 +70,7 @@ public sealed class CustomsDeclarationItemListItemDto
     public decimal InspectionFee { get; set; }
     public decimal TotalValueTax { get; set; }
     public decimal TaxIncludedUnitPrice { get; set; }
+    public string? Remark { get; set; }
     public DateTime CreateTime { get; set; }
     public string? CreateByUserId { get; set; }
     public string? CreateUserDisplay { get; set; }
@@ -158,6 +159,7 @@ public sealed class CustomsDeclarationDetailItemViewDto
     public string? VendorName { get; set; }
     public string StockOutRequestId { get; set; } = string.Empty;
     public string? ArrivalNotifyCode { get; set; }
+    public string? Remark { get; set; }
 }
 
 public sealed class StockTransferListItemDto

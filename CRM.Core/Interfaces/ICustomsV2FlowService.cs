@@ -75,10 +75,12 @@ public interface ICustomsV2FlowService
         CancellationToken cancellationToken = default);
 
     /// <summary>全单报关费用试算（对齐 EBS §3.3）。结关锁定后仅纠正采购美金价时可放行。</summary>
+    /// <param name="cascadeInbound">是否回写到货/入库/库存含税单价；已完成/锁定管理员改费时传 false。</param>
     Task<RecalculateCustomsDeclarationFeesResultDto> RecalculateDeclarationFeesAsync(
         string declarationId,
         string? actingUserId,
         bool canCorrectLockedCostUsd = false,
+        bool cascadeInbound = true,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<CustomsDeclarationFieldChangeLogDto>> GetFieldChangeLogsAsync(
@@ -136,6 +138,10 @@ public sealed class CustomsDeclarationItemPatch
     public decimal? InspectionFee { get; set; }
     public decimal? CostUsd { get; set; }
     public bool? CostUsdManual { get; set; }
+    /// <summary>配合 <see cref="UpdateRemark"/>；空串表示清空。</summary>
+    public string? Remark { get; set; }
+    /// <summary>为 true 时写入 <see cref="Remark"/>。</summary>
+    public bool UpdateRemark { get; set; }
 }
 
 public sealed class CreateCustomsArrivalNotifiesResultDto

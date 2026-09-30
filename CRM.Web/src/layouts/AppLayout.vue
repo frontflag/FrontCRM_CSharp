@@ -191,6 +191,12 @@
           </template>
           <template #submenu>
             <router-link to="/dashboard" class="submenu-item" active-class="active" exact>{{ t('layout.menu.dashboard') }}</router-link>
+            <router-link
+              v-if="isSysAdmin"
+              to="/bbs"
+              class="submenu-item"
+              active-class="active"
+            >{{ t('layout.menu.bbs') }}</router-link>
             <router-link to="/my/mails" class="submenu-item" active-class="active">{{ t('layout.menu.myMails') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>
@@ -3831,6 +3837,7 @@ const pageTitleMap: Record<string, string> = {
   '/dashboard': 'layout.menu.dashboard',
   '/industry-news': 'dashboard.industryNews.historyTitle',
   '/my/mails': 'layout.menu.myMails',
+  '/bbs': 'layout.menu.bbs',
   '/pending-approvals': 'layout.menu.pendingApprovals',
   '/approval-desktop': 'approvalDesktop.title',
   '/quote-desktop': 'quoteDesktop.title',
@@ -4295,7 +4302,7 @@ watch(
       skipRouteMenuExpandOnce = false
       return
     }
-    if (p === '/dashboard' || p.startsWith('/dashboard/') || p === '/my/mails' || p.startsWith('/my/mails')) {
+    if (p === '/dashboard' || p.startsWith('/dashboard/') || p === '/my/mails' || p.startsWith('/my/mails') || p === '/bbs' || p.startsWith('/bbs/')) {
       openGroups.value.mine = true
     }
     if (

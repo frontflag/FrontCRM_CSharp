@@ -168,6 +168,18 @@
           <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
         </div>
       </template>
+      <template #col-customsPurchaseUsdAmount="{ row }">
+        <span v-if="customsPurchaseUsdTotal(row) == null" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <template v-for="amt in [splitListMoneyParts(customsPurchaseUsdTotal(row)!)]" :key="'usda-' + row.id">
+            <span class="cdi-list-amt">
+              <span class="cdi-list-amt-int">{{ amt.intPart }}</span><span class="cdi-list-amt-frac">{{ amt.fracPart }}</span>
+            </span>
+          </template>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--usd">USD</span>
+        </div>
+      </template>
       <template #col-hsCode="{ row }">
         <CrmListCopyableTextCell :text="row.hsCode" />
       </template>
@@ -203,49 +215,79 @@
         </div>
       </template>
       <template #col-declareUnitPrice="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.declareUnitPrice) }">
-          {{ formatUnitPriceNumber(row.declareUnitPrice) }}
-        </span>
+        <span v-if="!rmbAmountText(row.declareUnitPrice, true)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.declareUnitPrice) }">{{ rmbAmountText(row.declareUnitPrice, true) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-dutyAmount="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.dutyAmount) }">
-          {{ formatTotalAmountNumber(row.dutyAmount) }}
-        </span>
+        <span v-if="!rmbAmountText(row.dutyAmount, false)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.dutyAmount) }">{{ rmbAmountText(row.dutyAmount, false) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-vatAmount="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.vatAmount) }">
-          {{ formatTotalAmountNumber(row.vatAmount) }}
-        </span>
+        <span v-if="!rmbAmountText(row.vatAmount, false)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.vatAmount) }">{{ rmbAmountText(row.vatAmount, false) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-customsPaymentGoods="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.customsPaymentGoods) }">
-          {{ formatTotalAmountNumber(row.customsPaymentGoods) }}
-        </span>
+        <span v-if="!rmbAmountText(row.customsPaymentGoods, false)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.customsPaymentGoods) }">{{ rmbAmountText(row.customsPaymentGoods, false) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-customsAgencyFee="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.customsAgencyFee) }">
-          {{ formatTotalAmountNumber(row.customsAgencyFee) }}
-        </span>
+        <span v-if="!rmbAmountText(row.customsAgencyFee, false)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.customsAgencyFee) }">{{ rmbAmountText(row.customsAgencyFee, false) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-otherFee="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.otherFee) }">
-          {{ formatTotalAmountNumber(row.otherFee) }}
-        </span>
+        <span v-if="!rmbAmountText(row.otherFee, false)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.otherFee) }">{{ rmbAmountText(row.otherFee, false) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-inspectionFee="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.inspectionFee) }">
-          {{ formatTotalAmountNumber(row.inspectionFee) }}
-        </span>
+        <span v-if="!rmbAmountText(row.inspectionFee, false)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.inspectionFee) }">{{ rmbAmountText(row.inspectionFee, false) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-totalValueTax="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.totalValueTax) }">
-          {{ formatTotalAmountNumber(row.totalValueTax) }}
-        </span>
+        <span v-if="!rmbAmountText(row.totalValueTax, false)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.totalValueTax) }">{{ rmbAmountText(row.totalValueTax, false) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
       </template>
       <template #col-taxIncludedUnitPrice="{ row }">
-        <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.taxIncludedUnitPrice) }">
-          {{ formatUnitPriceNumber(row.taxIncludedUnitPrice) }}
-        </span>
+        <span v-if="!rmbAmountText(row.taxIncludedUnitPrice, true)" class="cdi-list-dash">—</span>
+        <div v-else class="cdi-list-amount-cell dock-tier-price-line">
+          <span class="cdi-fee-amt" :class="{ 'cdi-fee-amt--zero': isZeroAmount(row.taxIncludedUnitPrice) }">{{ rmbAmountText(row.taxIncludedUnitPrice, true) }}</span>
+          <span class="dock-tier-ccy-gap">&nbsp;</span>
+          <span class="dock-tier-ccy dock-tier-ccy--rmb">RMB</span>
+        </div>
+      </template>
+      <template #col-remark="{ row }">
+        <span>{{ row.remark?.trim() || '—' }}</span>
       </template>
       <template #col-createTime="{ row }">
         <template v-for="parts in [row.createTime ? formatDisplayDateTime2DigitYearParts(row.createTime) : null]" :key="'ct-' + row.id">
@@ -475,6 +517,13 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
         align: 'right'
       },
       {
+        key: 'customsPurchaseUsdAmount',
+        label: t('customsPages.items.colCustomsPurchaseUsdAmount'),
+        width: colW(t('customsPages.items.colCustomsPurchaseUsdAmount'), 24, 'right'),
+        minWidth: colW(t('customsPages.items.colCustomsPurchaseUsdAmount'), 24, 'right'),
+        align: 'right'
+      },
+      {
         key: 'originalPurchaseAmount',
         label: t('customsPages.items.colOrigPurchaseAmount'),
         prop: 'originalPurchaseAmount',
@@ -488,75 +537,82 @@ const tableColumns = computed<CrmTableColumnDef[]>(() => {
   cols.push(
     {
       key: 'declareUnitPrice',
-      label: t('customsPages.items.colUnitPrice'),
+      label: rmbHeader('customsPages.items.colUnitPrice'),
       prop: 'declareUnitPrice',
-      width: colW(t('customsPages.items.colUnitPrice'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colUnitPrice'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colUnitPrice'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colUnitPrice'), 24, 'right'),
       align: 'right'
     },
     {
       key: 'dutyAmount',
-      label: t('customsPages.items.colDuty'),
+      label: rmbHeader('customsPages.items.colDuty'),
       prop: 'dutyAmount',
-      width: colW(t('customsPages.items.colDuty'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colDuty'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colDuty'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colDuty'), 24, 'right'),
       align: 'right'
     },
     {
       key: 'vatAmount',
-      label: t('customsPages.items.colVat'),
+      label: rmbHeader('customsPages.items.colVat'),
       prop: 'vatAmount',
-      width: Math.max(120, colW(t('customsPages.items.colVat'), 0, 'right')),
-      minWidth: Math.max(120, colW(t('customsPages.items.colVat'), 0, 'right')),
+      width: Math.max(120, colW(rmbHeader('customsPages.items.colVat'), 24, 'right')),
+      minWidth: Math.max(120, colW(rmbHeader('customsPages.items.colVat'), 24, 'right')),
       align: 'right'
     },
     {
       key: 'customsPaymentGoods',
-      label: t('customsPages.items.colGoods'),
+      label: rmbHeader('customsPages.items.colGoods'),
       prop: 'customsPaymentGoods',
-      width: colW(t('customsPages.items.colGoods'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colGoods'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colGoods'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colGoods'), 24, 'right'),
       align: 'right'
     },
     {
       key: 'customsAgencyFee',
-      label: t('customsPages.items.colAgency'),
+      label: rmbHeader('customsPages.items.colAgency'),
       prop: 'customsAgencyFee',
-      width: colW(t('customsPages.items.colAgency'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colAgency'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colAgency'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colAgency'), 24, 'right'),
       align: 'right'
     },
     {
       key: 'otherFee',
-      label: t('customsPages.items.colOther'),
+      label: rmbHeader('customsPages.items.colOther'),
       prop: 'otherFee',
-      width: colW(t('customsPages.items.colOther'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colOther'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colOther'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colOther'), 24, 'right'),
       align: 'right'
     },
     {
       key: 'inspectionFee',
-      label: t('customsPages.items.colInspection'),
+      label: rmbHeader('customsPages.items.colInspection'),
       prop: 'inspectionFee',
-      width: colW(t('customsPages.items.colInspection'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colInspection'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colInspection'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colInspection'), 24, 'right'),
       align: 'right'
     },
     {
       key: 'totalValueTax',
-      label: t('customsPages.items.colTotalTax'),
+      label: rmbHeader('customsPages.items.colTotalTax'),
       prop: 'totalValueTax',
-      width: colW(t('customsPages.items.colTotalTax'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colTotalTax'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colTotalTax'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colTotalTax'), 24, 'right'),
       align: 'right'
     },
     {
       key: 'taxIncludedUnitPrice',
-      label: t('customsPages.items.colTaxUnit'),
+      label: rmbHeader('customsPages.items.colTaxUnit'),
       prop: 'taxIncludedUnitPrice',
-      width: colW(t('customsPages.items.colTaxUnit'), 0, 'right'),
-      minWidth: colW(t('customsPages.items.colTaxUnit'), 0, 'right'),
+      width: colW(rmbHeader('customsPages.items.colTaxUnit'), 24, 'right'),
+      minWidth: colW(rmbHeader('customsPages.items.colTaxUnit'), 24, 'right'),
       align: 'right'
+    },
+    {
+      key: 'remark',
+      label: t('customsPages.items.colLineRemark'),
+      prop: 'remark',
+      minWidth: 160,
+      showOverflowTooltip: true
     },
     {
       key: 'createTime',
@@ -594,6 +650,28 @@ function formatQtyCell(v: unknown) {
 function isZeroAmount(v: unknown) {
   const n = Number(v)
   return Number.isFinite(n) && n === 0
+}
+
+function rmbHeader(key: string) {
+  return `${t(key)} RMB`
+}
+
+function customsPurchaseUsdTotal(row: CustomsDeclarationItemListItemDto): number | null {
+  if (row.costUsd == null) return null
+  const qty = Number(row.declareQty)
+  const unit = Number(row.costUsd)
+  if (!Number.isFinite(qty) || !Number.isFinite(unit)) return null
+  return unit * qty
+}
+
+function rmbAmountText(value: unknown, unit: boolean): string {
+  const text = unit ? formatUnitPriceNumber(value) : formatTotalAmountNumber(value)
+  return text === '—' ? '' : text
+}
+
+function rmbExport(value: unknown, unit: boolean): string {
+  const text = rmbAmountText(value, unit)
+  return text ? `${text} RMB` : ''
 }
 
 function canOpenPurchaseOrder(row: CustomsDeclarationItemListItemDto): boolean {
@@ -678,6 +756,10 @@ function exportCell(row: CustomsDeclarationItemListItemDto, key: string): string
         : `${formatUnitPriceNumber(row.originalPurchasePrice)} ${listAmountCurrencyIso(row.purchaseCurrency)}`
     case 'costUsd':
       return row.costUsd == null ? '' : `${formatUnitPriceNumber(row.costUsd)} USD`
+    case 'customsPurchaseUsdAmount': {
+      const total = customsPurchaseUsdTotal(row)
+      return total == null ? '' : `${formatTotalAmountNumber(total)} USD`
+    }
     case 'hsCode':
       return row.hsCode?.trim() || ''
     case 'vendorName':
@@ -687,23 +769,25 @@ function exportCell(row: CustomsDeclarationItemListItemDto, key: string): string
         ? ''
         : `${formatTotalAmountNumber(row.originalPurchaseAmount)} ${listAmountCurrencyIso(row.purchaseCurrency)}`
     case 'declareUnitPrice':
-      return Number(row.declareUnitPrice)
+      return rmbExport(row.declareUnitPrice, true)
     case 'dutyAmount':
-      return Number(row.dutyAmount)
+      return rmbExport(row.dutyAmount, false)
     case 'vatAmount':
-      return Number(row.vatAmount)
+      return rmbExport(row.vatAmount, false)
     case 'customsPaymentGoods':
-      return Number(row.customsPaymentGoods)
+      return rmbExport(row.customsPaymentGoods, false)
     case 'customsAgencyFee':
-      return Number(row.customsAgencyFee)
+      return rmbExport(row.customsAgencyFee, false)
     case 'otherFee':
-      return Number(row.otherFee)
+      return rmbExport(row.otherFee, false)
     case 'inspectionFee':
-      return Number(row.inspectionFee)
+      return rmbExport(row.inspectionFee, false)
     case 'totalValueTax':
-      return Number(row.totalValueTax)
+      return rmbExport(row.totalValueTax, false)
     case 'taxIncludedUnitPrice':
-      return Number(row.taxIncludedUnitPrice)
+      return rmbExport(row.taxIncludedUnitPrice, true)
+    case 'remark':
+      return row.remark?.trim() || ''
     case 'createTime': {
       const parts = row.createTime ? formatDisplayDateTime2DigitYearParts(row.createTime) : null
       return parts ? `${parts.date} ${parts.time}` : ''

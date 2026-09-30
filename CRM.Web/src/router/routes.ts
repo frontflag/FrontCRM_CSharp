@@ -58,6 +58,30 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, title: '我的邮件' }
       },
       {
+        path: 'bbs',
+        name: 'BbsList',
+        component: () => import('@/views/Bbs/BbsListPage.vue'),
+        meta: { requiresAuth: true, title: '论坛', sysAdminOnly: true }
+      },
+      {
+        path: 'bbs/create',
+        name: 'BbsCreate',
+        component: () => import('@/views/Bbs/BbsCreatePage.vue'),
+        meta: { requiresAuth: true, title: '发帖', sysAdminOnly: true }
+      },
+      {
+        path: 'bbs/:id/edit',
+        name: 'BbsEdit',
+        component: () => import('@/views/Bbs/BbsCreatePage.vue'),
+        meta: { requiresAuth: true, title: '编辑帖子', sysAdminOnly: true }
+      },
+      {
+        path: 'bbs/:id',
+        name: 'BbsDetail',
+        component: () => import('@/views/Bbs/BbsDetailPage.vue'),
+        meta: { requiresAuth: true, title: '帖子详情', sysAdminOnly: true }
+      },
+      {
         path: 'reports',
         redirect: '/reports/sales'
       },

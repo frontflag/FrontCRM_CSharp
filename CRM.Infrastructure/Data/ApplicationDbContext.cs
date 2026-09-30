@@ -16,6 +16,7 @@ using CRM.Core.Models.Quote;
 using CRM.Core.Models.Rbac;
 using CRM.Core.Models.RFQ;
 using CRM.Core.Models.Sales;
+using CRM.Core.Models.Bbs;
 using CRM.Core.Models.System;
 using CRM.Core.Models.Tag;
 using CRM.Core.Models.Vendor;
@@ -59,6 +60,8 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysAnnouncement> SysAnnouncements { get; set; } = null!;
         public DbSet<SysAnnouncementRead> SysAnnouncementReads { get; set; } = null!;
         public DbSet<SysUserNotice> SysUserNotices { get; set; } = null!;
+        public DbSet<BbsSubject> BbsSubjects { get; set; } = null!;
+        public DbSet<BbsReply> BbsReplies { get; set; } = null!;
         public DbSet<WorkTask> WorkTasks { get; set; } = null!;
         public DbSet<IncentiveTarget> IncentiveTargets { get; set; } = null!;
         public DbSet<RiskAlertSetting> RiskAlertSettings { get; set; } = null!;
@@ -1645,6 +1648,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.VatRate).HasColumnName("vat_rate").HasColumnType("numeric(18,6)").HasDefaultValue(0.13m);
                 entity.Property(e => e.CustomsUsdPrice).HasColumnName("customs_usd_price").HasColumnType("numeric(18,6)").HasDefaultValue(0m);
                 entity.Property(e => e.VendorId).HasColumnName("vendor_id").HasMaxLength(36);
+                entity.Property(e => e.Remark).HasColumnName("remark").HasMaxLength(1000);
                 entity.HasIndex(e => e.PackingItemId)
                     .HasDatabaseName("IX_cdi_packing_item")
                     .HasFilter("is_deleted = false AND packing_item_id IS NOT NULL");
@@ -2922,6 +2926,47 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.CustomerId).HasColumnName("customer_id").HasMaxLength(36);
                 entity.HasIndex(e => new { e.CustomerId, e.GeneratedAt })
                     .HasDatabaseName("ix_customer_news_briefing_customer_generated");
+            });
+
+            modelBuilder.Entity<BbsSubject>(entity =>
+            {
+                entity.ToTable("bbs_subject");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.Title).HasColumnName("title").HasMaxLength(200);
+                entity.Property(e => e.Content).HasColumnName("content");
+                entity.Property(e => e.Type).HasColumnName("type");
+                entity.Property(e => e.Status).HasColumnName("status");
+                entity.Property(e => e.IsTop).HasColumnName("is_top");
+                entity.Property(e => e.IsHot).HasColumnName("is_hot");
+                entity.Property(e => e.Anonymous).HasColumnName("anonymous");
+                entity.Property(e => e.ViewCount).HasColumnName("view_count");
+                entity.Property(e => e.ReplyCount).HasColumnName("reply_count");
+                entity.Property(e => e.LastReplyTime).HasColumnName("last_reply_time");
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.CreateBy).HasColumnName("create_by").HasMaxLength(36);
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Property(e => e.ModifyBy).HasColumnName("modify_by").HasMaxLength(36);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+                entity.HasIndex(e => new { e.IsDeleted, e.IsTop })
+                    .HasDatabaseName("ix_bbs_subject_list");
+            });
+
+            modelBuilder.Entity<BbsReply>(entity =>
+            {
+                entity.ToTable("bbs_reply");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.SubjectId).HasColumnName("subject_id").HasMaxLength(36);
+                entity.Property(e => e.Content).HasColumnName("content");
+                entity.Property(e => e.Anonymous).HasColumnName("anonymous");
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.CreateBy).HasColumnName("create_by").HasMaxLength(36);
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.Property(e => e.ModifyBy).HasColumnName("modify_by").HasMaxLength(36);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+                entity.HasIndex(e => new { e.SubjectId, e.CreateTime })
+                    .HasDatabaseName("ix_bbs_reply_subject");
             });
 
             modelBuilder.Entity<RFQ>().Ignore(e => e.AssignedAt);

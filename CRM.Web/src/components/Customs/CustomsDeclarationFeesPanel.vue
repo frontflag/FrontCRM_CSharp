@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
-import { Lock } from '@element-plus/icons-vue'
+import { InfoFilled, Lock } from '@element-plus/icons-vue'
 import {
   fetchEffectivePurchaseCostParam,
   patchCustomsDeclarationHeader,
@@ -17,6 +17,7 @@ import { formatDate as formatDateTimeZh } from '@/utils/date'
 import { isValidCustomsCostUsd } from '@/utils/customsCostUsd'
 import {
   buildCustomsFeeLineDemo,
+  type BrokerAgencyFormulaCheck,
   type CustomsFeeFormulaExpr,
   type CustomsFeeFormulaStep,
   type CustomsFeeFormulaStepId,
@@ -88,6 +89,7 @@ type ItemDraft = {
   inspectionFee: number
   costUsd: number
   costUsdManual: boolean
+  remark: string
 }
 
 type PanelMode =
@@ -115,7 +117,8 @@ function syncDraftsFromDetail(d: CustomsDeclarationDetailDto) {
       otherFee: Number(row.otherFee ?? 0),
       inspectionFee: Number(row.inspectionFee ?? 0),
       costUsd: Number(row.costUsd ?? 0),
-      costUsdManual: Boolean(row.costUsdManual)
+      costUsdManual: Boolean(row.costUsdManual),
+      remark: (row.remark ?? '').trim()
     }
   }
 }
@@ -200,11 +203,20 @@ const canEditLineFooterInputs = computed(
       (panelMode.value === 'readonly_completed' && canCorrectLocked.value))
 )
 
+/** 处理中可改；已完成/锁定仅 SYS_ADMIN/SYS_MANAGER；作废不可改 */
+const canEditLineRemark = computed(
+  () =>
+    props.canWrite &&
+    (panelMode.value === 'editable' ||
+      ((panelMode.value === 'readonly_locked' || panelMode.value === 'readonly_completed') &&
+        canCorrectLocked.value))
+)
+
 const showRecalculateActions = computed(
   () =>
     props.canWrite &&
     panelMode.value !== 'readonly_void' &&
-    (canMaintainFees.value || canCorrectLocked.value)
+    (canMaintainFees.value || canCorrectLocked.value || canEditLineRemark.value)
 )
 
 const showLockedSave = computed(() => props.canWrite && panelMode.value === 'readonly_locked')
@@ -470,6 +482,18 @@ function formatFormulaExpr(expr: CustomsFeeFormulaExpr): string {
   }
 }
 
+function formatBrokerAgencyExpr(check: BrokerAgencyFormulaCheck): string {
+  return t('customsPages.fees.formulaCalcBrokerAgency', {
+    costUsd: demoFixed(check.costUsd, 6),
+    qty: demoQty(check.qty),
+    rate: demoFixed(check.exchangeRate, 6),
+    dutyRate: demoFixed(check.dutyRate, 6),
+    vatRate: demoFixed(check.vatRate, 6),
+    comprehensiveRate: demoFixed(check.comprehensiveRate, 6),
+    result: demoFixed(check.result, 2)
+  })
+}
+
 const formulaDemoLines = computed(() =>
   (props.detail.items ?? []).map((row) => {
     const draft = rowDraft(row)
@@ -525,7 +549,8 @@ function rowDraft(row: CustomsDeclarationDetailItemViewDto): ItemDraft {
       otherFee: Number(row.otherFee ?? 0),
       inspectionFee: Number(row.inspectionFee ?? 0),
       costUsd: Number(row.costUsd ?? 0),
-      costUsdManual: Boolean(row.costUsdManual)
+      costUsdManual: Boolean(row.costUsdManual),
+      remark: (row.remark ?? '').trim()
     }
   }
   return itemDrafts[row.id]
@@ -549,7 +574,6 @@ function validateDrafts(): string | null {
     if (d.dutyRate < 0) return t('customsPages.fees.validateDutyNegative')
     if (d.dutyRate === 0 && !d.hsCode.trim()) return t('customsPages.fees.validateZeroDutyHs', { line: row.lineNo })
     if (d.vatRate <= 0) return t('customsPages.fees.validateVatPositive', { line: row.lineNo })
-    if (d.otherFee < 0) return t('customsPages.fees.validateOtherFeeNegative')
     if (d.inspectionFee < 0) return t('customsPages.fees.validateInspectionFeeNegative')
     if (costUsdManual.value && d.costUsdManual && !isValidCustomsCostUsd(d.costUsd)) {
       return t('customsPages.fees.validateCostUsd')
@@ -574,17 +598,21 @@ async function applyFinanceRate() {
   }
 }
 
-async function persistDirtyFields(): Promise<void> {
+async function persistDirtyFields(): Promise<{ feeDirty: boolean; remarkDirty: boolean }> {
   const d = props.detail
+  let feeDirty = false
+  let remarkDirty = false
   const headerPatch: Parameters<typeof patchCustomsDeclarationHeader>[1] = {}
   const serverRate = Number(d.exchangeRate) || 0
   if (canEditHeaderRate.value && Math.abs(headerExchangeRate.value - serverRate) > 0.000001) {
     headerPatch.exchangeRate = headerExchangeRate.value
+    feeDirty = true
   }
 
   const serverCostUsdManual = Boolean(d.costUsdManual)
   if (canEditCostUsdMode.value && costUsdManual.value !== serverCostUsdManual) {
     headerPatch.costUsdManual = costUsdManual.value
+    feeDirty = true
   }
 
   if (Object.keys(headerPatch).length > 0) {
@@ -596,14 +624,27 @@ async function persistDirtyFields(): Promise<void> {
     const patch: Parameters<typeof patchCustomsDeclarationItem>[1] = {}
     if (canEditLineCoreInputs.value) {
       const hs = draft.hsCode.trim()
-      if (hs !== (row.hsCode ?? '').trim()) patch.hsCode = hs || null
-      if (Math.abs(draft.dutyRate - Number(row.dutyRate ?? 0)) > 0.000001) patch.dutyRate = draft.dutyRate
-      if (Math.abs(draft.vatRate - Number(row.vatRate ?? 0.13)) > 0.000001) patch.vatRate = draft.vatRate
+      if (hs !== (row.hsCode ?? '').trim()) {
+        patch.hsCode = hs || null
+        feeDirty = true
+      }
+      if (Math.abs(draft.dutyRate - Number(row.dutyRate ?? 0)) > 0.000001) {
+        patch.dutyRate = draft.dutyRate
+        feeDirty = true
+      }
+      if (Math.abs(draft.vatRate - Number(row.vatRate ?? 0.13)) > 0.000001) {
+        patch.vatRate = draft.vatRate
+        feeDirty = true
+      }
     }
     if (canEditLineFooterInputs.value) {
-      if (Math.abs(draft.otherFee - Number(row.otherFee ?? 0)) > 0.000001) patch.otherFee = draft.otherFee
+      if (Math.abs(draft.otherFee - Number(row.otherFee ?? 0)) > 0.000001) {
+        patch.otherFee = draft.otherFee
+        feeDirty = true
+      }
       if (Math.abs(draft.inspectionFee - Number(row.inspectionFee ?? 0)) > 0.000001) {
         patch.inspectionFee = draft.inspectionFee
+        feeDirty = true
       }
     }
     if (costUsdManual.value && draft.costUsdManual) {
@@ -612,12 +653,23 @@ async function persistDirtyFields(): Promise<void> {
       if (!serverManual || Math.abs(draft.costUsd - serverCost) > 0.000001) {
         patch.costUsd = draft.costUsd
         patch.costUsdManual = true
+        feeDirty = true
+      }
+    }
+    if (canEditLineRemark.value) {
+      const next = draft.remark.trim()
+      const prev = (row.remark ?? '').trim()
+      if (next !== prev) {
+        patch.remark = next
+        patch.updateRemark = true
+        remarkDirty = true
       }
     }
     if (Object.keys(patch).length > 0) {
       await patchCustomsDeclarationItem(row.id, patch)
     }
   }
+  return { feeDirty, remarkDirty }
 }
 
 async function handleRecalculate() {
@@ -628,8 +680,19 @@ async function handleRecalculate() {
   }
   recalculating.value = true
   try {
-    await persistDirtyFields()
-    const result = await recalculateCustomsDeclarationFees(props.detail.id)
+    const { feeDirty, remarkDirty } = await persistDirtyFields()
+    const lockedOrCompleted =
+      panelMode.value === 'readonly_locked' || panelMode.value === 'readonly_completed'
+    if (!feeDirty) {
+      ElMessage.success(
+        remarkDirty ? t('customsPages.fees.remarkSaveOk') : t('customsPages.fees.recalculateOk')
+      )
+      emit('refresh')
+      return
+    }
+    const result = await recalculateCustomsDeclarationFees(props.detail.id, {
+      cascadeInbound: !lockedOrCompleted
+    })
     const downstream =
       Number(result.arrivalNoticesUpdated ?? 0) +
       Number(result.stockInItemsUpdated ?? 0) +
@@ -820,7 +883,7 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
             </span>
           </span>
         </div>
-        <div class="info-item">
+        <div class="info-item fees-header-total">
           <span class="info-label">{{ t('customsPages.declarations.colTotal') }}</span>
           <span class="info-value">{{ moneyText(detail.totalTaxAmount) }}</span>
         </div>
@@ -832,9 +895,32 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
           size="small"
           border
           :fit="false"
+          row-key="id"
+          default-expand-all
           class="detail-panel-list-table fees-lines-table"
           :row-class-name="rowClassName"
         >
+          <el-table-column type="expand" width="1" class-name="fees-expand-col">
+            <template #default="{ row }">
+              <div class="fees-remark-row">
+                <span class="fees-remark-label">{{ t('customsPages.fees.lineRemark') }}</span>
+                <el-input
+                  v-if="canEditLineRemark"
+                  v-model="rowDraft(row).remark"
+                  type="textarea"
+                  :rows="1"
+                  :autosize="{ minRows: 1, maxRows: 8 }"
+                  maxlength="1000"
+                  show-word-limit
+                  :placeholder="t('customsPages.fees.lineRemarkPh')"
+                  class="fees-remark-input fees-field-highlight"
+                />
+                <div v-else class="fees-remark-text">
+                  {{ (row.remark ?? '').trim() || '—' }}
+                </div>
+              </div>
+            </template>
+          </el-table-column>
           <el-table-column prop="lineNo" label="#" width="52" align="center" />
           <CrmCopyableTableColumn prop="purchasePn" :label="t('customsPages.items.colPn')" min-width="128" />
           <CrmCopyableTableColumn prop="purchaseBrand" :label="t('customsPages.items.colBrand')" min-width="108" />
@@ -947,7 +1033,6 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
                 v-model="rowDraft(row).otherFee"
                 size="small"
                 :precision="2"
-                :min="0"
                 :step="1"
                 :controls="false"
                 class="fees-input-number fees-input-number--footer fees-field-highlight"
@@ -1046,6 +1131,85 @@ function rowClassName({ row }: { row: CustomsDeclarationDetailItemViewDto }) {
                   </template>
                   <span v-else>{{ formulaUnavailableText(step.reason) }}</span>
                 </div>
+                <template v-if="step.id === 'agency' && step.brokerAgency">
+                  <div class="fees-formula-desc fees-formula-desc--broker">
+                    <span>{{ t('customsPages.fees.formulaBrokerAgency') }}</span>
+                    <el-popover
+                      placement="top-start"
+                      :width="360"
+                      trigger="click"
+                      popper-class="fees-broker-agency-popover"
+                    >
+                      <template #reference>
+                        <button
+                          type="button"
+                          class="fees-formula-info-btn"
+                          :aria-label="t('customsPages.fees.formulaBrokerAgencyVarsAria')"
+                        >
+                          <el-icon :size="14"><InfoFilled /></el-icon>
+                        </button>
+                      </template>
+                      <div class="fees-broker-agency-vars">
+                        <div class="fees-broker-agency-vars__title">
+                          {{ t('customsPages.fees.formulaBrokerAgencyVarsTitle') }}
+                        </div>
+                        <ul class="fees-broker-agency-vars__list">
+                          <li>
+                            {{
+                              t('customsPages.fees.formulaBrokerVarCostUsd', {
+                                value: demoFixed(step.brokerAgency.costUsd, 6)
+                              })
+                            }}
+                          </li>
+                          <li>
+                            {{
+                              t('customsPages.fees.formulaBrokerVarQty', {
+                                value: demoQty(step.brokerAgency.qty)
+                              })
+                            }}
+                          </li>
+                          <li>
+                            {{
+                              t('customsPages.fees.formulaBrokerVarRate', {
+                                value: demoFixed(step.brokerAgency.exchangeRate, 6)
+                              })
+                            }}
+                          </li>
+                          <li>
+                            {{
+                              t('customsPages.fees.formulaBrokerVarDuty', {
+                                value: demoFixed(step.brokerAgency.dutyRate, 6)
+                              })
+                            }}
+                          </li>
+                          <li>
+                            {{
+                              t('customsPages.fees.formulaBrokerVarVat', {
+                                value: demoFixed(step.brokerAgency.vatRate, 6)
+                              })
+                            }}
+                          </li>
+                          <li>
+                            {{
+                              t('customsPages.fees.formulaBrokerVarComprehensive', {
+                                value: demoFixed(step.brokerAgency.comprehensiveRate, 6)
+                              })
+                            }}
+                          </li>
+                        </ul>
+                      </div>
+                    </el-popover>
+                  </div>
+                  <div
+                    class="fees-formula-calc"
+                    :class="{ 'is-mismatch': step.brokerAgency.mismatch }"
+                  >
+                    <span>{{ formatBrokerAgencyExpr(step.brokerAgency) }}</span>
+                    <span v-if="step.brokerAgency.mismatch" class="fees-formula-mismatch">
+                      {{ t('customsPages.fees.formulaBrokerAgencyMismatch') }}
+                    </span>
+                  </div>
+                </template>
               </div>
             </section>
           </div>
@@ -1126,7 +1290,7 @@ $fees-highlight-text: #78350f;
 
 .fees-header-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
   margin-bottom: 12px;
   border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 8px;
@@ -1142,8 +1306,20 @@ $fees-highlight-text: #78350f;
   border-right: 1px solid rgba(255, 255, 255, 0.04);
   min-width: 0;
 
-  &:nth-child(4n) {
+  &:last-child {
     border-right: none;
+  }
+}
+
+.fees-header-total {
+  justify-content: flex-end;
+  margin-left: auto;
+  white-space: nowrap;
+
+  .info-label,
+  .info-value {
+    font-weight: 700;
+    color: $text-primary;
   }
 }
 
@@ -1247,6 +1423,70 @@ $fees-highlight-text: #78350f;
     white-space: nowrap;
     overflow: visible;
   }
+
+  /* 备注展开行：隐藏展开箭头，默认全部展开 */
+  .fees-expand-col .cell {
+    padding: 0 !important;
+  }
+
+  .el-table__expand-icon {
+    display: none;
+  }
+
+  .el-table__expanded-cell {
+    white-space: normal !important;
+    padding: 6px 12px 8px !important;
+    background: var(--el-fill-color-blank);
+  }
+
+  .el-table__expanded-cell > .cell {
+    width: 100% !important;
+    max-width: none !important;
+    overflow: visible !important;
+    white-space: normal !important;
+  }
+}
+
+.fees-remark-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  /* 与「物料型号」列左缘对齐：expand(1) + #(52)，展开单元格自身已有与表体一致的左右 padding */
+  padding-left: calc(1px + 52px);
+}
+
+.fees-remark-label {
+  flex: 0 0 auto;
+  padding-top: 5px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.fees-remark-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+
+  :deep(.el-textarea__inner) {
+    min-height: 28px !important;
+    line-height: 1.4;
+    resize: vertical;
+  }
+}
+
+.fees-remark-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+  min-height: 28px;
+  color: var(--el-text-color-primary);
 }
 
 .fees-hs-input {
@@ -1369,6 +1609,31 @@ $fees-highlight-text: #78350f;
   color: $text-muted;
 }
 
+.fees-formula-desc--broker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.fees-formula-info-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--el-color-info);
+  cursor: pointer;
+  line-height: 1;
+  vertical-align: middle;
+
+  &:hover {
+    color: var(--el-color-primary);
+  }
+}
+
 .fees-formula-calc {
   margin: 0 0 6px 1.5em;
   padding: 2px 6px;
@@ -1393,5 +1658,27 @@ $fees-highlight-text: #78350f;
 
 .fees-formula-mismatch {
   font-weight: 600;
+  color: #dc2626;
+}
+</style>
+
+<style lang="scss">
+@import '@/assets/styles/variables.scss';
+
+.fees-broker-agency-popover {
+  .fees-broker-agency-vars__title {
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .fees-broker-agency-vars__list {
+    margin: 0;
+    padding-left: 1.2em;
+    font-size: 12px;
+    line-height: 1.7;
+    color: $text-secondary;
+  }
 }
 </style>

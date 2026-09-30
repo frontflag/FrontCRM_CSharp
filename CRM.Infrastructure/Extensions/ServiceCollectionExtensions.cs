@@ -136,6 +136,7 @@ namespace CRM.Infrastructure.Extensions
             services.AddScoped<IUserFeedbackAdminService, UserFeedbackAdminService>();
             services.AddScoped<ISysAnnouncementService, SysAnnouncementService>();
             services.AddScoped<ISysUserNoticeService, SysUserNoticeService>();
+            services.AddScoped<IBbsService, CRM.Infrastructure.Bbs.BbsService>();
             services.AddScoped<IWorkCalendarService, CRM.Infrastructure.WorkCalendar.WorkCalendarService>();
             services.AddScoped<IWorkCalendarStampWriter, CRM.Infrastructure.WorkCalendar.WorkCalendarStampWriter>();
             services.AddScoped<IIncentiveTargetService, CRM.Infrastructure.Finance.IncentiveTargetService>();

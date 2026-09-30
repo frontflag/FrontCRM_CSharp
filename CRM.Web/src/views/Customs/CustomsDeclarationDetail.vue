@@ -130,10 +130,10 @@
             </div>
             <div class="info-item info-item--basic-spacer" aria-hidden="true"></div>
           </div>
-          <div v-if="detail.remark" class="info-grid info-grid--inline-labels">
+          <div class="info-grid info-grid--inline-labels">
             <div class="info-item info-item--span-all">
               <span class="info-label">{{ t('customsPages.declarations.colRemark') }}</span>
-              <span class="info-value">{{ detail.remark }}</span>
+              <span class="info-value">{{ detail.remark?.trim() || '—' }}</span>
             </div>
           </div>
         </div>
