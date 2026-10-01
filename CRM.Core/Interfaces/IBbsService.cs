@@ -99,4 +99,10 @@ public interface IBbsService
         int value,
         string userId,
         CancellationToken ct = default);
+
+    Task<BbsSubjectDetailDto> VotePollAsync(
+        string subjectId,
+        IReadOnlyList<string> optionIds,
+        BbsActorContext actor,
+        CancellationToken ct = default);
 }

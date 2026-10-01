@@ -11,7 +11,15 @@
             </svg>
             {{ isEdit ? t('bbs.backToPost') : t('bbs.backList') }}
           </button>
-          <h1 class="bbs-toolbar__title">{{ isEdit ? t('bbs.editTitle') : t('bbs.createTitle') }}</h1>
+          <h1 class="bbs-toolbar__title">
+            {{
+              isEdit
+                ? t('bbs.editTitle')
+                : isPollMode
+                  ? t('bbs.createPollTitle')
+                  : t('bbs.createTitle')
+            }}
+          </h1>
         </div>
 
         <div class="bbs-form">
@@ -54,6 +62,72 @@
             <el-switch v-model="form.anonymous" />
             <span class="bbs-field__hint">{{ t('bbs.form.anonymousHint') }}</span>
           </div>
+
+          <template v-if="isPollMode">
+            <div class="bbs-field">
+              <label class="bbs-field__label">
+                <span class="req">*</span>{{ t('bbs.poll.voteMode') }}
+              </label>
+              <el-radio-group v-model="pollForm.voteMode" :disabled="pollOptionsLocked">
+                <el-radio :value="BbsVoteMode.Single">{{ t('bbs.poll.single') }}</el-radio>
+                <el-radio :value="BbsVoteMode.Multi">{{ t('bbs.poll.multi') }}</el-radio>
+              </el-radio-group>
+            </div>
+            <div v-if="pollForm.voteMode === BbsVoteMode.Multi" class="bbs-field bbs-field--row">
+              <label class="bbs-field__label bbs-field__label--inline">{{ t('bbs.poll.maxChoices') }}</label>
+              <el-input-number
+                v-model="pollForm.maxChoices"
+                :min="2"
+                :max="Math.max(2, pollForm.options.filter((x) => x.trim()).length || 2)"
+                :disabled="pollOptionsLocked"
+                controls-position="right"
+              />
+              <span class="bbs-field__hint">{{ t('bbs.poll.maxChoicesHint') }}</span>
+            </div>
+            <div class="bbs-field">
+              <label class="bbs-field__label">{{ t('bbs.poll.deadline') }}</label>
+              <el-date-picker
+                v-model="pollForm.deadline"
+                type="datetime"
+                value-format="YYYY-MM-DDTHH:mm:ss"
+                :placeholder="t('bbs.poll.deadlinePh')"
+                :disabled="pollOptionsLocked"
+                :disabled-date="pollDeadlineDisabledDate"
+                style="width: 100%"
+              />
+              <span class="bbs-field__hint">{{ t('bbs.poll.deadlineHint') }}</span>
+            </div>
+            <div class="bbs-field">
+              <label class="bbs-field__label">
+                <span class="req">*</span>{{ t('bbs.poll.options') }}
+              </label>
+              <p v-if="pollOptionsLocked" class="bbs-field__hint">{{ t('bbs.poll.optionsLocked') }}</p>
+              <div
+                v-for="(_opt, idx) in pollForm.options"
+                :key="idx"
+                class="bbs-poll-option-row"
+              >
+                <el-input
+                  v-model="pollForm.options[idx]"
+                  maxlength="100"
+                  show-word-limit
+                  :disabled="pollOptionsLocked"
+                  :placeholder="t('bbs.poll.optionPh', { n: idx + 1 })"
+                />
+                <el-button
+                  v-if="!pollOptionsLocked && pollForm.options.length > 2"
+                  link
+                  type="danger"
+                  @click="removePollOption(idx)"
+                >{{ t('bbs.poll.removeOption') }}</el-button>
+              </div>
+              <el-button
+                v-if="!pollOptionsLocked && pollForm.options.length < 20"
+                size="small"
+                @click="addPollOption"
+              >{{ t('bbs.poll.addOption') }}</el-button>
+            </div>
+          </template>
 
           <div class="bbs-field">
             <label class="bbs-field__label">{{ t('bbs.media.title') }}</label>
@@ -230,6 +304,8 @@ import {
   BbsSubjectTypeI18nKey,
   BbsFixedBoardTypes,
   BbsBuiltinMovableTypes,
+  BbsSubjectKind,
+  BbsVoteMode,
   bbsIsAdminOnlyPostType,
   bbsIsCustomBoardType,
   bbsSupportsBoardModerator,
@@ -326,6 +402,31 @@ const form = reactive({
   type: BbsSubjectType.Share as number,
   anonymous: false
 })
+const isPollMode = ref(false)
+const pollOptionsLocked = ref(false)
+const pollForm = reactive({
+  voteMode: BbsVoteMode.Single as number,
+  maxChoices: null as number | null,
+  deadline: null as string | null,
+  options: ['', ''] as string[]
+})
+
+function addPollOption() {
+  if (pollForm.options.length >= 20) return
+  pollForm.options.push('')
+}
+
+function removePollOption(idx: number) {
+  if (pollForm.options.length <= 2) return
+  pollForm.options.splice(idx, 1)
+}
+
+/** 截止日不可早于当天（按本地日期）。 */
+function pollDeadlineDisabledDate(date: Date) {
+  const start = new Date()
+  start.setHours(0, 0, 0, 0)
+  return date.getTime() < start.getTime()
+}
 const pendingMedia = ref<PendingMedia[]>([])
 const savedMedia = ref<SavedMediaView[]>([])
 const imageInputRef = ref<HTMLInputElement | null>(null)
@@ -727,6 +828,12 @@ function clearPending() {
 
 async function load() {
   if (!isEdit.value) {
+    isPollMode.value = String(route.query.kind || '') === 'poll'
+    pollOptionsLocked.value = false
+    pollForm.voteMode = BbsVoteMode.Single
+    pollForm.maxChoices = null
+    pollForm.deadline = null
+    pollForm.options = ['', '']
     const typeQ = Number(route.query.type)
     if (
       Number.isFinite(typeQ) &&
@@ -748,6 +855,17 @@ async function load() {
     form.title = d.title
     form.type = d.type
     form.anonymous = d.anonymous
+    isPollMode.value = Number(d.kind) === BbsSubjectKind.Poll
+    pollOptionsLocked.value = isPollMode.value && Number(d.voteCount || 0) > 0
+    if (isPollMode.value && d.poll) {
+      pollForm.voteMode = Number(d.poll.voteMode) || BbsVoteMode.Single
+      pollForm.maxChoices = d.poll.voteMaxChoices ?? null
+      pollForm.deadline = d.poll.voteDeadline
+        ? String(d.poll.voteDeadline).slice(0, 19)
+        : null
+      const texts = (d.poll.options || []).map((o) => o.text)
+      pollForm.options = texts.length >= 2 ? texts : ['', '']
+    }
     canManageMedia.value = !!(d.canEdit || d.canModerate)
     contentMode.value = isLikelyHtmlContent(d.content) ? 'rich' : 'markdown'
     const media = await bbsApi.listMedia(editId.value)
@@ -778,6 +896,47 @@ async function submit() {
     return
   }
 
+  let pollPayload: {
+    kind?: number
+    voteMode?: number
+    voteMaxChoices?: number | null
+    voteDeadline?: string | null
+    pollOptions?: string[]
+  } = {}
+  if (isPollMode.value) {
+    const pollOptions = pollForm.options.map((x) => x.trim()).filter(Boolean)
+    if (!pollOptionsLocked.value && pollOptions.length < 2) {
+      ElMessage.warning(t('bbs.poll.optionsMin'))
+      return
+    }
+    if (
+      !pollOptionsLocked.value &&
+      pollForm.voteMode === BbsVoteMode.Multi &&
+      pollForm.maxChoices != null &&
+      (pollForm.maxChoices < 2 || pollForm.maxChoices > pollOptions.length)
+    ) {
+      ElMessage.warning(t('bbs.poll.maxChoicesInvalid'))
+      return
+    }
+    if (pollForm.deadline) {
+      const d = new Date(pollForm.deadline)
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+      if (Number.isNaN(d.getTime()) || d.getTime() < start.getTime()) {
+        ElMessage.warning(t('bbs.poll.deadlineTooEarly'))
+        return
+      }
+    }
+    pollPayload = {
+      kind: BbsSubjectKind.Poll,
+      voteMode: pollForm.voteMode,
+      voteMaxChoices:
+        pollForm.voteMode === BbsVoteMode.Multi ? pollForm.maxChoices : null,
+      voteDeadline: pollForm.deadline || null,
+      pollOptions: pollOptionsLocked.value ? undefined : pollOptions
+    }
+  }
+
   let working = contentWithPendingTokens(form.content.trim())
   const unused = pendingMedia.value.filter(
     (p) =>
@@ -793,7 +952,8 @@ async function submit() {
       title: form.title.trim(),
       content: working,
       type: form.type,
-      anonymous: form.anonymous
+      anonymous: form.anonymous,
+      ...pollPayload
     }
     let d = isEdit.value
       ? await bbsApi.update(editId.value, body)
@@ -808,7 +968,8 @@ async function submit() {
         title: form.title.trim(),
         content: nextContent,
         type: form.type,
-        anonymous: form.anonymous
+        anonymous: form.anonymous,
+        ...pollPayload
       })
     }
     clearPending()
@@ -944,6 +1105,13 @@ onUnmounted(() => {
 
 .bbs-field--row .bbs-field__hint {
   margin-top: 0;
+}
+
+.bbs-poll-option-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
 .bbs-type-grid {

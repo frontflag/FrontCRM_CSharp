@@ -153,7 +153,54 @@ public static class BbsSchemaEnsure
                 """,
                 cancellationToken);
 
-            logger.LogInformation("BBS 表结构已对齐：bbs_subject、bbs_reply、bbs_reaction、bbs_board_moderator");
+            await db.Database.ExecuteSqlRawAsync(
+                """
+                ALTER TABLE public.bbs_subject
+                  ADD COLUMN IF NOT EXISTS kind integer NOT NULL DEFAULT 0;
+                ALTER TABLE public.bbs_subject
+                  ADD COLUMN IF NOT EXISTS vote_mode integer NOT NULL DEFAULT 0;
+                ALTER TABLE public.bbs_subject
+                  ADD COLUMN IF NOT EXISTS vote_max_choices integer NULL;
+                ALTER TABLE public.bbs_subject
+                  ADD COLUMN IF NOT EXISTS vote_deadline timestamp with time zone NULL;
+                ALTER TABLE public.bbs_subject
+                  ADD COLUMN IF NOT EXISTS vote_count integer NOT NULL DEFAULT 0;
+
+                CREATE TABLE IF NOT EXISTS public.bbs_poll_option (
+                  id character varying(36) NOT NULL,
+                  subject_id character varying(36) NOT NULL,
+                  sort_order integer NOT NULL DEFAULT 0,
+                  text character varying(100) NOT NULL,
+                  is_deleted boolean NOT NULL DEFAULT false,
+                  CONSTRAINT "PK_bbs_poll_option" PRIMARY KEY (id)
+                );
+                CREATE INDEX IF NOT EXISTS ix_bbs_poll_option_subject
+                  ON public.bbs_poll_option (subject_id, sort_order);
+
+                CREATE TABLE IF NOT EXISTS public.bbs_poll_vote (
+                  id character varying(36) NOT NULL,
+                  subject_id character varying(36) NOT NULL,
+                  user_id character varying(36) NOT NULL,
+                  create_time timestamp with time zone NOT NULL DEFAULT (timezone('utc', now())),
+                  CONSTRAINT "PK_bbs_poll_vote" PRIMARY KEY (id)
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_bbs_poll_vote_subject_user
+                  ON public.bbs_poll_vote (subject_id, user_id);
+
+                CREATE TABLE IF NOT EXISTS public.bbs_poll_vote_item (
+                  id character varying(36) NOT NULL,
+                  vote_id character varying(36) NOT NULL,
+                  option_id character varying(36) NOT NULL,
+                  CONSTRAINT "PK_bbs_poll_vote_item" PRIMARY KEY (id)
+                );
+                CREATE UNIQUE INDEX IF NOT EXISTS ux_bbs_poll_vote_item
+                  ON public.bbs_poll_vote_item (vote_id, option_id);
+                CREATE INDEX IF NOT EXISTS ix_bbs_poll_vote_item_option
+                  ON public.bbs_poll_vote_item (option_id);
+                """,
+                cancellationToken);
+
+            logger.LogInformation("BBS 表结构已对齐：含投票帖 poll 表");
         }
         catch (Exception ex)
         {

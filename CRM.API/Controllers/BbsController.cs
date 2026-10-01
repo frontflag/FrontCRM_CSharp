@@ -269,6 +269,42 @@ public class BbsController : ControllerBase
         }
     }
 
+    [HttpPost("subjects/{id}/poll/vote")]
+    public async Task<ActionResult<ApiResponse<BbsSubjectDetailDto>>> VotePoll(
+        string id,
+        [FromBody] BbsPollVoteRequest? request,
+        CancellationToken ct)
+    {
+        try
+        {
+            var actor = await TryGetActorAsync(ct);
+            if (actor == null)
+                return Unauthorized(ApiResponse<BbsSubjectDetailDto>.Fail("未登录", 401));
+            var dto = await _service.VotePollAsync(
+                id,
+                request?.OptionIds ?? [],
+                actor.Value.Actor,
+                ct);
+            return Ok(ApiResponse<BbsSubjectDetailDto>.Ok(dto));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<BbsSubjectDetailDto>.Fail(ex.Message, 404));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, ApiResponse<BbsSubjectDetailDto>.Fail(ex.Message, 403));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<BbsSubjectDetailDto>.Fail(ex.Message, 400));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<BbsSubjectDetailDto>.Fail(ex.Message, 400));
+        }
+    }
+
     [HttpPost("subjects/{id}/close")]
     public async Task<ActionResult<ApiResponse<object>>> Close(string id, CancellationToken ct)
         => await RunAsync(id, (s, a, c) => _service.CloseSubjectAsync(s, a, c), ct);

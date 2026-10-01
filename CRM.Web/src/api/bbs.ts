@@ -23,11 +23,47 @@ export interface BbsSubjectListItem {
   canEdit: boolean
   canSetTop: boolean
   canModerate: boolean
+  kind?: number
+  voteCount?: number
+  voteDeadline?: string | null
+}
+
+export interface BbsPollOption {
+  id: string
+  text: string
+  sortOrder: number
+  voteCount?: number | null
+  percent?: number | null
+  selected?: boolean
+}
+
+export interface BbsPoll {
+  voteMode: number
+  voteMaxChoices?: number | null
+  voteDeadline?: string | null
+  voterCount: number
+  hasVoted: boolean
+  canVote: boolean
+  canSeeStats: boolean
+  isClosedForVote: boolean
+  myOptionIds: string[]
+  options: BbsPollOption[]
 }
 
 export interface BbsSubjectDetail extends BbsSubjectListItem {
   content: string
+  poll?: BbsPoll | null
 }
+
+export const BbsSubjectKind = {
+  Normal: 0,
+  Poll: 1
+} as const
+
+export const BbsVoteMode = {
+  Single: 1,
+  Multi: 2
+} as const
 
 export interface BbsSubjectPaged {
   total: number
@@ -232,14 +268,38 @@ export const bbsApi = {
   detail(id: string): Promise<BbsSubjectDetail> {
     return apiClient.get(`/api/v1/bbs/subjects/${encodeURIComponent(id)}`) as Promise<BbsSubjectDetail>
   },
-  create(body: { title: string; content: string; type: number; anonymous: boolean }): Promise<BbsSubjectDetail> {
+  create(body: {
+    title: string
+    content: string
+    type: number
+    anonymous: boolean
+    kind?: number
+    voteMode?: number | null
+    voteMaxChoices?: number | null
+    voteDeadline?: string | null
+    pollOptions?: string[]
+  }): Promise<BbsSubjectDetail> {
     return apiClient.post('/api/v1/bbs/subjects', body) as Promise<BbsSubjectDetail>
   },
   update(
     id: string,
-    body: { title: string; content: string; type: number; anonymous: boolean }
+    body: {
+      title: string
+      content: string
+      type: number
+      anonymous: boolean
+      voteMode?: number | null
+      voteMaxChoices?: number | null
+      voteDeadline?: string | null
+      pollOptions?: string[]
+    }
   ): Promise<BbsSubjectDetail> {
     return apiClient.put(`/api/v1/bbs/subjects/${encodeURIComponent(id)}`, body) as Promise<BbsSubjectDetail>
+  },
+  votePoll(id: string, optionIds: string[]): Promise<BbsSubjectDetail> {
+    return apiClient.post(`/api/v1/bbs/subjects/${encodeURIComponent(id)}/poll/vote`, {
+      optionIds
+    }) as Promise<BbsSubjectDetail>
   },
   close(id: string): Promise<void> {
     return apiClient.post(`/api/v1/bbs/subjects/${encodeURIComponent(id)}/close`) as Promise<void>

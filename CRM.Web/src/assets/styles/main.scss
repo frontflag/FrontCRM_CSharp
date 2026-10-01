@@ -609,12 +609,28 @@ html {
     color: $text-primary !important;
   }
 
+  .el-date-table td.disabled .el-date-table-cell__text,
+  .el-date-table td.disabled.is-disabled .el-date-table-cell__text {
+    color: $text-muted !important;
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
   .el-date-table td.today .el-date-table-cell__text {
     color: $cyan-primary !important;
   }
 
+  .el-date-table td.today.disabled .el-date-table-cell__text {
+    color: $text-muted !important;
+    opacity: 0.45;
+  }
+
   .el-date-table td.available:hover .el-date-table-cell__text {
     background: var(--crm-accent-01) !important;
+  }
+
+  .el-date-table td.disabled:hover .el-date-table-cell__text {
+    background: transparent !important;
   }
 }
 

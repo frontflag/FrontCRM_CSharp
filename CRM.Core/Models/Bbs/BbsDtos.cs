@@ -17,6 +17,16 @@ public class BbsSubjectCreateRequest
     public string Content { get; set; } = string.Empty;
     public int Type { get; set; } = BbsSubjectTypes.Share;
     public bool Anonymous { get; set; }
+    /// <summary>0=普通 1=投票。</summary>
+    public int Kind { get; set; } = BbsSubjectKinds.Normal;
+    /// <summary>投票模式：1单选 2多选。</summary>
+    public int? VoteMode { get; set; }
+    /// <summary>多选上限；空=不限（最多选项数）。</summary>
+    public int? VoteMaxChoices { get; set; }
+    /// <summary>截止时间（UTC 或带偏移，服务端转 UTC）。</summary>
+    public DateTime? VoteDeadline { get; set; }
+    /// <summary>投票选项文案列表（投票帖必填，2～20）。</summary>
+    public List<string>? PollOptions { get; set; }
 }
 
 public class BbsSubjectUpdateRequest
@@ -25,6 +35,43 @@ public class BbsSubjectUpdateRequest
     public string Content { get; set; } = string.Empty;
     public int Type { get; set; }
     public bool Anonymous { get; set; }
+    /// <summary>无票时可改；有票后忽略选项相关字段。</summary>
+    public int? VoteMode { get; set; }
+    public int? VoteMaxChoices { get; set; }
+    public DateTime? VoteDeadline { get; set; }
+    public List<string>? PollOptions { get; set; }
+}
+
+public class BbsPollVoteRequest
+{
+    public List<string> OptionIds { get; set; } = [];
+}
+
+public class BbsPollOptionDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Text { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+    /// <summary>仅 canSeeStats 时有值。</summary>
+    public int? VoteCount { get; set; }
+    /// <summary>仅 canSeeStats 时有值，0～100。</summary>
+    public double? Percent { get; set; }
+    /// <summary>当前用户是否选中该项。</summary>
+    public bool Selected { get; set; }
+}
+
+public class BbsPollDto
+{
+    public int VoteMode { get; set; }
+    public int? VoteMaxChoices { get; set; }
+    public DateTime? VoteDeadline { get; set; }
+    public int VoterCount { get; set; }
+    public bool HasVoted { get; set; }
+    public bool CanVote { get; set; }
+    public bool CanSeeStats { get; set; }
+    public bool IsClosedForVote { get; set; }
+    public IReadOnlyList<string> MyOptionIds { get; set; } = Array.Empty<string>();
+    public IReadOnlyList<BbsPollOptionDto> Options { get; set; } = Array.Empty<BbsPollOptionDto>();
 }
 
 public class BbsReplyCreateRequest
@@ -58,11 +105,17 @@ public class BbsSubjectListItemDto
     public bool CanEdit { get; set; }
     public bool CanSetTop { get; set; }
     public bool CanModerate { get; set; }
+    /// <summary>0=普通 1=投票。</summary>
+    public int Kind { get; set; }
+    /// <summary>投票人数（投票帖）。</summary>
+    public int VoteCount { get; set; }
+    public DateTime? VoteDeadline { get; set; }
 }
 
 public class BbsSubjectDetailDto : BbsSubjectListItemDto
 {
     public string Content { get; set; } = string.Empty;
+    public BbsPollDto? Poll { get; set; }
 }
 
 public class BbsSubjectPagedDto

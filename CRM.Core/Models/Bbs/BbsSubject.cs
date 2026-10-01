@@ -66,4 +66,24 @@ public class BbsSubject
 
     [Column("is_deleted")]
     public bool IsDeleted { get; set; }
+
+    /// <summary>0=普通帖 1=投票帖。</summary>
+    [Column("kind")]
+    public int Kind { get; set; }
+
+    /// <summary>投票模式：1单选 2多选；非投票帖为 0。</summary>
+    [Column("vote_mode")]
+    public int VoteMode { get; set; }
+
+    /// <summary>多选上限；空表示可选全部选项。</summary>
+    [Column("vote_max_choices")]
+    public int? VoteMaxChoices { get; set; }
+
+    /// <summary>投票截止 UTC；空表示主题打开期间一直可投。</summary>
+    [Column("vote_deadline")]
+    public DateTime? VoteDeadline { get; set; }
+
+    /// <summary>已投票人数（每人计 1）。</summary>
+    [Column("vote_count")]
+    public int VoteCount { get; set; }
 }

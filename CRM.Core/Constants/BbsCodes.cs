@@ -99,6 +99,31 @@ public static class BbsLimits
     public const int HotReplyThreshold = 50;
 }
 
+/// <summary>主题形态：普通帖 / 投票帖。</summary>
+public static class BbsSubjectKinds
+{
+    public const int Normal = 0;
+    public const int Poll = 1;
+
+    public static bool IsValid(int kind) => kind is Normal or Poll;
+}
+
+/// <summary>投票模式：单选 / 多选。</summary>
+public static class BbsVoteModes
+{
+    public const int Single = 1;
+    public const int Multi = 2;
+
+    public static bool IsValid(int mode) => mode is Single or Multi;
+}
+
+public static class BbsPollLimits
+{
+    public const int MinOptions = 2;
+    public const int MaxOptions = 20;
+    public const int OptionTextMaxLength = 100;
+}
+
 /// <summary>赞/踩目标类型。</summary>
 public static class BbsReactionTargetTypes
 {

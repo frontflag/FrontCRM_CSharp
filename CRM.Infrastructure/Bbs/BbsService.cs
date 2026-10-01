@@ -481,6 +481,10 @@ public class BbsService : IBbsService
         ValidateContent(request.Title, request.Content, request.Type);
         await EnsureCanPostTypeAsync(request.Type, actor, ct);
 
+        var kind = request.Kind;
+        if (!BbsSubjectKinds.IsValid(kind))
+            throw new ArgumentException("主题形态无效");
+
         var entity = new BbsSubject
         {
             Id = Guid.NewGuid().ToString(),
@@ -489,9 +493,31 @@ public class BbsService : IBbsService
             Type = request.Type,
             Status = BbsSubjectStatuses.Open,
             Anonymous = request.Anonymous,
+            Kind = kind,
             CreateTime = DateTime.UtcNow,
             CreateBy = actor.UserId
         };
+
+        if (kind == BbsSubjectKinds.Poll)
+        {
+            var (mode, maxChoices, deadline, options) = NormalizePollCreate(request);
+            entity.VoteMode = mode;
+            entity.VoteMaxChoices = maxChoices;
+            entity.VoteDeadline = deadline;
+            entity.VoteCount = 0;
+            for (var i = 0; i < options.Count; i++)
+            {
+                _db.BbsPollOptions.Add(new BbsPollOption
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    SubjectId = entity.Id,
+                    SortOrder = i + 1,
+                    Text = options[i],
+                    IsDeleted = false
+                });
+            }
+        }
+
         _db.BbsSubjects.Add(entity);
         await _db.SaveChangesAsync(ct);
 
@@ -516,7 +542,141 @@ public class BbsService : IBbsService
         entity.Anonymous = request.Anonymous;
         entity.ModifyTime = DateTime.UtcNow;
         entity.ModifyBy = actor.UserId;
+
+        if (entity.Kind == BbsSubjectKinds.Poll)
+        {
+            var hasVotes = entity.VoteCount > 0
+                || await _db.BbsPollVotes.AsNoTracking().AnyAsync(x => x.SubjectId == entity.Id, ct);
+            if (!hasVotes)
+            {
+                if (request.PollOptions is { Count: > 0 })
+                {
+                    var stub = new BbsSubjectCreateRequest
+                    {
+                        Kind = BbsSubjectKinds.Poll,
+                        VoteMode = request.VoteMode ?? entity.VoteMode,
+                        VoteMaxChoices = request.VoteMaxChoices,
+                        VoteDeadline = request.VoteDeadline ?? entity.VoteDeadline,
+                        PollOptions = request.PollOptions
+                    };
+                    var (mode, maxChoices, deadline, options) = NormalizePollCreate(stub);
+                    entity.VoteMode = mode;
+                    entity.VoteMaxChoices = maxChoices;
+                    entity.VoteDeadline = deadline;
+                    var oldOpts = await _db.BbsPollOptions
+                        .Where(x => x.SubjectId == entity.Id && !x.IsDeleted)
+                        .ToListAsync(ct);
+                    foreach (var o in oldOpts) o.IsDeleted = true;
+                    for (var i = 0; i < options.Count; i++)
+                    {
+                        _db.BbsPollOptions.Add(new BbsPollOption
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            SubjectId = entity.Id,
+                            SortOrder = i + 1,
+                            Text = options[i],
+                            IsDeleted = false
+                        });
+                    }
+                }
+                else
+                {
+                    if (request.VoteMode is int vm && BbsVoteModes.IsValid(vm))
+                        entity.VoteMode = vm;
+                    if (request.VoteMaxChoices.HasValue)
+                    {
+                        var optCount = await _db.BbsPollOptions.CountAsync(
+                            x => x.SubjectId == entity.Id && !x.IsDeleted, ct);
+                        entity.VoteMaxChoices = NormalizeMaxChoices(
+                            entity.VoteMode, request.VoteMaxChoices, optCount);
+                    }
+                    if (request.VoteDeadline.HasValue)
+                        entity.VoteDeadline = ToUtcDeadline(request.VoteDeadline);
+                }
+            }
+        }
+
         await _db.SaveChangesAsync(ct);
+
+        return (await GetSubjectDetailWithoutBumpAsync(subjectId, actor, ct))!;
+    }
+
+    public async Task<BbsSubjectDetailDto> VotePollAsync(
+        string subjectId,
+        IReadOnlyList<string> optionIds,
+        BbsActorContext actor,
+        CancellationToken ct = default)
+    {
+        var entity = await RequireSubjectAsync(subjectId, ct);
+        if (entity.Kind != BbsSubjectKinds.Poll)
+            throw new ArgumentException("该主题不是投票帖");
+        if (entity.Status != BbsSubjectStatuses.Open)
+            throw new InvalidOperationException("主题已关闭，无法投票");
+        if (IsVoteDeadlinePassed(entity.VoteDeadline))
+            throw new InvalidOperationException("投票已截止");
+
+        var exists = await _db.BbsPollVotes.AsNoTracking()
+            .AnyAsync(x => x.SubjectId == subjectId && x.UserId == actor.UserId, ct);
+        if (exists)
+            throw new InvalidOperationException("您已投过票，不可修改");
+
+        var options = await _db.BbsPollOptions.AsNoTracking()
+            .Where(x => x.SubjectId == subjectId && !x.IsDeleted)
+            .ToListAsync(ct);
+        if (options.Count < BbsPollLimits.MinOptions)
+            throw new InvalidOperationException("投票选项无效");
+
+        var ids = (optionIds ?? Array.Empty<string>())
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (ids.Count == 0)
+            throw new ArgumentException("请选择投票选项");
+
+        var optionMap = options.ToDictionary(x => x.Id, StringComparer.OrdinalIgnoreCase);
+        foreach (var id in ids)
+        {
+            if (!optionMap.ContainsKey(id))
+                throw new ArgumentException("选项无效或不属于本投票");
+        }
+
+        if (entity.VoteMode == BbsVoteModes.Single && ids.Count != 1)
+            throw new ArgumentException("单选投票只能选择 1 项");
+        if (entity.VoteMode == BbsVoteModes.Multi)
+        {
+            var max = entity.VoteMaxChoices is int m && m > 0 ? m : options.Count;
+            if (ids.Count > max)
+                throw new ArgumentException($"最多可选 {max} 项");
+        }
+
+        var vote = new BbsPollVote
+        {
+            Id = Guid.NewGuid().ToString(),
+            SubjectId = subjectId,
+            UserId = actor.UserId,
+            CreateTime = DateTime.UtcNow
+        };
+        _db.BbsPollVotes.Add(vote);
+        foreach (var id in ids)
+        {
+            _db.BbsPollVoteItems.Add(new BbsPollVoteItem
+            {
+                Id = Guid.NewGuid().ToString(),
+                VoteId = vote.Id,
+                OptionId = optionMap[id].Id
+            });
+        }
+        entity.VoteCount += 1;
+        entity.ModifyTime = DateTime.UtcNow;
+        try
+        {
+            await _db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            throw new InvalidOperationException("您已投过票，不可修改");
+        }
 
         return (await GetSubjectDetailWithoutBumpAsync(subjectId, actor, ct))!;
     }
@@ -881,7 +1041,7 @@ public class BbsService : IBbsService
         var mine = await LoadMyReactionsAsync(BbsReactionTargetTypes.Subject, new[] { entity.Id }, actor.UserId, ct);
         var typeNames = await LoadBoardDisplayNamesAsync(ct);
         var item = ToListItem(entity, actor, names, mine, typeNames);
-        return new BbsSubjectDetailDto
+        var detail = new BbsSubjectDetailDto
         {
             Id = item.Id,
             Title = item.Title,
@@ -905,8 +1065,14 @@ public class BbsService : IBbsService
             CanEdit = item.CanEdit,
             CanSetTop = item.CanSetTop,
             CanModerate = item.CanModerate,
+            Kind = item.Kind,
+            VoteCount = item.VoteCount,
+            VoteDeadline = item.VoteDeadline,
             Content = entity.Content
         };
+        if (entity.Kind == BbsSubjectKinds.Poll)
+            detail.Poll = await BuildPollDtoAsync(entity, actor, ct);
+        return detail;
     }
 
     private async Task<BbsSubject> RequireSubjectAsync(string subjectId, CancellationToken ct)
@@ -1066,8 +1232,145 @@ public class BbsService : IBbsService
             CanDelete = canMod || isOwner,
             CanEdit = actor.IsGlobalModerator || isOwner,
             CanSetTop = canMod,
-            CanModerate = canMod
+            CanModerate = canMod,
+            Kind = x.Kind,
+            VoteCount = x.VoteCount,
+            VoteDeadline = x.VoteDeadline
         };
+    }
+
+    private async Task<BbsPollDto> BuildPollDtoAsync(
+        BbsSubject entity,
+        BbsActorContext actor,
+        CancellationToken ct)
+    {
+        var options = await _db.BbsPollOptions.AsNoTracking()
+            .Where(x => x.SubjectId == entity.Id && !x.IsDeleted)
+            .OrderBy(x => x.SortOrder)
+            .ToListAsync(ct);
+
+        var myVote = await _db.BbsPollVotes.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.SubjectId == entity.Id && x.UserId == actor.UserId, ct);
+        var hasVoted = myVote != null;
+        var myOptionIds = Array.Empty<string>();
+        if (myVote != null)
+        {
+            myOptionIds = await _db.BbsPollVoteItems.AsNoTracking()
+                .Where(x => x.VoteId == myVote.Id)
+                .Select(x => x.OptionId)
+                .ToArrayAsync(ct);
+        }
+
+        var isOwner = string.Equals(entity.CreateBy, actor.UserId, StringComparison.OrdinalIgnoreCase);
+        var canMod = actor.CanModerateType(entity.Type);
+        var deadlinePassed = IsVoteDeadlinePassed(entity.VoteDeadline);
+        var closed = entity.Status != BbsSubjectStatuses.Open || deadlinePassed;
+        var canSeeStats = hasVoted || isOwner || canMod || deadlinePassed;
+        var canVote = !hasVoted && !closed;
+
+        Dictionary<string, int>? counts = null;
+        if (canSeeStats)
+        {
+            var optionIds = options.Select(o => o.Id).ToList();
+            var rows = await _db.BbsPollVoteItems.AsNoTracking()
+                .Where(x => optionIds.Contains(x.OptionId))
+                .GroupBy(x => x.OptionId)
+                .Select(g => new { OptionId = g.Key, Count = g.Count() })
+                .ToListAsync(ct);
+            counts = rows.ToDictionary(x => x.OptionId, x => x.Count, StringComparer.OrdinalIgnoreCase);
+        }
+
+        var voterCount = entity.VoteCount;
+        var selected = new HashSet<string>(myOptionIds, StringComparer.OrdinalIgnoreCase);
+        var optionDtos = options.Select(o =>
+        {
+            var dto = new BbsPollOptionDto
+            {
+                Id = o.Id,
+                Text = o.Text,
+                SortOrder = o.SortOrder,
+                Selected = selected.Contains(o.Id)
+            };
+            if (canSeeStats && counts != null)
+            {
+                var c = counts.GetValueOrDefault(o.Id);
+                dto.VoteCount = c;
+                dto.Percent = voterCount <= 0 ? 0 : Math.Round(100.0 * c / voterCount, 1);
+            }
+            return dto;
+        }).ToList();
+
+        return new BbsPollDto
+        {
+            VoteMode = entity.VoteMode,
+            VoteMaxChoices = entity.VoteMaxChoices,
+            VoteDeadline = entity.VoteDeadline,
+            VoterCount = voterCount,
+            HasVoted = hasVoted,
+            CanVote = canVote,
+            CanSeeStats = canSeeStats,
+            IsClosedForVote = closed,
+            MyOptionIds = myOptionIds,
+            Options = optionDtos
+        };
+    }
+
+    private static (int Mode, int? MaxChoices, DateTime? Deadline, List<string> Options) NormalizePollCreate(
+        BbsSubjectCreateRequest request)
+    {
+        var mode = request.VoteMode ?? BbsVoteModes.Single;
+        if (!BbsVoteModes.IsValid(mode))
+            throw new ArgumentException("投票模式无效");
+
+        var raw = request.PollOptions ?? [];
+        var options = raw
+            .Select(x => (x ?? string.Empty).Trim())
+            .Where(x => x.Length > 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+        if (options.Count < BbsPollLimits.MinOptions)
+            throw new ArgumentException($"投票至少需要 {BbsPollLimits.MinOptions} 个选项");
+        if (options.Count > BbsPollLimits.MaxOptions)
+            throw new ArgumentException($"投票最多 {BbsPollLimits.MaxOptions} 个选项");
+        foreach (var t in options)
+        {
+            if (t.Length > BbsPollLimits.OptionTextMaxLength)
+                throw new ArgumentException($"选项最长 {BbsPollLimits.OptionTextMaxLength} 字");
+        }
+
+        var maxChoices = NormalizeMaxChoices(mode, request.VoteMaxChoices, options.Count);
+        var deadline = ToUtcDeadline(request.VoteDeadline);
+        if (deadline != null && deadline <= DateTime.UtcNow)
+            throw new ArgumentException("截止时间须晚于当前时间");
+
+        return (mode, maxChoices, deadline, options);
+    }
+
+    private static int? NormalizeMaxChoices(int mode, int? maxChoices, int optionCount)
+    {
+        if (mode != BbsVoteModes.Multi) return null;
+        if (maxChoices is null or <= 0) return null;
+        if (maxChoices < 2 || maxChoices > optionCount)
+            throw new ArgumentException($"多选上限须在 2～{optionCount} 之间");
+        return maxChoices;
+    }
+
+    private static DateTime? ToUtcDeadline(DateTime? deadline)
+    {
+        if (deadline == null) return null;
+        var d = deadline.Value;
+        return d.Kind switch
+        {
+            DateTimeKind.Utc => d,
+            DateTimeKind.Local => d.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(d, DateTimeKind.Utc)
+        };
+    }
+
+    private static bool IsVoteDeadlinePassed(DateTime? deadlineUtc)
+    {
+        if (deadlineUtc == null) return false;
+        return DateTime.UtcNow >= deadlineUtc.Value;
     }
 
     private static BbsReplyDto ToReplyDto(

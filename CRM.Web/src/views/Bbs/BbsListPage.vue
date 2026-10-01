@@ -35,6 +35,7 @@
             </template>
           </el-input>
           <el-button type="primary" class="bbs-create" @click="goCreate">{{ t('bbs.create') }}</el-button>
+          <el-button type="primary" plain class="bbs-create-poll" @click="goCreatePoll">{{ t('bbs.createPoll') }}</el-button>
         </div>
 
         <div class="bbs-feed" v-loading="loading">
@@ -54,6 +55,7 @@
               <div class="bbs-row__title">
                 <span v-if="row.isTop" class="bbs-badge bbs-badge--top">{{ t('bbs.badgeTop') }}</span>
                 <span v-if="row.isHot" class="bbs-badge bbs-badge--hot">{{ t('bbs.badgeHot') }}</span>
+                <span v-if="Number(row.kind) === 1" class="bbs-badge bbs-badge--poll">{{ t('bbs.badgePoll') }}</span>
                 <span class="bbs-row__title-text">{{ row.title }}</span>
               </div>
               <div class="bbs-row__meta">
@@ -64,6 +66,10 @@
                 <span>{{ rowTypeLabel(row) }}</span>
                 <span>·</span>
                 <span>{{ t('bbs.metaViews', { n: row.viewCount }) }}</span>
+                <template v-if="Number(row.kind) === 1">
+                  <span>·</span>
+                  <span>{{ t('bbs.metaVotes', { n: row.voteCount || 0 }) }}</span>
+                </template>
                 <template v-if="row.status === BbsSubjectStatus.Close">
                   <span>·</span>
                   <span class="bbs-badge bbs-badge--closed">{{ t('bbs.badgeClosed') }}</span>
@@ -211,6 +217,17 @@ const showPager = computed(() => category.value !== 'top' && total.value > pageS
 
 function goCreate() {
   const q: Record<string, string> = {}
+  if (typeof category.value === 'number') {
+    const isAdmin = authStore.user?.isSysAdmin === true
+    if (isAdmin || !bbsIsAdminOnlyPostType(category.value)) {
+      q.type = String(category.value)
+    }
+  }
+  router.push({ name: 'BbsCreate', query: q })
+}
+
+function goCreatePoll() {
+  const q: Record<string, string> = { kind: 'poll' }
   if (typeof category.value === 'number') {
     const isAdmin = authStore.user?.isSysAdmin === true
     if (isAdmin || !bbsIsAdminOnlyPostType(category.value)) {
@@ -406,6 +423,13 @@ onMounted(() => {
   text-align: center;
 }
 
+.bbs-create-poll {
+  width: 8em;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+}
+
 .bbs-row {
   display: flex;
   align-items: flex-start;
@@ -467,6 +491,11 @@ onMounted(() => {
   &--hot {
     color: #f87171;
     background: rgba(248, 113, 113, 0.12);
+  }
+
+  &--poll {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.14);
   }
 
   &--closed {

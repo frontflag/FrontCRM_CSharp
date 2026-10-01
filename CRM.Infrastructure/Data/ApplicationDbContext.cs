@@ -64,6 +64,9 @@ namespace CRM.Infrastructure.Data
         public DbSet<BbsReply> BbsReplies { get; set; } = null!;
         public DbSet<BbsReaction> BbsReactions { get; set; } = null!;
         public DbSet<BbsBoardModerator> BbsBoardModerators { get; set; } = null!;
+        public DbSet<BbsPollOption> BbsPollOptions { get; set; } = null!;
+        public DbSet<BbsPollVote> BbsPollVotes { get; set; } = null!;
+        public DbSet<BbsPollVoteItem> BbsPollVoteItems { get; set; } = null!;
         public DbSet<WorkTask> WorkTasks { get; set; } = null!;
         public DbSet<IncentiveTarget> IncentiveTargets { get; set; } = null!;
         public DbSet<RiskAlertSetting> RiskAlertSettings { get; set; } = null!;
@@ -2952,6 +2955,11 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
                 entity.Property(e => e.ModifyBy).HasColumnName("modify_by").HasMaxLength(36);
                 entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+                entity.Property(e => e.Kind).HasColumnName("kind");
+                entity.Property(e => e.VoteMode).HasColumnName("vote_mode");
+                entity.Property(e => e.VoteMaxChoices).HasColumnName("vote_max_choices");
+                entity.Property(e => e.VoteDeadline).HasColumnName("vote_deadline");
+                entity.Property(e => e.VoteCount).HasColumnName("vote_count");
                 entity.HasIndex(e => new { e.IsDeleted, e.IsTop })
                     .HasDatabaseName("ix_bbs_subject_list");
             });
@@ -3003,6 +3011,45 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.UpdateTime).HasColumnName("update_time");
                 entity.Property(e => e.UpdateBy).HasColumnName("update_by").HasMaxLength(36);
                 entity.HasIndex(e => e.UserId).HasDatabaseName("ix_bbs_board_moderator_user");
+            });
+
+            modelBuilder.Entity<BbsPollOption>(entity =>
+            {
+                entity.ToTable("bbs_poll_option");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.SubjectId).HasColumnName("subject_id").HasMaxLength(36);
+                entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+                entity.Property(e => e.Text).HasColumnName("text").HasMaxLength(100);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+                entity.HasIndex(e => new { e.SubjectId, e.SortOrder })
+                    .HasDatabaseName("ix_bbs_poll_option_subject");
+            });
+
+            modelBuilder.Entity<BbsPollVote>(entity =>
+            {
+                entity.ToTable("bbs_poll_vote");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.SubjectId).HasColumnName("subject_id").HasMaxLength(36);
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.HasIndex(e => new { e.SubjectId, e.UserId })
+                    .IsUnique()
+                    .HasDatabaseName("ux_bbs_poll_vote_subject_user");
+            });
+
+            modelBuilder.Entity<BbsPollVoteItem>(entity =>
+            {
+                entity.ToTable("bbs_poll_vote_item");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.VoteId).HasColumnName("vote_id").HasMaxLength(36);
+                entity.Property(e => e.OptionId).HasColumnName("option_id").HasMaxLength(36);
+                entity.HasIndex(e => new { e.VoteId, e.OptionId })
+                    .IsUnique()
+                    .HasDatabaseName("ux_bbs_poll_vote_item");
+                entity.HasIndex(e => e.OptionId).HasDatabaseName("ix_bbs_poll_vote_item_option");
             });
 
             modelBuilder.Entity<RFQ>().Ignore(e => e.AssignedAt);

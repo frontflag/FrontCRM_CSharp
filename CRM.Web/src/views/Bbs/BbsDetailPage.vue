@@ -36,6 +36,7 @@
               <div class="bbs-topic__title-row">
                 <span v-if="detail.isTop" class="bbs-badge bbs-badge--top">{{ t('bbs.badgeTop') }}</span>
                 <span v-if="detail.isHot" class="bbs-badge bbs-badge--hot">{{ t('bbs.badgeHot') }}</span>
+                <span v-if="Number(detail.kind) === 1" class="bbs-badge bbs-badge--poll">{{ t('bbs.badgePoll') }}</span>
                 <h1 class="bbs-topic__title">{{ detail.title }}</h1>
               </div>
               <div class="bbs-row__meta">
@@ -52,6 +53,10 @@
                 <span>{{ t('bbs.metaViews', { n: detail.viewCount }) }}</span>
                 <span>·</span>
                 <span>{{ t('bbs.metaReplies', { n: detail.replyCount }) }}</span>
+                <template v-if="Number(detail.kind) === 1">
+                  <span>·</span>
+                  <span>{{ t('bbs.metaVotes', { n: detail.voteCount || 0 }) }}</span>
+                </template>
               </div>
             </div>
           </div>
@@ -60,6 +65,55 @@
             class="bbs-topic__body markdown-body"
             v-html="bodyHtml"
           />
+
+          <section v-if="detail.poll" class="bbs-poll">
+            <div class="bbs-poll__head">
+              <strong>{{ t('bbs.poll.sectionTitle') }}</strong>
+              <span class="bbs-poll__meta">
+                {{
+                  detail.poll.voteMode === BbsVoteMode.Multi
+                    ? t('bbs.poll.multi')
+                    : t('bbs.poll.single')
+                }}
+                <template v-if="detail.poll.voteDeadline">
+                  · {{ t('bbs.poll.deadlineLabel', { t: formatTime(detail.poll.voteDeadline) }) }}
+                </template>
+                <template v-if="detail.poll.isClosedForVote"> · {{ t('bbs.poll.closed') }}</template>
+              </span>
+            </div>
+            <div class="bbs-poll__options">
+              <label
+                v-for="opt in detail.poll.options"
+                :key="opt.id"
+                class="bbs-poll__option"
+                :class="{ 'is-selected': opt.selected, 'is-disabled': !detail.poll.canVote }"
+              >
+                <input
+                  v-if="detail.poll.canVote"
+                  :type="detail.poll.voteMode === BbsVoteMode.Multi ? 'checkbox' : 'radio'"
+                  :name="'poll-' + detail.id"
+                  :value="opt.id"
+                  :checked="selectedPollIds.includes(opt.id)"
+                  @change="onPollOptionToggle(opt.id, ($event.target as HTMLInputElement).checked)"
+                />
+                <span class="bbs-poll__option-text">{{ opt.text }}</span>
+                <template v-if="detail.poll.canSeeStats">
+                  <span class="bbs-poll__stat">{{ opt.voteCount ?? 0 }}（{{ opt.percent ?? 0 }}%）</span>
+                  <div class="bbs-poll__bar">
+                    <div class="bbs-poll__bar-fill" :style="{ width: `${opt.percent ?? 0}%` }" />
+                  </div>
+                </template>
+              </label>
+            </div>
+            <p v-if="!detail.poll.canSeeStats" class="bbs-poll__hint">{{ t('bbs.poll.statsHidden') }}</p>
+            <div v-if="detail.poll.canVote" class="bbs-poll__actions">
+              <el-button type="primary" :loading="voting" :disabled="!selectedPollIds.length" @click="submitPollVote">
+                {{ t('bbs.poll.submit') }}
+              </el-button>
+            </div>
+            <p v-else-if="detail.poll.hasVoted" class="bbs-poll__hint">{{ t('bbs.poll.voted') }}</p>
+          </section>
+
           <div class="bbs-reactions">
             <button
               type="button"
@@ -155,6 +209,7 @@ import {
   BbsSubjectStatus,
   BbsSubjectType,
   BbsSubjectTypeI18nKey,
+  BbsVoteMode,
   type BbsReplyItem,
   type BbsSubjectDetail
 } from '@/api/bbs'
@@ -181,6 +236,8 @@ const replyTotal = ref(0)
 const replyContent = ref('')
 const replyAnonymous = ref(false)
 const replying = ref(false)
+const voting = ref(false)
+const selectedPollIds = ref<string[]>([])
 const topicBodyRef = ref<HTMLElement | null>(null)
 const mediaObjectUrls = ref<string[]>([])
 
@@ -263,6 +320,7 @@ async function load() {
   loading.value = true
   try {
     detail.value = await bbsApi.detail(id.value)
+    selectedPollIds.value = [...(detail.value?.poll?.myOptionIds || [])]
     const page = await bbsApi.replies(id.value, 1, 100)
     replies.value = page?.items || []
     replyTotal.value = page?.total || 0
@@ -271,6 +329,41 @@ async function load() {
     ElMessage.error(getApiErrorMessage(e, t('bbs.loadFailed')))
   } finally {
     loading.value = false
+  }
+}
+
+function onPollOptionToggle(optionId: string, checked: boolean) {
+  const poll = detail.value?.poll
+  if (!poll?.canVote) return
+  if (poll.voteMode === BbsVoteMode.Single) {
+    selectedPollIds.value = checked ? [optionId] : []
+    return
+  }
+  const set = new Set(selectedPollIds.value)
+  if (checked) {
+    const max = poll.voteMaxChoices && poll.voteMaxChoices > 0 ? poll.voteMaxChoices : poll.options.length
+    if (set.size >= max && !set.has(optionId)) {
+      ElMessage.warning(t('bbs.poll.maxChoicesInvalid'))
+      return
+    }
+    set.add(optionId)
+  } else {
+    set.delete(optionId)
+  }
+  selectedPollIds.value = [...set]
+}
+
+async function submitPollVote() {
+  if (!detail.value?.poll?.canVote || !selectedPollIds.value.length) return
+  voting.value = true
+  try {
+    detail.value = await bbsApi.votePoll(id.value, selectedPollIds.value)
+    selectedPollIds.value = [...(detail.value.poll?.myOptionIds || [])]
+    ElMessage.success(t('bbs.poll.voteOk'))
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('bbs.poll.voteFailed')))
+  } finally {
+    voting.value = false
   }
 }
 
@@ -498,6 +591,96 @@ onUnmounted(() => {
     color: #f87171;
     background: rgba(248, 113, 113, 0.12);
   }
+
+  &--poll {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.14);
+  }
+}
+
+.bbs-poll {
+  margin: 16px 0 8px;
+  padding: 14px 14px 12px;
+  border: 1px solid $border-card;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bbs-poll__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.bbs-poll__meta {
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.bbs-poll__options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bbs-poll__option {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  column-gap: 8px;
+  row-gap: 4px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+
+  &.is-selected {
+    border-color: rgba(56, 189, 248, 0.35);
+    background: rgba(56, 189, 248, 0.08);
+  }
+
+  &.is-disabled {
+    cursor: default;
+  }
+}
+
+.bbs-poll__option-text {
+  grid-column: 2;
+  color: $text-primary;
+  font-size: 13px;
+}
+
+.bbs-poll__stat {
+  grid-column: 3;
+  font-size: 12px;
+  color: $text-muted;
+  white-space: nowrap;
+}
+
+.bbs-poll__bar {
+  grid-column: 2 / 4;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+
+.bbs-poll__bar-fill {
+  height: 100%;
+  background: rgba(56, 189, 248, 0.75);
+}
+
+.bbs-poll__hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: $text-muted;
+}
+
+.bbs-poll__actions {
+  margin-top: 12px;
 }
 
 .bbs-row__meta {
