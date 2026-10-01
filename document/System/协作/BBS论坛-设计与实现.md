@@ -7,7 +7,7 @@
 > **帮助：** [论坛](../../../help/pages/论坛_MENU_BBS.md)  
 > **入口：** 侧栏「我的」→「论坛」`/bbs`；详情 `/bbs/:id`；发帖 `/bbs/create`  
 > **DDL：** `scripts/ensure_bbs_postgresql.sql`（启动幂等 SchemaEnsure）  
-> **权限：** 读/写 = 登录即可；版主 `bbs.moderate` 或 SYS_ADMIN / SYS_MANAGER
+> **权限：** 读/写 = 登录即可；板块版主见 `bbs_board_moderator`（置顶/关帖/删帖，限本板块）；全局版主 = `bbs.moderate` 或 SYS_ADMIN / SYS_MANAGER；**仅 SYS_ADMIN / SYS_MANAGER 可设置板块版主**
 
 ---
 
@@ -20,8 +20,10 @@
 3. 置顶区与普通列表分离；详情浏览计数 +1（原子更新）。  
 4. 关闭主题不可回复；软删除主题/回复。  
 5. 匿名发帖/回复：非版主显示 `*****`，版主/管理员显示 `姓名【匿名】`。  
-6. 版主：置顶/取消置顶、关闭/打开、删除他人帖与回复。  
-7. 正文 Markdown（与系统公告一致思路）；无附件。
+6. 版主：置顶/取消置顶、关闭/打开、删除他人帖与回复（板块版主仅本类型；全局版主全板块）。  
+7. 正文支持 **Markdown** 与 **富文本**（字号/字体/颜色等）；主题可附图片/视频（见 §4.3）。
+8. **板块版主**：每个主题类型可指定 1 名账号；侧栏板块名下显示版主账号；超管可设置/更换/清除。  
+9. **系统更新 / 操作说明**：不设版主；**仅 SYS_ADMIN 可发帖**；其他角色可浏览与回复。
 
 ### 1.2 非目标（MVP 明确不做）
 
@@ -33,7 +35,7 @@
 | IsNotify / 铃铛角标 | 不做；强制弹窗仍走系统公告 |
 | 微信端 / WX API | 不做 |
 | EBS `aux_bbs_*` 历史迁移 | **空库起步** |
-| 富文本编辑器 / 附件 | 不做；Markdown 纯文本框 |
+| 回复附媒体 / 转码 | 不做；媒体仅主题发帖/编辑；原样存不转码 |
 
 ### 1.3 产品定稿（已冻结）
 
@@ -100,12 +102,25 @@
 |----|------|
 | id | varchar(36) PK |
 | subject_id | 主题 |
-| content | Markdown |
+| content | 纯文本 |
 | anonymous | bool |
 | create_time / create_by / modify_time / modify_by | 审计 |
 | is_deleted | 软删 |
 
 一期再加：`bbs_vote_item` / `bbs_vote_record`（ux: user+subject）/ `bbs_thumbs_up`（ux: user+reply）。
+
+### 4.3 主题媒体（`upload_document`，`bizType = BBS_SUBJECT`）
+
+复用文档模块；不单独建媒体表。正文内嵌 Markdown 图片 / `<video>`，`src` 指向 `/api/v1/documents/{id}/preview`。
+
+| 项 | 口径 |
+|----|------|
+| 范围 | **仅主题**发帖/编辑；回复不附媒体 |
+| 格式 | 图 jpg/png/webp/gif；视频 mp4/webm；**不转码**，原样存 |
+| 限额 | 图 ≤50 张且单张 ≤5MB；视频 ≤1 个且 ≤50MB |
+| 时序 | 新建：本地暂存；选文件或点「插入」写入光标处占位；发帖区左右实时预览；发布拿 id 后上传并把占位换成正式 preview 路径 |
+| 删除 | 仅作者或版主（通用 documents 删除对 `BBS_SUBJECT` 拒绝） |
+| 匿名 | 展示匿名；`upload_user_id` 仍记实际上传人（审计） |
 
 ---
 
@@ -117,15 +132,29 @@
 | GET | `/subjects` | 登录（分页；排除置顶） |
 | GET | `/subjects/{id}` | 登录（浏览 +1） |
 | POST | `/subjects` | 登录 |
-| PUT | `/subjects/{id}` | 创建人或版主 |
-| POST | `/subjects/{id}/close` `/open` | 版主或创建人 |
-| POST | `/subjects/{id}/top` `/untop` | 版主 |
-| DELETE | `/subjects/{id}` | 创建人或版主 |
+| PUT | `/subjects/{id}` | 创建人或**全局**版主（板块版主不可改他人正文） |
+| POST | `/subjects/{id}/close` `/open` | 版主（本板块或全局）或创建人 |
+| POST | `/subjects/{id}/top` `/untop` | 版主（本板块或全局） |
+| DELETE | `/subjects/{id}` | 创建人或版主（本板块或全局） |
 | GET | `/subjects/{id}/replies` | 登录 |
 | POST | `/subjects/{id}/replies` | 登录（主题须 Open） |
-| DELETE | `/replies/{id}` | 创建人或版主 |
+| DELETE | `/replies/{id}` | 创建人或版主（本板块或全局） |
+| GET | `/subjects/{id}/media` | 登录 |
+| POST | `/subjects/{id}/media` | 作者或版主（multipart；体 ≤60MB） |
+| DELETE | `/media/{documentId}` | 作者或版主 |
+| GET | `/board-moderators` | 登录（侧栏展示；含内置 + 自定义板块） |
+| POST | `/board-moderators` | **仅** SYS_ADMIN / SYS_MANAGER；新建自定义板块（type≥100） |
+| PUT | `/board-moderators/sort` | **仅** SYS_ADMIN / SYS_MANAGER；body `{ orderedTypes }` 拖放排序 |
+| PUT | `/board-moderators/{type}` | **仅** SYS_ADMIN / SYS_MANAGER；body `{ userId, displayName, sortOrder? }` |
+| DELETE | `/board-moderators/{type}` | **仅** SYS_ADMIN / SYS_MANAGER；无帖时软删板块 |
 
-版主判定：`IsSysAdmin || IsSysManager || PermissionCodes 含 bbs.moderate`。
+版主判定：
+
+- **全局：** `IsSysAdmin || IsSysManager || PermissionCodes 含 bbs.moderate`
+- **板块：** `bbs_board_moderator.subject_type = 主题 Type` 且 `user_id = 当前用户`
+- 可管理某帖 = 全局版主 **或** 该帖 Type 的板块版主
+
+表 `bbs_board_moderator`：主键 `subject_type`（每板块至多 1 人）；字段 `user_id` / `update_by` / `update_time`。
 
 ---
 
@@ -137,7 +166,9 @@
 4. `status = Close` 禁止回复。  
 5. 删除均为软删；列表/详情排除已删。  
 6. 匿名展示规则见 §1.1。  
-7. MVP 发帖类型仅允许上述六类（1–6）。
+7. 发帖类型：内置 1–6 + 超管新建的自定义板块（type≥100，须存在且未删除）。  
+8. 主题媒体限额与鉴权见 §4.3；通用 `/api/v1/documents` 不得直接上传/删除 `BBS_SUBJECT`。
+9. 侧栏「分类」旁设置：可新建板块；「置顶 / 系统更新 / 操作说明」顺序固定，其余板块拖放排序。
 
 ---
 
@@ -145,9 +176,9 @@
 
 | 页 | 路由 | 说明 |
 |----|------|------|
-| 列表 | `/bbs` | 置顶区 + 分页列表；筛选类型/状态/关键词；发帖按钮 |
-| 发帖 | `/bbs/create` | 标题、类型、匿名、Markdown 正文 |
-| 详情 | `/bbs/:id` | 正文、操作条、回复流、回复框 |
+| 列表 | `/bbs` | Discussions 风格：分类侧栏 + 置顶/列表；发帖按钮 |
+| 发帖/编辑 | `/bbs/create`、`/bbs/:id/edit` | 富文本（字号/字体/颜色）或 Markdown；媒体本地暂存后上传 |
+| 详情 | `/bbs/:id` | 正文（含鉴权 blob 预览图/视频）、操作条、纯文本回复流 |
 
 菜单：`layout.menu.bbs` →「论坛」；帮助注册 `MENU_BBS`。
 
@@ -157,8 +188,8 @@
 
 | 期 | 内容 |
 |----|------|
-| **MVP** | 本文 §1.1 |
-| **一期** | 投票（一主题一票）+ 点赞防重 + 列表热帖筛选 |
+| **MVP** | 本文 §1.1 + §4.3 主题媒体 |
+| **一期** | 主题赞踩（每用户每帖一条，可切换/取消）+ 列表展示赞踩数；回复无赞踩；投票（一主题一票）+ 列表热帖筛选 |
 | **二期** | @ + 系统通知推送；可选论坛「通知类」帖与铃铛策略 |
 
 ---
@@ -170,8 +201,8 @@
 | 常量/DTO/接口 | `CRM.Core/Constants/BbsCodes.cs`、`Models/Bbs/*`、`Interfaces/IBbsService.cs` |
 | 服务/Schema | `CRM.Infrastructure/Bbs/*` |
 | DbContext | `BbsSubjects` / `BbsReplies` |
-| API | `CRM.API/Controllers/BbsController.cs` |
-| 前端 | `CRM.Web/src/views/Bbs/*`、`api/bbs.ts` |
+| API | `CRM.API/Controllers/BbsController.cs`（媒体）；`DocumentsController` 拦截 `BBS_SUBJECT` |
+| 前端 | `CRM.Web/src/views/Bbs/*`、`api/bbs.ts`、`sanitizeAnnouncementHtml.ts` |
 | SQL | `scripts/ensure_bbs_postgresql.sql` |
 
 ---
@@ -181,3 +212,7 @@
 | 日期 | 说明 |
 |------|------|
 | 2026-09-30 | 定稿产品决策；开写 MVP |
+| 2026-10-01 | 主题媒体：仅发帖/编辑、本地暂存后上传、格式与限额、作者/版主删、匿名记上传人 |
+| 2026-10-01 | 发帖支持富文本（字号/字体/颜色）与 Markdown 双模式；正文 HTML/MD 自动识别渲染 |
+| 2026-10-01 | 按板块设置版主（bbs_board_moderator）；侧栏展示；仅超管可设；版主权限按 Type |
+| 2026-10-01 | 分类设置：新建自定义板块、拖放排序；固定「置顶/系统更新/操作说明」 |

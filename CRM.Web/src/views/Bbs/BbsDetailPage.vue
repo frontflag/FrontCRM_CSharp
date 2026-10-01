@@ -1,101 +1,173 @@
 <template>
   <div class="bbs-detail-page" v-loading="loading">
-    <template v-if="detail">
-      <div class="page-header">
-        <div>
-          <div class="tags">
-            <el-tag v-if="detail.isTop" size="small" type="warning" effect="plain">{{ t('bbs.badgeTop') }}</el-tag>
-            <el-tag v-if="detail.isHot" size="small" type="danger" effect="plain">{{ t('bbs.badgeHot') }}</el-tag>
-            <el-tag size="small" effect="plain">{{ typeLabel(detail.type) }}</el-tag>
-            <el-tag
-              size="small"
-              effect="plain"
-              :type="detail.status === BbsSubjectStatus.Close ? 'info' : 'success'"
-            >{{ statusLabel(detail.status) }}</el-tag>
-          </div>
-          <h2>{{ detail.title }}</h2>
-          <div class="meta">
-            <span>{{ detail.authorDisplay }}</span>
-            <span>{{ formatTime(detail.createTime) }}</span>
-            <span>{{ t('bbs.metaViews', { n: detail.viewCount }) }}</span>
-            <span>{{ t('bbs.metaReplies', { n: detail.replyCount }) }}</span>
-          </div>
-        </div>
-        <div class="actions">
-          <el-button @click="goList">{{ t('bbs.backList') }}</el-button>
-          <el-button v-if="detail.canEdit" @click="goEdit">{{ t('bbs.edit') }}</el-button>
-          <el-button
-            v-if="detail.canModerate || detail.canEdit"
-            @click="toggleClose"
-          >{{ detail.status === BbsSubjectStatus.Close ? t('bbs.open') : t('bbs.close') }}</el-button>
-          <el-button v-if="detail.canSetTop" @click="toggleTop">
-            {{ detail.isTop ? t('bbs.untop') : t('bbs.setTop') }}
-          </el-button>
-          <el-button v-if="detail.canDelete" type="danger" plain @click="onDelete">{{ t('bbs.delete') }}</el-button>
-        </div>
-      </div>
+    <div class="bbs-layout">
+      <BbsCategoryAside :active-key="sidebarKey" @select="goCategory" />
 
-      <el-card shadow="never" class="body-card">
-        <div class="markdown-body" v-html="bodyHtml" />
-      </el-card>
-
-      <el-card shadow="never" class="reply-card">
-        <div class="section-title">{{ t('bbs.repliesTitle', { n: replyTotal }) }}</div>
-        <div v-if="!replies.length" class="empty">{{ t('bbs.noReplies') }}</div>
-        <div v-for="r in replies" :key="r.id" class="reply-item">
-          <div class="reply-head">
-            <strong>{{ r.authorDisplay }}</strong>
-            <span>{{ formatTime(r.createTime) }}</span>
+      <main v-if="detail" class="bbs-main">
+        <div class="bbs-toolbar">
+          <button type="button" class="bbs-back" @click="goList">
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+            </svg>
+            {{ t('bbs.backList') }}
+          </button>
+          <div class="bbs-toolbar__actions">
+            <el-button v-if="detail.canEdit" type="primary" size="small" @click="goEdit">{{ t('bbs.edit') }}</el-button>
             <el-button
-              v-if="r.canDelete"
-              link
-              type="danger"
+              v-if="detail.canModerate || detail.canEdit"
               size="small"
-              @click="onDeleteReply(r.id)"
-            >{{ t('bbs.delete') }}</el-button>
+              @click="toggleClose"
+            >{{ detail.status === BbsSubjectStatus.Close ? t('bbs.open') : t('bbs.close') }}</el-button>
+            <el-button v-if="detail.canSetTop" size="small" @click="toggleTop">
+              {{ detail.isTop ? t('bbs.untop') : t('bbs.setTop') }}
+            </el-button>
+            <el-button v-if="detail.canDelete" size="small" type="danger" plain @click="onDelete">
+              {{ t('bbs.delete') }}
+            </el-button>
           </div>
-          <div class="markdown-body reply-body" v-html="renderMd(r.content)" />
         </div>
 
-        <div class="reply-form" v-if="detail.status === BbsSubjectStatus.Open">
-          <el-input
-            v-model="replyContent"
-            type="textarea"
-            :rows="4"
-            :placeholder="t('bbs.replyPh')"
-          />
-          <div class="reply-form-actions">
-            <el-checkbox v-model="replyAnonymous">{{ t('bbs.form.anonymous') }}</el-checkbox>
-            <el-button type="primary" :loading="replying" @click="submitReply">{{ t('bbs.replySubmit') }}</el-button>
+        <article class="bbs-topic">
+          <div class="bbs-topic__head">
+            <div class="bbs-row__type" :title="detailTypeLabel">
+              <span class="bbs-type-mark">{{ detailTypeShort }}</span>
+            </div>
+            <div class="bbs-topic__head-main">
+              <div class="bbs-topic__title-row">
+                <span v-if="detail.isTop" class="bbs-badge bbs-badge--top">{{ t('bbs.badgeTop') }}</span>
+                <span v-if="detail.isHot" class="bbs-badge bbs-badge--hot">{{ t('bbs.badgeHot') }}</span>
+                <h1 class="bbs-topic__title">{{ detail.title }}</h1>
+              </div>
+              <div class="bbs-row__meta">
+                <span>{{ detail.authorDisplay }}</span>
+                <span>·</span>
+                <span>{{ formatTime(detail.createTime) }}</span>
+                <span>·</span>
+                <span>{{ detailTypeLabel }}</span>
+                <span>·</span>
+                <span :class="{ 'is-closed': detail.status === BbsSubjectStatus.Close }">
+                  {{ statusLabel(detail.status) }}
+                </span>
+                <span>·</span>
+                <span>{{ t('bbs.metaViews', { n: detail.viewCount }) }}</span>
+                <span>·</span>
+                <span>{{ t('bbs.metaReplies', { n: detail.replyCount }) }}</span>
+              </div>
+            </div>
           </div>
-        </div>
-        <el-alert
-          v-else
-          type="info"
-          :closable="false"
-          :title="t('bbs.closedHint')"
-          show-icon
-        />
-      </el-card>
-    </template>
+          <div
+            ref="topicBodyRef"
+            class="bbs-topic__body markdown-body"
+            v-html="bodyHtml"
+          />
+          <div class="bbs-reactions">
+            <button
+              type="button"
+              class="bbs-react"
+              :class="{ 'is-active': detail.myReaction === BbsReactionValue.Like }"
+              :title="t('bbs.react.like')"
+              @click="reactSubject(BbsReactionValue.Like)"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M2 21h4V9H2v12zm20.1-10.9c-.4-.5-1-.8-1.6-.8h-5.5l.8-4c.1-.5 0-1-.3-1.4L14.9 2 8.4 8.5c-.4.4-.6.9-.6 1.5V19c0 1.1.9 2 2 2h8c.8 0 1.5-.5 1.8-1.2l3-7c.2-.5.1-1.1-.3-1.5z"
+                />
+              </svg>
+              <span>{{ detail.likeCount || 0 }}</span>
+            </button>
+            <button
+              type="button"
+              class="bbs-react"
+              :class="{ 'is-active is-down': detail.myReaction === BbsReactionValue.Dislike }"
+              :title="t('bbs.react.dislike')"
+              @click="reactSubject(BbsReactionValue.Dislike)"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M22 3h-4v12h4V3zM2.9 13.9c.4.5 1 .8 1.6.8h5.5l-.8 4c-.1.5 0 1 .3 1.4l.6 1.2 6.5-6.5c.4-.4.6-.9.6-1.5V5c0-1.1-.9-2-2-2H6c-.8 0-1.5.5-1.8 1.2l-3 7c-.2.5-.1 1.1.3 1.5z"
+                />
+              </svg>
+              <span>{{ detail.dislikeCount || 0 }}</span>
+            </button>
+          </div>
+        </article>
+
+        <section class="bbs-replies">
+          <div class="bbs-feed__head">{{ t('bbs.repliesTitle', { n: replyTotal }) }}</div>
+          <div v-if="!replies.length" class="bbs-empty">{{ t('bbs.noReplies') }}</div>
+          <div v-for="r in replies" :key="r.id" class="bbs-reply">
+            <div class="bbs-reply__avatar" aria-hidden="true">{{ authorInitial(r.authorDisplay) }}</div>
+            <div class="bbs-reply__main">
+              <div class="bbs-reply__head">
+                <strong>{{ r.authorDisplay }}</strong>
+                <span>{{ formatTime(r.createTime) }}</span>
+                <el-button
+                  v-if="r.canDelete"
+                  link
+                  type="danger"
+                  size="small"
+                  @click="onDeleteReply(r.id)"
+                >{{ t('bbs.delete') }}</el-button>
+              </div>
+              <div class="bbs-reply__body">{{ r.content }}</div>
+            </div>
+          </div>
+
+          <div class="bbs-composer" v-if="detail.status === BbsSubjectStatus.Open">
+            <div class="bbs-composer__title">{{ t('bbs.replySubmit') }}</div>
+            <el-input
+              v-model="replyContent"
+              type="textarea"
+              :rows="4"
+              :placeholder="t('bbs.replyPh')"
+            />
+            <div class="bbs-composer__actions">
+              <el-checkbox v-model="replyAnonymous">{{ t('bbs.form.anonymous') }}</el-checkbox>
+              <el-button type="primary" :loading="replying" @click="submitReply">
+                {{ t('bbs.replySubmit') }}
+              </el-button>
+            </div>
+          </div>
+          <el-alert
+            v-else
+            class="bbs-closed-alert"
+            type="info"
+            :closable="false"
+            :title="t('bbs.closedHint')"
+            show-icon
+          />
+        </section>
+      </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   bbsApi,
+  BbsReactionValue,
   BbsSubjectStatus,
+  BbsSubjectType,
   BbsSubjectTypeI18nKey,
   type BbsReplyItem,
   type BbsSubjectDetail
 } from '@/api/bbs'
-import { renderAnnouncementMarkdown } from '@/utils/sanitizeAnnouncementHtml'
+import BbsCategoryAside, { type BbsCategoryKey } from '@/components/Bbs/BbsCategoryAside.vue'
+import {
+  resolveAnnouncementDocumentImages,
+  revokeObjectUrls,
+  renderBbsContent
+} from '@/utils/sanitizeAnnouncementHtml'
 import { formatDisplayDateTime } from '@/utils/displayDateTime'
 import { getApiErrorMessage } from '@/utils/apiError'
+
+type CategoryKey = BbsCategoryKey
 
 const { t } = useI18n()
 const route = useRoute()
@@ -109,11 +181,31 @@ const replyTotal = ref(0)
 const replyContent = ref('')
 const replyAnonymous = ref(false)
 const replying = ref(false)
+const topicBodyRef = ref<HTMLElement | null>(null)
+const mediaObjectUrls = ref<string[]>([])
 
-const bodyHtml = computed(() => renderAnnouncementMarkdown(detail.value?.content || ''))
+const TYPE_SHORT: Record<number, string> = {
+  [BbsSubjectType.CompanyNotice]: '通',
+  [BbsSubjectType.IndustryNews]: '讯',
+  [BbsSubjectType.Share]: '享',
+  [BbsSubjectType.OpsGuide]: '说',
+  [BbsSubjectType.Suggestion]: '建',
+  [BbsSubjectType.SystemUpdate]: '更'
+}
 
-function renderMd(md: string) {
-  return renderAnnouncementMarkdown(md)
+const bodyHtml = computed(() => renderBbsContent(detail.value?.content || ''))
+
+const sidebarKey = computed<CategoryKey>(() => {
+  if (!detail.value) return 'all'
+  if (detail.value.isTop) return 'top'
+  return detail.value.type
+})
+
+async function resolveMedia() {
+  revokeObjectUrls(mediaObjectUrls.value)
+  mediaObjectUrls.value = []
+  await nextTick()
+  mediaObjectUrls.value = await resolveAnnouncementDocumentImages(topicBodyRef.value)
 }
 
 function typeLabel(type: number) {
@@ -121,12 +213,49 @@ function typeLabel(type: number) {
   return key ? t(key) : String(type)
 }
 
+const detailTypeLabel = computed(() => {
+  if (!detail.value) return ''
+  return (detail.value.typeLabel || '').trim() || typeLabel(detail.value.type)
+})
+
+const detailTypeShort = computed(() => {
+  if (!detail.value) return '板'
+  if (TYPE_SHORT[detail.value.type]) return TYPE_SHORT[detail.value.type]
+  const label = detailTypeLabel.value
+  return (label && label[0]) || '板'
+})
+
 function statusLabel(status: number) {
   return status === BbsSubjectStatus.Close ? t('bbs.status.close') : t('bbs.status.open')
 }
 
 function formatTime(v: string | null | undefined) {
   return v ? formatDisplayDateTime(v) : '—'
+}
+
+function authorInitial(name: string) {
+  const s = (name || '').trim()
+  return s ? s.slice(0, 1) : '?'
+}
+
+function goList() {
+  router.push({ name: 'BbsList' })
+}
+
+function goCategory(key: CategoryKey) {
+  if (key === 'all') {
+    router.push({ name: 'BbsList' })
+    return
+  }
+  if (key === 'top') {
+    router.push({ name: 'BbsList', query: { cat: 'top' } })
+    return
+  }
+  router.push({ name: 'BbsList', query: { type: String(key) } })
+}
+
+function goEdit() {
+  router.push({ name: 'BbsEdit', params: { id: id.value } })
 }
 
 async function load() {
@@ -137,19 +266,12 @@ async function load() {
     const page = await bbsApi.replies(id.value, 1, 100)
     replies.value = page?.items || []
     replyTotal.value = page?.total || 0
+    await resolveMedia()
   } catch (e) {
     ElMessage.error(getApiErrorMessage(e, t('bbs.loadFailed')))
   } finally {
     loading.value = false
   }
-}
-
-function goList() {
-  router.push({ name: 'BbsList' })
-}
-
-function goEdit() {
-  router.push({ name: 'BbsEdit', params: { id: id.value } })
 }
 
 async function toggleClose() {
@@ -219,6 +341,18 @@ async function onDeleteReply(replyId: string) {
   }
 }
 
+async function reactSubject(value: number) {
+  if (!detail.value) return
+  try {
+    const r = await bbsApi.reactSubject(id.value, value)
+    detail.value.likeCount = r.likeCount
+    detail.value.dislikeCount = r.dislikeCount
+    detail.value.myReaction = r.myReaction
+  } catch (e) {
+    ElMessage.error(getApiErrorMessage(e, t('bbs.actionFailed')))
+  }
+}
+
 watch(id, () => {
   void load()
 })
@@ -226,78 +360,352 @@ watch(id, () => {
 onMounted(() => {
   void load()
 })
+
+onUnmounted(() => {
+  revokeObjectUrls(mediaObjectUrls.value)
+})
 </script>
 
-<style scoped>
+<style scoped lang="scss">
+@import '@/assets/styles/variables.scss';
+
 .bbs-detail-page {
   padding: 16px 20px 40px;
-  max-width: 960px;
+  min-height: 100%;
 }
-.page-header {
-  display: flex;
-  justify-content: space-between;
+
+.bbs-layout {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
   gap: 16px;
-  margin-bottom: 12px;
+  align-items: start;
 }
-.page-header h2 {
-  margin: 8px 0;
-  font-size: 20px;
-}
-.tags {
+
+.bbs-main {
+  min-width: 0;
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.meta,
-.reply-head {
-  display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12px;
-  align-items: center;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
 }
-.actions {
+
+.bbs-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+}
+
+.bbs-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: $text-secondary;
+  font-size: 13px;
+  cursor: pointer;
+
+  &:hover {
+    color: $cyan-primary;
+    background: rgba(0, 212, 255, 0.06);
+  }
+}
+
+.bbs-toolbar__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.bbs-topic {
+  padding: 18px 20px 22px;
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+}
+
+.bbs-topic__head {
+  display: flex;
   align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
 }
-.body-card,
-.reply-card {
-  margin-bottom: 12px;
+
+.bbs-row__type {
+  flex: 0 0 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
-.section-title {
+
+.bbs-type-mark {
+  font-size: 13px;
+  font-weight: 700;
+  color: $cyan-primary;
+}
+
+.bbs-topic__head-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bbs-topic__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.bbs-topic__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: $text-primary;
+  word-break: break-word;
+}
+
+.bbs-badge {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
   font-weight: 600;
-  margin-bottom: 12px;
+  line-height: 1.4;
+
+  &--top {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.12);
+  }
+
+  &--hot {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.12);
+  }
 }
-.reply-item {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--el-border-color-lighter);
+
+.bbs-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+  color: $text-muted;
+  line-height: 1.5;
+
+  .is-closed {
+    color: $text-secondary;
+  }
 }
-.reply-body {
-  margin-top: 6px;
+
+.bbs-topic__body {
+  padding-left: 48px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: $text-secondary;
+
+  :deep(img),
+  :deep(video) {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 8px 0;
+    display: block;
+  }
+
+  :deep(video) {
+    width: min(100%, 720px);
+    background: #000;
+  }
 }
-.reply-form {
+
+.bbs-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 16px;
+  padding-left: 48px;
 }
-.reply-form-actions {
-  margin-top: 8px;
+
+.bbs-react {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
+  color: $text-secondary;
+  font-size: 12px;
+  cursor: pointer;
+
+  &:hover {
+    color: $text-primary;
+    border-color: rgba(0, 212, 255, 0.35);
+  }
+
+  &.is-active {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.55);
+    background: rgba(251, 191, 36, 0.14);
+  }
+
+  &.is-down.is-active {
+    color: #f87171;
+    border-color: rgba(248, 113, 113, 0.45);
+    background: rgba(248, 113, 113, 0.1);
+  }
+}
+
+.bbs-replies {
+  padding: 0 0 10px;
+  background: $layer-2;
+  border: 1px solid $border-card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+}
+
+.bbs-feed__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $text-primary;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+
+  &::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    border-radius: 2px;
+    background: $cyan-primary;
+  }
+}
+
+.bbs-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: $text-muted;
+  font-size: 13px;
+}
+
+.bbs-reply {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bbs-reply__avatar {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(0, 212, 255, 0.12);
+  color: $cyan-primary;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.bbs-reply__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.bbs-reply__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: $text-muted;
+
+  strong {
+    color: $text-primary;
+    font-size: 13px;
+  }
+}
+
+.bbs-reply__body {
+  font-size: 13px;
+  line-height: 1.65;
+  color: $text-secondary;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.bbs-composer {
+  margin: 12px 16px 16px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.bbs-composer__title {
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: $text-primary;
+}
+
+.bbs-composer__actions {
+  margin-top: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
-.empty {
-  color: var(--el-text-color-secondary);
-  padding: 12px 0;
+
+.bbs-closed-alert {
+  margin: 12px 16px 16px;
 }
+
 .markdown-body :deep(p) {
   margin: 0 0 0.6em;
 }
+
 .markdown-body :deep(pre) {
   overflow: auto;
   padding: 8px;
-  background: var(--el-fill-color-light);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+}
+
+.markdown-body :deep(a) {
+  color: $cyan-primary;
+}
+
+@media (max-width: 900px) {
+  .bbs-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .bbs-topic__body {
+    padding-left: 0;
+  }
 }
 </style>

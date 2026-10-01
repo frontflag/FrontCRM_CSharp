@@ -41,6 +41,12 @@ public class BbsSubject
     [Column("reply_count")]
     public int ReplyCount { get; set; }
 
+    [Column("like_count")]
+    public int LikeCount { get; set; }
+
+    [Column("dislike_count")]
+    public int DislikeCount { get; set; }
+
     [Column("last_reply_time")]
     public DateTime? LastReplyTime { get; set; }
 

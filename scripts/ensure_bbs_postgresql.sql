@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS public.bbs_subject (
   anonymous boolean NOT NULL DEFAULT false,
   view_count integer NOT NULL DEFAULT 0,
   reply_count integer NOT NULL DEFAULT 0,
+  like_count integer NOT NULL DEFAULT 0,
+  dislike_count integer NOT NULL DEFAULT 0,
   last_reply_time timestamp with time zone NULL,
   create_time timestamp with time zone NOT NULL DEFAULT (timezone('utc', now())),
   create_by character varying(36) NULL,
@@ -35,6 +37,8 @@ CREATE TABLE IF NOT EXISTS public.bbs_reply (
   subject_id character varying(36) NOT NULL,
   content text NOT NULL,
   anonymous boolean NOT NULL DEFAULT false,
+  like_count integer NOT NULL DEFAULT 0,
+  dislike_count integer NOT NULL DEFAULT 0,
   create_time timestamp with time zone NOT NULL DEFAULT (timezone('utc', now())),
   create_by character varying(36) NULL,
   modify_time timestamp with time zone NULL,
@@ -49,5 +53,59 @@ CREATE INDEX IF NOT EXISTS ix_bbs_reply_subject
 
 COMMENT ON TABLE public.bbs_reply IS '内部论坛回复';
 
--- 可选：版主权限码（按需赋给角色；SYS_ADMIN/SYS_MANAGER 已内置版主能力）
+-- 赞/踩（主题=1，回复=2；value: 1赞 -1踩）
+CREATE TABLE IF NOT EXISTS public.bbs_reaction (
+  id character varying(36) NOT NULL,
+  target_type integer NOT NULL,
+  target_id character varying(36) NOT NULL,
+  user_id character varying(36) NOT NULL,
+  value integer NOT NULL,
+  create_time timestamp with time zone NOT NULL DEFAULT (timezone('utc', now())),
+  modify_time timestamp with time zone NULL,
+  CONSTRAINT "PK_bbs_reaction" PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_bbs_reaction_target_user
+  ON public.bbs_reaction (target_type, target_id, user_id);
+
+ALTER TABLE public.bbs_subject ADD COLUMN IF NOT EXISTS like_count integer NOT NULL DEFAULT 0;
+ALTER TABLE public.bbs_subject ADD COLUMN IF NOT EXISTS dislike_count integer NOT NULL DEFAULT 0;
+ALTER TABLE public.bbs_reply ADD COLUMN IF NOT EXISTS like_count integer NOT NULL DEFAULT 0;
+ALTER TABLE public.bbs_reply ADD COLUMN IF NOT EXISTS dislike_count integer NOT NULL DEFAULT 0;
+
+-- 板块设置（版主可空；可自定义显示名）
+CREATE TABLE IF NOT EXISTS public.bbs_board_moderator (
+  subject_type integer NOT NULL,
+  user_id character varying(36) NULL,
+  display_name character varying(50) NULL,
+  update_time timestamp with time zone NOT NULL DEFAULT (timezone('utc', now())),
+  update_by character varying(36) NULL,
+  CONSTRAINT "PK_bbs_board_moderator" PRIMARY KEY (subject_type)
+);
+
+ALTER TABLE public.bbs_board_moderator ALTER COLUMN user_id DROP NOT NULL;
+ALTER TABLE public.bbs_board_moderator ADD COLUMN IF NOT EXISTS display_name character varying(50) NULL;
+ALTER TABLE public.bbs_board_moderator ADD COLUMN IF NOT EXISTS is_deleted boolean NOT NULL DEFAULT false;
+ALTER TABLE public.bbs_board_moderator ADD COLUMN IF NOT EXISTS sort_order integer NOT NULL DEFAULT 0;
+
+-- 仅当尚未使用 10+ 间距时，将旧默认 1/2/3/4 拉开
+DO $bbs_sort$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.bbs_board_moderator WHERE sort_order >= 10
+  ) THEN
+    UPDATE public.bbs_board_moderator SET sort_order = 10 WHERE subject_type = 1 AND sort_order = 1;
+    UPDATE public.bbs_board_moderator SET sort_order = 20 WHERE subject_type = 2 AND sort_order = 2;
+    UPDATE public.bbs_board_moderator SET sort_order = 30 WHERE subject_type = 3 AND sort_order = 3;
+    UPDATE public.bbs_board_moderator SET sort_order = 40 WHERE subject_type = 5 AND sort_order = 4;
+  END IF;
+END
+$bbs_sort$;
+
+CREATE INDEX IF NOT EXISTS ix_bbs_board_moderator_user
+  ON public.bbs_board_moderator (user_id);
+
+COMMENT ON TABLE public.bbs_board_moderator IS '论坛板块设置；subject_type 对应 bbs_subject.type；可设版主与自定义名称；仅 SYS_ADMIN/SYS_MANAGER 可设置';
+
+-- 可选：全局版主权限码 bbs.moderate（过渡；SYS_ADMIN/SYS_MANAGER 已内置全板块版主能力）
 -- INSERT INTO public.permission (id, code, name, ...) ...

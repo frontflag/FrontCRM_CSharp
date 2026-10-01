@@ -1,4 +1,5 @@
 using CRM.Core.Constants;
+using CRM.Core.Document;
 using CRM.Core.Interfaces;
 using CRM.Core.Models.Bbs;
 using CRM.Infrastructure.Data;
@@ -9,15 +10,350 @@ namespace CRM.Infrastructure.Bbs;
 public class BbsService : IBbsService
 {
     private readonly ApplicationDbContext _db;
+    private readonly IDocumentService _documents;
 
-    public BbsService(ApplicationDbContext db)
+    public BbsService(ApplicationDbContext db, IDocumentService documents)
     {
         _db = db;
+        _documents = documents;
+    }
+
+    public async Task<IReadOnlySet<int>> GetModeratedTypesAsync(string userId, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            return new HashSet<int>();
+
+        var types = await _db.BbsBoardModerators.AsNoTracking()
+            .Where(x => x.UserId == userId && !x.IsDeleted)
+            .Select(x => x.SubjectType)
+            .ToListAsync(ct);
+        return types.ToHashSet();
+    }
+
+    public async Task<IReadOnlyList<BbsBoardModeratorDto>> ListBoardModeratorsAsync(CancellationToken ct = default)
+    {
+        var rows = await _db.BbsBoardModerators.AsNoTracking().ToListAsync(ct);
+        var byType = rows.ToDictionary(x => x.SubjectType, x => x);
+        var userIds = rows
+            .Select(x => x.UserId)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var users = await LoadUserAccountsAsync(userIds, ct);
+        var counts = await _db.BbsSubjects.AsNoTracking()
+            .Where(x => !x.IsDeleted)
+            .GroupBy(x => x.Type)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+        var countMap = counts.ToDictionary(x => x.Type, x => x.Count);
+
+        var types = BbsSubjectTypes.All
+            .Concat(rows.Where(r => BbsSubjectTypes.IsCustom(r.SubjectType)).Select(r => r.SubjectType))
+            .Distinct()
+            .ToList();
+
+        return types.Select(t =>
+        {
+            var dto = ToBoardDto(t, byType.GetValueOrDefault(t), users);
+            dto.SubjectCount = countMap.GetValueOrDefault(t);
+            return dto;
+        }).ToList();
+    }
+
+    public async Task<BbsBoardModeratorDto> SetBoardModeratorAsync(
+        int type,
+        string? userId,
+        string? displayName,
+        int? sortOrder,
+        string operatorUserId,
+        CancellationToken ct = default)
+    {
+        if (!BbsSubjectTypes.IsAllowed(type))
+            throw new ArgumentException("主题类型无效");
+        if (!BbsSubjectTypes.SupportsBoardModerator(type))
+            throw new ArgumentException("该板块不支持设置版主与名称");
+        if (BbsSubjectTypes.IsCustom(type))
+        {
+            var custom = await _db.BbsBoardModerators.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.SubjectType == type, ct);
+            if (custom == null)
+                throw new ArgumentException("自定义板块不存在");
+        }
+
+        var existing = await _db.BbsBoardModerators
+            .FirstOrDefaultAsync(x => x.SubjectType == type, ct);
+        if (existing?.IsDeleted == true)
+            throw new InvalidOperationException("该板块已删除，无法设置");
+
+        var name = string.IsNullOrWhiteSpace(displayName) ? null : displayName.Trim();
+        if (name != null && name.Length > 50)
+            throw new ArgumentException("板块名称最长 50 字");
+        if (BbsSubjectTypes.IsCustom(type) && string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(existing?.DisplayName))
+            throw new ArgumentException("自定义板块须填写名称");
+
+        var order = sortOrder is int so && so > 0
+            ? so
+            : existing is { SortOrder: > 0 }
+                ? existing.SortOrder
+                : BbsSubjectTypes.DefaultSortOrder(type);
+        if (order < 1 || order > 999)
+            throw new ArgumentException("显示顺序须在 1～999");
+
+        string? uid = string.IsNullOrWhiteSpace(userId) ? null : userId.Trim();
+        string? userName = null;
+        string? realName = null;
+        if (uid != null)
+        {
+            var user = await _db.Users.AsNoTracking()
+                .Where(u => u.Id == uid)
+                .Select(u => new { u.Id, u.UserName, u.RealName, u.IsActive, u.Status })
+                .FirstOrDefaultAsync(ct)
+                ?? throw new ArgumentException("用户不存在");
+            if (!user.IsActive || user.Status != 1)
+                throw new ArgumentException("用户已停用，不能设为版主");
+            uid = user.Id;
+            userName = user.UserName;
+            realName = user.RealName;
+        }
+
+        // 仅当显式传入 sortOrder 时才做同号后移，避免改版主时打乱顺序
+        if (sortOrder is int explicitOrder && explicitOrder > 0)
+            await BumpCollidingSortOrdersAsync(type, explicitOrder, operatorUserId, ct);
+
+        if (existing == null)
+        {
+            existing = new BbsBoardModerator
+            {
+                SubjectType = type,
+                UserId = uid,
+                DisplayName = name,
+                SortOrder = order,
+                IsDeleted = false,
+                UpdateTime = DateTime.UtcNow,
+                UpdateBy = operatorUserId
+            };
+            _db.BbsBoardModerators.Add(existing);
+        }
+        else
+        {
+            existing.UserId = uid;
+            if (name != null || !BbsSubjectTypes.IsCustom(type))
+                existing.DisplayName = name;
+            existing.SortOrder = order;
+            existing.IsDeleted = false;
+            existing.UpdateTime = DateTime.UtcNow;
+            existing.UpdateBy = operatorUserId;
+        }
+
+        await _db.SaveChangesAsync(ct);
+
+        return new BbsBoardModeratorDto
+        {
+            Type = type,
+            UserId = uid,
+            UserName = userName,
+            RealName = realName,
+            DisplayName = existing.DisplayName,
+            DefaultName = BbsSubjectTypes.ToLabel(type),
+            IsDeleted = false,
+            SortOrder = order,
+            SubjectCount = await CountSubjectsByTypeAsync(type, ct)
+        };
+    }
+
+    public async Task<BbsBoardModeratorDto> CreateBoardAsync(
+        string displayName,
+        string operatorUserId,
+        CancellationToken ct = default)
+    {
+        var name = (displayName ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(name))
+            throw new ArgumentException("请填写板块名称");
+        if (name.Length > 50)
+            throw new ArgumentException("板块名称最长 50 字");
+
+        var maxType = await _db.BbsBoardModerators.AsNoTracking()
+            .Where(x => x.SubjectType >= BbsSubjectTypes.CustomMin)
+            .Select(x => (int?)x.SubjectType)
+            .MaxAsync(ct) ?? (BbsSubjectTypes.CustomMin - 1);
+        var type = Math.Max(maxType + 1, BbsSubjectTypes.CustomMin);
+
+        var maxOrder = await _db.BbsBoardModerators.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.SortOrder > 0)
+            .Select(x => (int?)x.SortOrder)
+            .MaxAsync(ct) ?? 40;
+        var order = Math.Min(999, maxOrder + 10);
+
+        var row = new BbsBoardModerator
+        {
+            SubjectType = type,
+            UserId = null,
+            DisplayName = name,
+            SortOrder = order,
+            IsDeleted = false,
+            UpdateTime = DateTime.UtcNow,
+            UpdateBy = operatorUserId
+        };
+        _db.BbsBoardModerators.Add(row);
+        await _db.SaveChangesAsync(ct);
+
+        return new BbsBoardModeratorDto
+        {
+            Type = type,
+            DisplayName = name,
+            DefaultName = BbsSubjectTypes.ToLabel(type),
+            IsDeleted = false,
+            SortOrder = order,
+            SubjectCount = 0
+        };
+    }
+
+    public async Task ReorderBoardsAsync(
+        IReadOnlyList<int> orderedTypes,
+        string operatorUserId,
+        CancellationToken ct = default)
+    {
+        if (orderedTypes == null || orderedTypes.Count == 0)
+            throw new ArgumentException("排序列表不能为空");
+
+        var seen = new HashSet<int>();
+        foreach (var type in orderedTypes)
+        {
+            if (!seen.Add(type))
+                throw new ArgumentException($"板块类型重复：{type}");
+            if (!BbsSubjectTypes.IsMovableBoardType(type))
+                throw new ArgumentException($"板块不可调整顺序：{BbsSubjectTypes.ToLabel(type)}");
+        }
+
+        var rows = await _db.BbsBoardModerators.ToListAsync(ct);
+        var byType = rows.ToDictionary(x => x.SubjectType);
+
+        foreach (var type in orderedTypes)
+        {
+            if (byType.TryGetValue(type, out var row) && row.IsDeleted)
+                throw new InvalidOperationException($"板块已删除：{BbsSubjectTypes.ToLabel(type)}");
+            if (BbsSubjectTypes.IsCustom(type) && !byType.ContainsKey(type))
+                throw new ArgumentException($"自定义板块不存在：{type}");
+        }
+
+        var sort = 10;
+        foreach (var type in orderedTypes)
+        {
+            if (!byType.TryGetValue(type, out var row))
+            {
+                row = new BbsBoardModerator
+                {
+                    SubjectType = type,
+                    UserId = null,
+                    DisplayName = null,
+                    IsDeleted = false
+                };
+                _db.BbsBoardModerators.Add(row);
+                byType[type] = row;
+            }
+
+            row.SortOrder = sort;
+            row.IsDeleted = false;
+            row.UpdateTime = DateTime.UtcNow;
+            row.UpdateBy = operatorUserId;
+            sort = Math.Min(999, sort + 10);
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    public async Task DeleteBoardAsync(int type, string operatorUserId, CancellationToken ct = default)
+    {
+        if (!BbsSubjectTypes.IsAllowed(type))
+            throw new ArgumentException("主题类型无效");
+        if (!BbsSubjectTypes.SupportsBoardModerator(type))
+            throw new ArgumentException("该板块不可删除");
+
+        var count = await CountSubjectsByTypeAsync(type, ct);
+        if (count > 0)
+            throw new InvalidOperationException("板块内仍有帖子，无法删除");
+
+        var existing = await _db.BbsBoardModerators
+            .FirstOrDefaultAsync(x => x.SubjectType == type, ct);
+        if (existing == null)
+        {
+            _db.BbsBoardModerators.Add(new BbsBoardModerator
+            {
+                SubjectType = type,
+                UserId = null,
+                DisplayName = null,
+                IsDeleted = true,
+                UpdateTime = DateTime.UtcNow,
+                UpdateBy = operatorUserId
+            });
+        }
+        else
+        {
+            if (existing.IsDeleted) return;
+            existing.IsDeleted = true;
+            existing.UserId = null;
+            existing.UpdateTime = DateTime.UtcNow;
+            existing.UpdateBy = operatorUserId;
+        }
+
+        await _db.SaveChangesAsync(ct);
+    }
+
+    private async Task<int> CountSubjectsByTypeAsync(int type, CancellationToken ct) =>
+        await _db.BbsSubjects.AsNoTracking().CountAsync(x => !x.IsDeleted && x.Type == type, ct);
+
+    private static BbsBoardModeratorDto ToBoardDto(
+        int type,
+        BbsBoardModerator? row,
+        IReadOnlyDictionary<string, (string? UserName, string? RealName)> users)
+    {
+        var defaultName = BbsSubjectTypes.ToLabel(type);
+        var customName = string.IsNullOrWhiteSpace(row?.DisplayName) ? null : row!.DisplayName!.Trim();
+        var dto = new BbsBoardModeratorDto
+        {
+            Type = type,
+            DefaultName = defaultName,
+            DisplayName = customName,
+            IsDeleted = row?.IsDeleted == true,
+            SortOrder = row != null && row.SortOrder > 0
+                ? row.SortOrder
+                : BbsSubjectTypes.DefaultSortOrder(type)
+        };
+        // 自定义板块默认展示名用 DisplayName
+        if (BbsSubjectTypes.IsCustom(type) && !string.IsNullOrWhiteSpace(customName))
+            dto.DefaultName = customName;
+        if (row == null || string.IsNullOrWhiteSpace(row.UserId) || row.IsDeleted) return dto;
+        dto.UserId = row.UserId;
+        if (users.TryGetValue(row.UserId, out var u))
+        {
+            dto.UserName = u.UserName;
+            dto.RealName = u.RealName;
+        }
+        return dto;
+    }
+
+    private async Task<IReadOnlyDictionary<int, string>> LoadBoardDisplayNamesAsync(CancellationToken ct)
+    {
+        var rows = await _db.BbsBoardModerators.AsNoTracking()
+            .Where(x => !x.IsDeleted && x.DisplayName != null && x.DisplayName != "")
+            .Select(x => new { x.SubjectType, x.DisplayName })
+            .ToListAsync(ct);
+        return rows.ToDictionary(
+            x => x.SubjectType,
+            x => x.DisplayName!.Trim(),
+            EqualityComparer<int>.Default);
+    }
+
+    private static string ResolveTypeLabel(int type, IReadOnlyDictionary<int, string>? customNames)
+    {
+        if (customNames != null && customNames.TryGetValue(type, out var n) && !string.IsNullOrWhiteSpace(n))
+            return n;
+        return BbsSubjectTypes.ToLabel(type);
     }
 
     public async Task<IReadOnlyList<BbsSubjectListItemDto>> GetTopSubjectsAsync(
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct = default)
     {
         var list = await _db.BbsSubjects.AsNoTracking()
@@ -26,13 +362,64 @@ public class BbsService : IBbsService
             .Take(50)
             .ToListAsync(ct);
         var names = await ResolveUserNamesAsync(list.Select(x => x.CreateBy), ct);
-        return list.Select(x => ToListItem(x, userId, isModerator, names)).ToList();
+        var mine = await LoadMyReactionsAsync(BbsReactionTargetTypes.Subject, list.Select(x => x.Id), actor.UserId, ct);
+        var typeNames = await LoadBoardDisplayNamesAsync(ct);
+        return list.Select(x => ToListItem(x, actor, names, mine, typeNames)).ToList();
+    }
+
+    public async Task<BbsBoardStatsDto> GetBoardStatsAsync(CancellationToken ct = default)
+    {
+        var rows = await _db.BbsSubjects.AsNoTracking()
+            .Where(x => !x.IsDeleted)
+            .Select(x => new { x.Type, x.IsTop, x.ViewCount })
+            .ToListAsync(ct);
+
+        var all = new BbsBoardStatItemDto
+        {
+            Key = "all",
+            SubjectCount = rows.Count,
+            ViewCount = rows.Sum(x => x.ViewCount)
+        };
+        var topRows = rows.Where(x => x.IsTop).ToList();
+        var top = new BbsBoardStatItemDto
+        {
+            Key = "top",
+            SubjectCount = topRows.Count,
+            ViewCount = topRows.Sum(x => x.ViewCount)
+        };
+        var byType = BbsSubjectTypes.All
+            .Concat(rows.Select(x => x.Type))
+            .Concat(
+                (await _db.BbsBoardModerators.AsNoTracking()
+                    .Where(x => !x.IsDeleted && x.SubjectType >= BbsSubjectTypes.CustomMin)
+                    .Select(x => x.SubjectType)
+                    .ToListAsync(ct)))
+            .Distinct()
+            .OrderBy(t => t)
+            .Select(t =>
+            {
+                var part = rows.Where(x => x.Type == t).ToList();
+                return new BbsBoardStatItemDto
+                {
+                    Key = t.ToString(),
+                    Type = t,
+                    SubjectCount = part.Count,
+                    ViewCount = part.Sum(x => x.ViewCount)
+                };
+            })
+            .ToList();
+
+        return new BbsBoardStatsDto
+        {
+            All = all,
+            Top = top,
+            ByType = byType
+        };
     }
 
     public async Task<BbsSubjectPagedDto> QuerySubjectsAsync(
         BbsSubjectQuery query,
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct = default)
     {
         var page = Math.Max(1, query.Page);
@@ -58,19 +445,20 @@ public class BbsService : IBbsService
             .ToListAsync(ct);
 
         var names = await ResolveUserNamesAsync(list.Select(x => x.CreateBy), ct);
+        var mine = await LoadMyReactionsAsync(BbsReactionTargetTypes.Subject, list.Select(x => x.Id), actor.UserId, ct);
+        var typeNames = await LoadBoardDisplayNamesAsync(ct);
         return new BbsSubjectPagedDto
         {
             Total = total,
             Page = page,
             PageSize = pageSize,
-            Items = list.Select(x => ToListItem(x, userId, isModerator, names)).ToList()
+            Items = list.Select(x => ToListItem(x, actor, names, mine, typeNames)).ToList()
         };
     }
 
     public async Task<BbsSubjectDetailDto?> GetSubjectDetailAsync(
         string subjectId,
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct = default)
     {
         var entity = await _db.BbsSubjects
@@ -82,40 +470,16 @@ public class BbsService : IBbsService
             ct);
         entity.ViewCount += 1;
 
-        var names = await ResolveUserNamesAsync(new[] { entity.CreateBy }, ct);
-        var item = ToListItem(entity, userId, isModerator, names);
-        return new BbsSubjectDetailDto
-        {
-            Id = item.Id,
-            Title = item.Title,
-            Type = item.Type,
-            TypeLabel = item.TypeLabel,
-            Status = item.Status,
-            StatusLabel = item.StatusLabel,
-            IsTop = item.IsTop,
-            IsHot = item.IsHot,
-            Anonymous = item.Anonymous,
-            ViewCount = item.ViewCount,
-            ReplyCount = item.ReplyCount,
-            LastReplyTime = item.LastReplyTime,
-            CreateTime = item.CreateTime,
-            CreateBy = item.CreateBy,
-            AuthorDisplay = item.AuthorDisplay,
-            CanDelete = item.CanDelete,
-            CanEdit = item.CanEdit,
-            CanSetTop = item.CanSetTop,
-            CanModerate = item.CanModerate,
-            Content = entity.Content
-        };
+        return await BuildDetailDtoAsync(entity, actor, ct);
     }
 
     public async Task<BbsSubjectDetailDto> CreateSubjectAsync(
         BbsSubjectCreateRequest request,
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct = default)
     {
         ValidateContent(request.Title, request.Content, request.Type);
+        await EnsureCanPostTypeAsync(request.Type, actor, ct);
 
         var entity = new BbsSubject
         {
@@ -126,84 +490,86 @@ public class BbsService : IBbsService
             Status = BbsSubjectStatuses.Open,
             Anonymous = request.Anonymous,
             CreateTime = DateTime.UtcNow,
-            CreateBy = userId
+            CreateBy = actor.UserId
         };
         _db.BbsSubjects.Add(entity);
         await _db.SaveChangesAsync(ct);
 
-        var detail = await GetSubjectDetailWithoutBumpAsync(entity.Id, userId, isModerator, ct);
+        var detail = await GetSubjectDetailWithoutBumpAsync(entity.Id, actor, ct);
         return detail!;
     }
 
     public async Task<BbsSubjectDetailDto> UpdateSubjectAsync(
         string subjectId,
         BbsSubjectUpdateRequest request,
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct = default)
     {
         ValidateContent(request.Title, request.Content, request.Type);
+        await EnsureCanPostTypeAsync(request.Type, actor, ct);
         var entity = await RequireSubjectAsync(subjectId, ct);
-        EnsureOwnerOrModerator(entity, userId, isModerator);
+        EnsureOwnerOrGlobalModerator(entity, actor);
 
         entity.Title = request.Title.Trim();
         entity.Content = request.Content.Trim();
         entity.Type = request.Type;
         entity.Anonymous = request.Anonymous;
         entity.ModifyTime = DateTime.UtcNow;
-        entity.ModifyBy = userId;
+        entity.ModifyBy = actor.UserId;
         await _db.SaveChangesAsync(ct);
 
-        return (await GetSubjectDetailWithoutBumpAsync(subjectId, userId, isModerator, ct))!;
+        return (await GetSubjectDetailWithoutBumpAsync(subjectId, actor, ct))!;
     }
 
-    public async Task CloseSubjectAsync(string subjectId, string userId, bool isModerator, CancellationToken ct = default)
+    public async Task CloseSubjectAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
-        EnsureOwnerOrModerator(entity, userId, isModerator);
+        EnsureOwnerOrBoardModerator(entity, actor);
         entity.Status = BbsSubjectStatuses.Close;
         entity.ModifyTime = DateTime.UtcNow;
-        entity.ModifyBy = userId;
+        entity.ModifyBy = actor.UserId;
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task OpenSubjectAsync(string subjectId, string userId, bool isModerator, CancellationToken ct = default)
+    public async Task OpenSubjectAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
-        EnsureOwnerOrModerator(entity, userId, isModerator);
+        EnsureOwnerOrBoardModerator(entity, actor);
         entity.Status = BbsSubjectStatuses.Open;
         entity.ModifyTime = DateTime.UtcNow;
-        entity.ModifyBy = userId;
+        entity.ModifyBy = actor.UserId;
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task SetTopAsync(string subjectId, string userId, bool isModerator, CancellationToken ct = default)
+    public async Task SetTopAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
-        if (!isModerator) throw new UnauthorizedAccessException("仅版主可置顶");
         var entity = await RequireSubjectAsync(subjectId, ct);
+        if (!actor.CanModerateType(entity.Type))
+            throw new UnauthorizedAccessException("仅版主可置顶");
         entity.IsTop = true;
         entity.ModifyTime = DateTime.UtcNow;
-        entity.ModifyBy = userId;
+        entity.ModifyBy = actor.UserId;
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task CancelTopAsync(string subjectId, string userId, bool isModerator, CancellationToken ct = default)
+    public async Task CancelTopAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
-        if (!isModerator) throw new UnauthorizedAccessException("仅版主可取消置顶");
         var entity = await RequireSubjectAsync(subjectId, ct);
+        if (!actor.CanModerateType(entity.Type))
+            throw new UnauthorizedAccessException("仅版主可取消置顶");
         entity.IsTop = false;
         entity.ModifyTime = DateTime.UtcNow;
-        entity.ModifyBy = userId;
+        entity.ModifyBy = actor.UserId;
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task DeleteSubjectAsync(string subjectId, string userId, bool isModerator, CancellationToken ct = default)
+    public async Task DeleteSubjectAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
-        EnsureOwnerOrModerator(entity, userId, isModerator);
+        EnsureOwnerOrBoardModerator(entity, actor);
         entity.IsDeleted = true;
         entity.ModifyTime = DateTime.UtcNow;
-        entity.ModifyBy = userId;
+        entity.ModifyBy = actor.UserId;
         await _db.SaveChangesAsync(ct);
     }
 
@@ -211,11 +577,11 @@ public class BbsService : IBbsService
         string subjectId,
         int page,
         int pageSize,
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct = default)
     {
-        _ = await RequireSubjectAsync(subjectId, ct);
+        var subject = await RequireSubjectAsync(subjectId, ct);
+        var canMod = actor.CanModerateType(subject.Type);
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
@@ -234,15 +600,14 @@ public class BbsService : IBbsService
             Total = total,
             Page = page,
             PageSize = pageSize,
-            Items = list.Select(x => ToReplyDto(x, userId, isModerator, names)).ToList()
+            Items = list.Select(x => ToReplyDto(x, actor.UserId, canMod, names)).ToList()
         };
     }
 
     public async Task<BbsReplyDto> AddReplyAsync(
         string subjectId,
         BbsReplyCreateRequest request,
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(request.Content))
@@ -260,7 +625,7 @@ public class BbsService : IBbsService
             Content = request.Content.Trim(),
             Anonymous = request.Anonymous,
             CreateTime = DateTime.UtcNow,
-            CreateBy = userId
+            CreateBy = actor.UserId
         };
         _db.BbsReplies.Add(reply);
 
@@ -269,43 +634,253 @@ public class BbsService : IBbsService
         if (subject.ReplyCount > BbsLimits.HotReplyThreshold)
             subject.IsHot = true;
         subject.ModifyTime = DateTime.UtcNow;
-        subject.ModifyBy = userId;
+        subject.ModifyBy = actor.UserId;
 
         await _db.SaveChangesAsync(ct);
 
-        var names = await ResolveUserNamesAsync(new[] { userId }, ct);
-        return ToReplyDto(reply, userId, isModerator, names);
+        var names = await ResolveUserNamesAsync(new[] { actor.UserId }, ct);
+        return ToReplyDto(reply, actor.UserId, actor.CanModerateType(subject.Type), names);
     }
 
-    public async Task DeleteReplyAsync(string replyId, string userId, bool isModerator, CancellationToken ct = default)
+    public async Task DeleteReplyAsync(string replyId, BbsActorContext actor, CancellationToken ct = default)
     {
         var reply = await _db.BbsReplies.FirstOrDefaultAsync(x => x.Id == replyId && !x.IsDeleted, ct)
             ?? throw new KeyNotFoundException("没有找到回复");
-        if (!isModerator && !string.Equals(reply.CreateBy, userId, StringComparison.OrdinalIgnoreCase))
+
+        var subject = await _db.BbsSubjects.FirstOrDefaultAsync(x => x.Id == reply.SubjectId && !x.IsDeleted, ct);
+        var canMod = subject != null && actor.CanModerateType(subject.Type);
+        if (!canMod && !string.Equals(reply.CreateBy, actor.UserId, StringComparison.OrdinalIgnoreCase))
             throw new UnauthorizedAccessException("无权删除该回复");
 
         reply.IsDeleted = true;
         reply.ModifyTime = DateTime.UtcNow;
-        reply.ModifyBy = userId;
+        reply.ModifyBy = actor.UserId;
 
-        var subject = await _db.BbsSubjects.FirstOrDefaultAsync(x => x.Id == reply.SubjectId && !x.IsDeleted, ct);
         if (subject != null && subject.ReplyCount > 0)
             subject.ReplyCount -= 1;
 
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task<IReadOnlyList<BbsMediaItemDto>> ListSubjectMediaAsync(
+        string subjectId,
+        CancellationToken ct = default)
+    {
+        _ = await RequireSubjectAsync(subjectId, ct);
+        var docs = await _documents.GetByBizAsync(BbsDocumentBizTypes.Subject, subjectId);
+        return docs.Select(ToMediaItem).ToList();
+    }
+
+    public async Task<IReadOnlyList<BbsMediaItemDto>> UploadSubjectMediaAsync(
+        string subjectId,
+        IReadOnlyList<BbsMediaUploadFile> files,
+        BbsActorContext actor,
+        CancellationToken ct = default)
+    {
+        if (files == null || files.Count == 0)
+            throw new ArgumentException("请选择至少一个文件");
+
+        var subject = await RequireSubjectAsync(subjectId, ct);
+        EnsureOwnerOrBoardModerator(subject, actor);
+
+        var existing = await _documents.GetByBizAsync(BbsDocumentBizTypes.Subject, subjectId);
+        var imageCount = existing.Count(d => BbsMediaLimits.IsImage(d.FileExtension));
+        var videoCount = existing.Count(d => BbsMediaLimits.IsVideo(d.FileExtension));
+
+        var uploadFiles = new List<DocumentUploadFile>();
+        foreach (var f in files)
+        {
+            var ext = Path.GetExtension(f.FileName ?? "").ToLowerInvariant();
+            if (BbsMediaLimits.IsImage(ext))
+            {
+                if (f.Length > BbsMediaLimits.MaxImageBytes)
+                    throw new ArgumentException($"图片「{f.FileName}」超过 {BbsMediaLimits.MaxImageBytes / (1024 * 1024)}MB");
+                imageCount++;
+                if (imageCount > BbsMediaLimits.MaxImagesPerSubject)
+                    throw new ArgumentException($"每个主题最多 {BbsMediaLimits.MaxImagesPerSubject} 张图片");
+            }
+            else if (BbsMediaLimits.IsVideo(ext))
+            {
+                if (f.Length > BbsMediaLimits.MaxVideoBytes)
+                    throw new ArgumentException($"视频「{f.FileName}」超过 {BbsMediaLimits.MaxVideoBytes / (1024 * 1024)}MB");
+                videoCount++;
+                if (videoCount > BbsMediaLimits.MaxVideosPerSubject)
+                    throw new ArgumentException($"每个主题最多 {BbsMediaLimits.MaxVideosPerSubject} 个视频");
+            }
+            else
+            {
+                throw new ArgumentException($"不支持的文件格式: {ext}（图片 jpg/png/webp/gif，视频 mp4/webm）");
+            }
+
+            uploadFiles.Add(new DocumentUploadFile
+            {
+                Stream = f.Stream,
+                FileName = f.FileName,
+                ContentType = f.ContentType
+            });
+        }
+
+        var saved = await _documents.UploadAsync(new DocumentUploadRequest
+        {
+            BizType = BbsDocumentBizTypes.Subject,
+            BizId = subjectId,
+            UploadUserId = actor.UserId,
+            Remark = "bbs-media",
+            Files = uploadFiles
+        });
+        return saved.Select(ToMediaItem).ToList();
+    }
+
+    public async Task DeleteSubjectMediaAsync(
+        string documentId,
+        BbsActorContext actor,
+        CancellationToken ct = default)
+    {
+        var doc = await _documents.GetByIdAsync(documentId)
+            ?? throw new KeyNotFoundException("媒体不存在");
+        if (doc.IsDeleted || !BbsDocumentBizTypes.IsSubject(doc.BizType))
+            throw new KeyNotFoundException("媒体不存在");
+
+        var subject = await RequireSubjectAsync(doc.BizId, ct);
+        EnsureOwnerOrBoardModerator(subject, actor);
+        await _documents.SoftDeleteAsync(documentId, actor.UserId);
+    }
+
+    public async Task<BbsReactionResultDto> SetSubjectReactionAsync(
+        string subjectId,
+        int value,
+        string userId,
+        CancellationToken ct = default)
+    {
+        var subject = await RequireSubjectAsync(subjectId, ct);
+        return await ApplyReactionAsync(
+            BbsReactionTargetTypes.Subject,
+            subjectId,
+            value,
+            userId,
+            () => (subject.LikeCount, subject.DislikeCount),
+            (like, dislike) =>
+            {
+                subject.LikeCount = like;
+                subject.DislikeCount = dislike;
+            },
+            ct);
+    }
+
+    private async Task<BbsReactionResultDto> ApplyReactionAsync(
+        int targetType,
+        string targetId,
+        int value,
+        string userId,
+        Func<(int Like, int Dislike)> readCounts,
+        Action<int, int> writeCounts,
+        CancellationToken ct)
+    {
+        if (!BbsReactionValues.IsValidRequest(value))
+            throw new ArgumentException("赞踩取值无效");
+
+        var existing = await _db.BbsReactions
+            .FirstOrDefaultAsync(
+                x => x.TargetType == targetType && x.TargetId == targetId && x.UserId == userId,
+                ct);
+
+        var (like, dislike) = readCounts();
+        var prev = existing?.Value ?? BbsReactionValues.None;
+        var next = value;
+
+        if (prev == next)
+            next = BbsReactionValues.None;
+
+        if (prev == BbsReactionValues.Like) like = Math.Max(0, like - 1);
+        if (prev == BbsReactionValues.Dislike) dislike = Math.Max(0, dislike - 1);
+        if (next == BbsReactionValues.Like) like += 1;
+        if (next == BbsReactionValues.Dislike) dislike += 1;
+
+        if (next == BbsReactionValues.None)
+        {
+            if (existing != null) _db.BbsReactions.Remove(existing);
+        }
+        else if (existing == null)
+        {
+            _db.BbsReactions.Add(new BbsReaction
+            {
+                Id = Guid.NewGuid().ToString(),
+                TargetType = targetType,
+                TargetId = targetId,
+                UserId = userId,
+                Value = next,
+                CreateTime = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existing.Value = next;
+            existing.ModifyTime = DateTime.UtcNow;
+        }
+
+        writeCounts(like, dislike);
+        await _db.SaveChangesAsync(ct);
+        return new BbsReactionResultDto
+        {
+            LikeCount = like,
+            DislikeCount = dislike,
+            MyReaction = next
+        };
+    }
+
+    private async Task<Dictionary<string, int>> LoadMyReactionsAsync(
+        int targetType,
+        IEnumerable<string> targetIds,
+        string userId,
+        CancellationToken ct)
+    {
+        var ids = targetIds.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (ids.Count == 0 || string.IsNullOrWhiteSpace(userId))
+            return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
+        var rows = await _db.BbsReactions.AsNoTracking()
+            .Where(x => x.TargetType == targetType && x.UserId == userId && ids.Contains(x.TargetId))
+            .Select(x => new { x.TargetId, x.Value })
+            .ToListAsync(ct);
+        return rows.ToDictionary(x => x.TargetId, x => x.Value, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static BbsMediaItemDto ToMediaItem(CRM.Core.Models.Document.UploadDocument d)
+    {
+        var ext = d.FileExtension ?? Path.GetExtension(d.OriginalFileName ?? "");
+        var kind = BbsMediaLimits.IsVideo(ext) ? "video" : "image";
+        return new BbsMediaItemDto
+        {
+            Id = d.Id,
+            OriginalFileName = d.OriginalFileName,
+            MimeType = d.MimeType,
+            FileExtension = d.FileExtension,
+            FileSize = d.FileSize,
+            Kind = kind,
+            PreviewPath = $"/api/v1/documents/{d.Id}/preview"
+        };
+    }
+
     private async Task<BbsSubjectDetailDto?> GetSubjectDetailWithoutBumpAsync(
         string subjectId,
-        string userId,
-        bool isModerator,
+        BbsActorContext actor,
         CancellationToken ct)
     {
         var entity = await _db.BbsSubjects.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == subjectId && !x.IsDeleted, ct);
         if (entity == null) return null;
+        return await BuildDetailDtoAsync(entity, actor, ct);
+    }
+
+    private async Task<BbsSubjectDetailDto> BuildDetailDtoAsync(
+        BbsSubject entity,
+        BbsActorContext actor,
+        CancellationToken ct)
+    {
         var names = await ResolveUserNamesAsync(new[] { entity.CreateBy }, ct);
-        var item = ToListItem(entity, userId, isModerator, names);
+        var mine = await LoadMyReactionsAsync(BbsReactionTargetTypes.Subject, new[] { entity.Id }, actor.UserId, ct);
+        var typeNames = await LoadBoardDisplayNamesAsync(ct);
+        var item = ToListItem(entity, actor, names, mine, typeNames);
         return new BbsSubjectDetailDto
         {
             Id = item.Id,
@@ -319,6 +894,9 @@ public class BbsService : IBbsService
             Anonymous = item.Anonymous,
             ViewCount = item.ViewCount,
             ReplyCount = item.ReplyCount,
+            LikeCount = item.LikeCount,
+            DislikeCount = item.DislikeCount,
+            MyReaction = item.MyReaction,
             LastReplyTime = item.LastReplyTime,
             CreateTime = item.CreateTime,
             CreateBy = item.CreateBy,
@@ -337,11 +915,62 @@ public class BbsService : IBbsService
             ?? throw new KeyNotFoundException("没有找到主题");
     }
 
-    private static void EnsureOwnerOrModerator(BbsSubject entity, string userId, bool isModerator)
+    private static void EnsureOwnerOrBoardModerator(BbsSubject entity, BbsActorContext actor)
     {
-        if (isModerator) return;
-        if (string.Equals(entity.CreateBy, userId, StringComparison.OrdinalIgnoreCase)) return;
+        if (actor.CanModerateType(entity.Type)) return;
+        if (string.Equals(entity.CreateBy, actor.UserId, StringComparison.OrdinalIgnoreCase)) return;
         throw new UnauthorizedAccessException("无权操作该主题");
+    }
+
+    private static void EnsureOwnerOrGlobalModerator(BbsSubject entity, BbsActorContext actor)
+    {
+        if (actor.IsGlobalModerator) return;
+        if (string.Equals(entity.CreateBy, actor.UserId, StringComparison.OrdinalIgnoreCase)) return;
+        throw new UnauthorizedAccessException("无权编辑该主题");
+    }
+
+    private async Task BumpCollidingSortOrdersAsync(
+        int type,
+        int order,
+        string operatorUserId,
+        CancellationToken ct)
+    {
+        var slot = order;
+        while (true)
+        {
+            var occupant = await _db.BbsBoardModerators
+                .FirstOrDefaultAsync(
+                    x => x.SubjectType != type && !x.IsDeleted && x.SortOrder == slot,
+                    ct);
+            if (occupant == null) break;
+            if (occupant.SortOrder >= 999) break;
+            slot = occupant.SortOrder + 1;
+            occupant.SortOrder = slot;
+            occupant.UpdateTime = DateTime.UtcNow;
+            occupant.UpdateBy = operatorUserId;
+        }
+    }
+
+    private async Task EnsureCanPostTypeAsync(int type, BbsActorContext actor, CancellationToken ct)
+    {
+        if (!BbsSubjectTypes.IsAllowed(type))
+            throw new ArgumentException("主题类型无效");
+        if (BbsSubjectTypes.IsAdminOnlyPostType(type) && !actor.IsSysAdmin)
+            throw new UnauthorizedAccessException("仅系统管理员可在该板块发帖");
+
+        if (BbsSubjectTypes.IsCustom(type))
+        {
+            var row = await _db.BbsBoardModerators.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.SubjectType == type, ct);
+            if (row == null || row.IsDeleted)
+                throw new ArgumentException("该板块不存在或已删除，无法发帖");
+            return;
+        }
+
+        var deleted = await _db.BbsBoardModerators.AsNoTracking()
+            .AnyAsync(x => x.SubjectType == type && x.IsDeleted, ct);
+        if (deleted)
+            throw new ArgumentException("该板块已删除，无法发帖");
     }
 
     private static void ValidateContent(string title, string content, int type)
@@ -368,12 +997,27 @@ public class BbsService : IBbsService
         IEnumerable<string?> userIds,
         CancellationToken ct)
     {
+        var accounts = await LoadUserAccountsAsync(
+            userIds.Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x!),
+            ct);
+        return accounts.ToDictionary(
+            kv => kv.Key,
+            kv => string.IsNullOrWhiteSpace(kv.Value.RealName)
+                ? (kv.Value.UserName ?? kv.Key)
+                : kv.Value.RealName!,
+            StringComparer.OrdinalIgnoreCase);
+    }
+
+    private async Task<Dictionary<string, (string? UserName, string? RealName)>> LoadUserAccountsAsync(
+        IEnumerable<string> userIds,
+        CancellationToken ct)
+    {
         var ids = userIds
             .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
-        if (ids.Count == 0) return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (ids.Count == 0)
+            return new Dictionary<string, (string?, string?)>(StringComparer.OrdinalIgnoreCase);
 
         var users = await _db.Users.AsNoTracking()
             .Where(u => ids.Contains(u.Id))
@@ -382,26 +1026,29 @@ public class BbsService : IBbsService
 
         return users.ToDictionary(
             u => u.Id,
-            u => string.IsNullOrWhiteSpace(u.RealName) ? (u.UserName ?? u.Id) : u.RealName!,
+            u => (u.UserName, u.RealName),
             StringComparer.OrdinalIgnoreCase);
     }
 
     private static BbsSubjectListItemDto ToListItem(
         BbsSubject x,
-        string userId,
-        bool isModerator,
-        IReadOnlyDictionary<string, string> names)
+        BbsActorContext actor,
+        IReadOnlyDictionary<string, string> names,
+        IReadOnlyDictionary<string, int> myReactions,
+        IReadOnlyDictionary<int, string>? typeNames = null)
     {
         var rawName = !string.IsNullOrWhiteSpace(x.CreateBy) && names.TryGetValue(x.CreateBy, out var n)
             ? n
             : (x.CreateBy ?? "");
-        var isOwner = string.Equals(x.CreateBy, userId, StringComparison.OrdinalIgnoreCase);
+        var isOwner = string.Equals(x.CreateBy, actor.UserId, StringComparison.OrdinalIgnoreCase);
+        var canMod = actor.CanModerateType(x.Type);
+        myReactions.TryGetValue(x.Id, out var myReaction);
         return new BbsSubjectListItemDto
         {
             Id = x.Id,
             Title = x.Title,
             Type = x.Type,
-            TypeLabel = BbsSubjectTypes.ToLabel(x.Type),
+            TypeLabel = ResolveTypeLabel(x.Type, typeNames),
             Status = x.Status,
             StatusLabel = BbsSubjectStatuses.ToLabel(x.Status),
             IsTop = x.IsTop,
@@ -409,21 +1056,24 @@ public class BbsService : IBbsService
             Anonymous = x.Anonymous,
             ViewCount = x.ViewCount,
             ReplyCount = x.ReplyCount,
+            LikeCount = x.LikeCount,
+            DislikeCount = x.DislikeCount,
+            MyReaction = myReaction,
             LastReplyTime = x.LastReplyTime,
             CreateTime = x.CreateTime,
             CreateBy = x.CreateBy,
-            AuthorDisplay = FormatAuthor(rawName, x.Anonymous, isModerator),
-            CanDelete = isModerator || isOwner,
-            CanEdit = isModerator || isOwner,
-            CanSetTop = isModerator,
-            CanModerate = isModerator
+            AuthorDisplay = FormatAuthor(rawName, x.Anonymous, canMod),
+            CanDelete = canMod || isOwner,
+            CanEdit = actor.IsGlobalModerator || isOwner,
+            CanSetTop = canMod,
+            CanModerate = canMod
         };
     }
 
     private static BbsReplyDto ToReplyDto(
         BbsReply x,
         string userId,
-        bool isModerator,
+        bool canModerate,
         IReadOnlyDictionary<string, string> names)
     {
         var rawName = !string.IsNullOrWhiteSpace(x.CreateBy) && names.TryGetValue(x.CreateBy, out var n)
@@ -438,8 +1088,8 @@ public class BbsService : IBbsService
             Anonymous = x.Anonymous,
             CreateTime = x.CreateTime,
             CreateBy = x.CreateBy,
-            AuthorDisplay = FormatAuthor(rawName, x.Anonymous, isModerator),
-            CanDelete = isModerator || isOwner
+            AuthorDisplay = FormatAuthor(rawName, x.Anonymous, canModerate),
+            CanDelete = canModerate || isOwner
         };
     }
 

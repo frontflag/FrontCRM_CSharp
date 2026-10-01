@@ -62,6 +62,8 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysUserNotice> SysUserNotices { get; set; } = null!;
         public DbSet<BbsSubject> BbsSubjects { get; set; } = null!;
         public DbSet<BbsReply> BbsReplies { get; set; } = null!;
+        public DbSet<BbsReaction> BbsReactions { get; set; } = null!;
+        public DbSet<BbsBoardModerator> BbsBoardModerators { get; set; } = null!;
         public DbSet<WorkTask> WorkTasks { get; set; } = null!;
         public DbSet<IncentiveTarget> IncentiveTargets { get; set; } = null!;
         public DbSet<RiskAlertSetting> RiskAlertSettings { get; set; } = null!;
@@ -2942,6 +2944,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Anonymous).HasColumnName("anonymous");
                 entity.Property(e => e.ViewCount).HasColumnName("view_count");
                 entity.Property(e => e.ReplyCount).HasColumnName("reply_count");
+                entity.Property(e => e.LikeCount).HasColumnName("like_count");
+                entity.Property(e => e.DislikeCount).HasColumnName("dislike_count");
                 entity.Property(e => e.LastReplyTime).HasColumnName("last_reply_time");
                 entity.Property(e => e.CreateTime).HasColumnName("create_time");
                 entity.Property(e => e.CreateBy).HasColumnName("create_by").HasMaxLength(36);
@@ -2960,6 +2964,8 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.SubjectId).HasColumnName("subject_id").HasMaxLength(36);
                 entity.Property(e => e.Content).HasColumnName("content");
                 entity.Property(e => e.Anonymous).HasColumnName("anonymous");
+                entity.Property(e => e.LikeCount).HasColumnName("like_count");
+                entity.Property(e => e.DislikeCount).HasColumnName("dislike_count");
                 entity.Property(e => e.CreateTime).HasColumnName("create_time");
                 entity.Property(e => e.CreateBy).HasColumnName("create_by").HasMaxLength(36);
                 entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
@@ -2967,6 +2973,36 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
                 entity.HasIndex(e => new { e.SubjectId, e.CreateTime })
                     .HasDatabaseName("ix_bbs_reply_subject");
+            });
+
+            modelBuilder.Entity<BbsReaction>(entity =>
+            {
+                entity.ToTable("bbs_reaction");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.TargetType).HasColumnName("target_type");
+                entity.Property(e => e.TargetId).HasColumnName("target_id").HasMaxLength(36);
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.Value).HasColumnName("value");
+                entity.Property(e => e.CreateTime).HasColumnName("create_time");
+                entity.Property(e => e.ModifyTime).HasColumnName("modify_time");
+                entity.HasIndex(e => new { e.TargetType, e.TargetId, e.UserId })
+                    .IsUnique()
+                    .HasDatabaseName("ux_bbs_reaction_target_user");
+            });
+
+            modelBuilder.Entity<BbsBoardModerator>(entity =>
+            {
+                entity.ToTable("bbs_board_moderator");
+                entity.HasKey(e => e.SubjectType);
+                entity.Property(e => e.SubjectType).HasColumnName("subject_type");
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36).IsRequired(false);
+                entity.Property(e => e.DisplayName).HasColumnName("display_name").HasMaxLength(50);
+                entity.Property(e => e.IsDeleted).HasColumnName("is_deleted");
+                entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+                entity.Property(e => e.UpdateTime).HasColumnName("update_time");
+                entity.Property(e => e.UpdateBy).HasColumnName("update_by").HasMaxLength(36);
+                entity.HasIndex(e => e.UserId).HasDatabaseName("ix_bbs_board_moderator_user");
             });
 
             modelBuilder.Entity<RFQ>().Ignore(e => e.AssignedAt);

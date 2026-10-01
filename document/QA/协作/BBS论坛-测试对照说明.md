@@ -3,7 +3,7 @@
 > **页面 / 路由：** 侧栏「我的」→「论坛」`/bbs`；发帖 `/bbs/create`；详情 `/bbs/:id`；编辑 `/bbs/:id/edit`  
 > **设计文档：** [BBS论坛-设计与实现](../../System/协作/BBS论坛-设计与实现.md)  
 > **EBS 对照（只读）：** [document/EBS/辅助功能/BBS.md](../../EBS/辅助功能/BBS.md)  
-> **权限 / DDL：** 读/写 = 登录即可；版主 = SYS_ADMIN / SYS_MANAGER / `bbs.moderate`。须执行 `scripts/ensure_bbs_postgresql.sql`（或依赖 API 启动 SchemaEnsure）后重启 API  
+> **权限 / DDL：** 读/写 = 登录即可；板块版主 = `bbs_board_moderator`（限本 Type）；全局版主 = SYS_ADMIN / SYS_MANAGER / `bbs.moderate`；**仅 SYS_ADMIN / SYS_MANAGER 可设置板块版主**。须执行 `scripts/ensure_bbs_postgresql.sql`（或依赖 API 启动 SchemaEnsure）后重启 API  
 > **总纲：** [测试规范总纲.md](../测试规范总纲.md)
 
 | 项 | 内容 |
@@ -32,7 +32,12 @@
 | 4 | 普通业务员发帖、回复 | 成功 |
 | 5 | 普通业务员对他人帖点置顶 | 403 / 前端无置顶按钮（`canSetTop=false`） |
 | 6 | SYS_ADMIN 或 SYS_MANAGER 打开他人帖 | 可见置顶/删帖等版主操作 |
-| 7 | 赋权 `bbs.moderate` 的非管理员 | 与版主能力一致 |
+| 7 | 赋权 `bbs.moderate` 的非管理员 | 与**全局**版主能力一致（全板块） |
+| 7a | 超管在侧栏某板块点「设置」，选任意启用账号保存 | `PUT /board-moderators/{type}` 成功；侧栏显示该账号 |
+| 7b | 普通用户 / 非超管 | 侧栏无「设置」按钮；调 PUT 返回 403 |
+| 7c | 板块版主 A 对**本板块**他人帖 | 可置顶/关闭/删帖/删回复；`canEdit` 对他人帖为 false |
+| 7d | 板块版主 A 对**其他板块**他人帖 | 无版主按钮 / 403 |
+| 7e | 超管清除版主 | 侧栏显示「未设置」；原版主失去本板块管理权 |
 
 ---
 

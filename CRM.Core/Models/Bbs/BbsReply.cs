@@ -23,6 +23,12 @@ public class BbsReply
     [Column("anonymous")]
     public bool Anonymous { get; set; }
 
+    [Column("like_count")]
+    public int LikeCount { get; set; }
+
+    [Column("dislike_count")]
+    public int DislikeCount { get; set; }
+
     [Column("create_time")]
     public DateTime CreateTime { get; set; } = DateTime.UtcNow;
 
