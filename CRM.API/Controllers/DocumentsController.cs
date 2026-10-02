@@ -77,6 +77,8 @@ namespace CRM.API.Controllers
 
                 if (SysUserNoticeDocumentBizType.Is(bizType))
                     return StatusCode(403, ApiResponse<object>.Fail("系统通知图片只能在发送时一并上传", 403));
+                if (BbsDocumentBizTypes.IsSubject(bizType))
+                    return StatusCode(403, ApiResponse<object>.Fail("论坛媒体请使用论坛上传接口", 403));
 
                 var summary = await TryGetPermissionSummaryAsync();
                 if (CrossSideDocumentAttachmentPolicy.ShouldDeny(summary, bizType))
@@ -314,6 +316,8 @@ namespace CRM.API.Controllers
                     return StatusCode(403, ApiResponse<object>.Fail("当前角色无权删除该业务类型的附件", 403));
                 if (SysUserNoticeDocumentBizType.Is(doc.BizType))
                     return StatusCode(403, ApiResponse<object>.Fail("系统通知图片发出后不可删除", 403));
+                if (BbsDocumentBizTypes.IsSubject(doc.BizType))
+                    return StatusCode(403, ApiResponse<object>.Fail("论坛媒体请使用论坛删除接口", 403));
 
                 await _documentService.SoftDeleteAsync(id, userId ?? "");
                 return Ok(ApiResponse<object>.Ok(null, "删除成功"));

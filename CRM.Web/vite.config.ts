@@ -40,7 +40,7 @@ export default defineConfig(({ mode }) => ({
     }),
     Components({
       resolvers: [ElementPlusResolver()],
-    }),
+    })
   ],
   resolve: {
     alias: {

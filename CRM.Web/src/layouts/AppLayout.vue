@@ -191,12 +191,7 @@
           </template>
           <template #submenu>
             <router-link to="/dashboard" class="submenu-item" active-class="active" exact>{{ t('layout.menu.dashboard') }}</router-link>
-            <router-link
-              v-if="isSysAdmin"
-              to="/bbs"
-              class="submenu-item"
-              active-class="active"
-            >{{ t('layout.menu.bbs') }}</router-link>
+            <router-link to="/bbs" class="submenu-item" active-class="active">{{ t('layout.menu.bbs') }}</router-link>
             <router-link to="/my/mails" class="submenu-item" active-class="active">{{ t('layout.menu.myMails') }}</router-link>
           </template>
         </SidebarMenuGroupFlyout>

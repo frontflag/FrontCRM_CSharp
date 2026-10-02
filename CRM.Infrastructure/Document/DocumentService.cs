@@ -37,7 +37,9 @@ namespace CRM.Infrastructure.Document
 
             var maxFiles = SysUserNoticeDocumentBizType.Is(request.BizType)
                 ? SysUserNoticeLimits.MaxImageCount
-                : 20;
+                : BbsDocumentBizTypes.IsSubject(request.BizType)
+                    ? BbsMediaLimits.MaxImagesPerSubject + BbsMediaLimits.MaxVideosPerSubject
+                    : 20;
             if (request.Files.Count > maxFiles)
                 throw new ArgumentException($"单次最多上传 {maxFiles} 个文件");
 
