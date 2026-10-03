@@ -4478,6 +4478,8 @@ watch(
 interface TabItem {
   path: string
   title: string
+  /** 打开本页签时所在的页签，关闭后回到那里 */
+  returnTo?: string
 }
 
 /** 历史全局 key（无用户维度），仅用于迁移清理，避免跨账号串标签 */
@@ -4653,16 +4655,24 @@ watch(
   }
 )
 
-// 监听路由变化，自动添加/激活标签
+// 监听路由变化，自动添加/激活标签。首次 immediate 不记来源，避免刷新时把旧高亮当成返回目标。
+let tabRouteWatchReady = false
 watch(() => route.path, async (newPath) => {
   // 中间区全屏时 main 为 fixed 盖满视口（z-index 高于侧栏/顶栏），易误以为「菜单没了」；换页时退出
   toggleCenterFullscreen(false)
+  const fromPath = tabRouteWatchReady ? activeTab.value : ''
+  tabRouteWatchReady = true
   const title = resolveRouteTitle(newPath)
+  const returnTo = fromPath && fromPath !== newPath ? fromPath : undefined
   const idx = tabs.value.findIndex(t => t.path === newPath)
   if (idx < 0) {
-    tabs.value.push({ path: newPath, title })
+    tabs.value.push({ path: newPath, title, returnTo })
   } else {
-    tabs.value[idx] = { path: newPath, title }
+    tabs.value[idx] = {
+      path: newPath,
+      title,
+      returnTo: returnTo || tabs.value[idx].returnTo
+    }
   }
   activeTab.value = newPath
   saveTabs()
@@ -4688,9 +4698,11 @@ const activateTab = (tab: TabItem) => {
 
 const closeTab = (tab: TabItem) => {
   const idx = tabs.value.findIndex(t => t.path === tab.path)
+  const returnTo = tab.returnTo
   tabs.value.splice(idx, 1)
   if (activeTab.value === tab.path) {
-    const next = tabs.value[idx] || tabs.value[idx - 1]
+    const back = returnTo ? tabs.value.find(t => t.path === returnTo) : undefined
+    const next = back || tabs.value[idx] || tabs.value[idx - 1]
     if (next) {
       activeTab.value = next.path
       router.push(next.path)
