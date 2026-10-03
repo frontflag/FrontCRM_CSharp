@@ -1410,7 +1410,7 @@
     <div class="workspace-cols">
       <!-- 左侧面板（检索 / 多 Tab） -->
       <aside
-        v-show="leftPanelVisible"
+        v-show="leftPanelShown"
         class="aux-panel aux-left"
         :class="{ 'is-fullscreen': leftFullscreen }"
         :style="{ width: leftPanelWidth + 'px' }"
@@ -1430,7 +1430,7 @@
           </div>
           <div class="aux-panel-actions">
             <button type="button" class="aux-icon-btn" :title="t('layout.fullscreen')" @click="toggleLeftFullscreen()">⛶</button>
-            <button type="button" class="aux-icon-btn" :title="t('layout.hideLeftPanel')" @click="toggleLeftPanel(false)">✕</button>
+            <button type="button" class="aux-icon-btn" :title="t('layout.hideLeftPanel')" @click="onToggleLeftChrome(false)">✕</button>
           </div>
         </div>
         <div class="aux-panel-body">
@@ -1476,14 +1476,13 @@
             <SellInvoiceWriteOffDesktopQueuePanel />
           </div>
           <template v-else>
-            <p class="aux-placeholder">{{ t('layout.leftPanel') }} · {{ leftPanelTitle }}</p>
-            <p class="aux-hint">子页面可 inject(WorkspaceLayoutKey)；或 window 派发 workspace:toggle-left / workspace:toggle-right</p>
+            <p class="aux-placeholder">{{ t('layout.leftPanelEmpty') }}</p>
           </template>
         </div>
       </aside>
 
       <div
-        v-show="leftPanelVisible"
+        v-show="leftPanelShown"
         class="col-splitter"
         :title="t('layout.dragLeftWidth')"
         @mousedown="onResizeStart('left', $event)"
@@ -1497,10 +1496,10 @@
           <button
             type="button"
             class="ws-tool-btn ws-tool-btn--icon"
-            :class="{ active: leftPanelVisible }"
-            :title="leftPanelVisible ? t('layout.hideLeftPanel') : t('layout.showLeftPanel')"
-            :aria-label="leftPanelVisible ? t('layout.hideLeftPanel') : t('layout.showLeftPanel')"
-            @click="toggleLeftPanel()"
+            :class="{ active: leftPanelShown }"
+            :title="leftPanelShown ? t('layout.hideLeftPanel') : t('layout.showLeftPanel')"
+            :aria-label="leftPanelShown ? t('layout.hideLeftPanel') : t('layout.showLeftPanel')"
+            @click="onToggleLeftChrome()"
           >
             <span class="ws-tool-icon" aria-hidden="true">
               <!-- 展开时「<」收起；隐藏时「>」展开 -->
@@ -2476,6 +2475,91 @@ const showPurchaseInvoiceWriteOffDesktopQueuePanel = computed(
 const showSellInvoiceWriteOffDesktopQueuePanel = computed(
   () => leftActiveTabId.value === 'l1' && route.name === 'SellInvoiceWriteOffDesktop'
 )
+
+/** 左栏模板能挂上业务模块时为 true。无模块的页不占宽，且不改全局 leftPanelVisible。 */
+const leftPanelHasModule = computed(
+  () =>
+    showMailMailboxMenuPanel.value ||
+    showMailInboxCardList.value ||
+    showCustomerSearchPanel.value ||
+    showCustomerFavoritePanel.value ||
+    showCustomerRecentHistoryPanel.value ||
+    showVendorSearchPanel.value ||
+    showVendorFavoritePanel.value ||
+    showVendorRecentHistoryPanel.value ||
+    showRfqSearchPanel.value ||
+    showRfqItemSearchPanel.value ||
+    showRfqFavoritePanel.value ||
+    showRfqItemFavoritePanel.value ||
+    showRfqRecentHistoryPanel.value ||
+    showRfqItemRecentHistoryPanel.value ||
+    showSalesOrderSearchPanel.value ||
+    showSalesOrderFavoritePanel.value ||
+    showSalesOrderRecentHistoryPanel.value ||
+    showQcSearchPanel.value ||
+    showArrivalNoticeSearchPanel.value ||
+    showStockInSearchPanel.value ||
+    showStockOutSearchPanel.value ||
+    showPurchaseOrderSearchPanel.value ||
+    showPurchaseOrderFavoritePanel.value ||
+    showPurchaseOrderRecentHistoryPanel.value ||
+    showPurchaseOrderItemSearchPanel.value ||
+    showSalesOrderItemSearchPanel.value ||
+    showApprovalDesktopQueuePanel.value ||
+    showQuoteDesktopQueuePanel.value ||
+    showReceiptWriteOffDesktopQueuePanel.value ||
+    showPurchaseInvoiceWriteOffDesktopQueuePanel.value ||
+    showSellInvoiceWriteOffDesktopQueuePanel.value
+)
+
+const LEFT_PANEL_FORCED_KEY = 'frontcrm_left_panel_forced_by_route_v1'
+
+function readForcedLeftRoutes(): Set<string> {
+  try {
+    const raw = localStorage.getItem(LEFT_PANEL_FORCED_KEY)
+    const parsed = raw ? (JSON.parse(raw) as unknown) : []
+    if (!Array.isArray(parsed)) return new Set()
+    return new Set(parsed.filter((x): x is string => typeof x === 'string' && x.length > 0))
+  } catch {
+    return new Set()
+  }
+}
+
+const forcedLeftRoutes = ref<Set<string>>(readForcedLeftRoutes())
+
+const leftPanelRouteKey = computed(() => {
+  const name = route.name
+  if (typeof name === 'string' && name) return name
+  return route.path
+})
+
+const leftPanelShown = computed(() =>
+  leftPanelHasModule.value
+    ? leftPanelVisible.value
+    : forcedLeftRoutes.value.has(leftPanelRouteKey.value)
+)
+
+function persistForcedLeftRoutes() {
+  try {
+    localStorage.setItem(LEFT_PANEL_FORCED_KEY, JSON.stringify([...forcedLeftRoutes.value]))
+  } catch {
+    /* ignore */
+  }
+}
+
+function onToggleLeftChrome(visible?: boolean) {
+  if (leftPanelHasModule.value) {
+    toggleLeftPanel(visible)
+    return
+  }
+  const key = leftPanelRouteKey.value
+  const next = new Set(forcedLeftRoutes.value)
+  const open = typeof visible === 'boolean' ? visible : !next.has(key)
+  if (open) next.add(key)
+  else next.delete(key)
+  forcedLeftRoutes.value = next
+  persistForcedLeftRoutes()
+}
 
 /** 进项发票核销桌面：右栏「入库单」 */
 const showPurchaseInvoiceWriteOffStockInPanel = computed(
@@ -3666,11 +3750,6 @@ watch(
 /** 模板沿用 isCollapsed：仅「边条」模式隐藏菜单文字 */
 const isCollapsed = isSidebarCollapsed
 
-const leftPanelTitle = computed(() => {
-  void locale.value
-  const item = leftTabs.value.find(x => x.id === leftActiveTabId.value)
-  return item ? t(item.labelKey) : ''
-})
 const openGroups = ref<SidebarMenuGroupsState>(defaultSidebarMenuGroups())
 /** 已从本地恢复过分组状态时，登录当次不再按当前路由强行展开。 */
 let skipRouteMenuExpandOnce = false
@@ -4496,8 +4575,24 @@ const recalcTabOverflow = () => {
   visibleTabCount.value = Math.max(1, count)
 }
 
-const visibleTabs = computed(() => tabs.value.slice(0, visibleTabCount.value))
-const overflowTabs = computed(() => tabs.value.slice(visibleTabCount.value))
+const visibleTabWindow = computed(() => {
+  const list = tabs.value
+  const n = Math.min(list.length, Math.max(1, visibleTabCount.value))
+  if (n >= list.length) return { start: 0, end: list.length }
+  const activeIdx = list.findIndex(t => t.path === activeTab.value)
+  if (activeIdx < 0 || activeIdx < n) return { start: 0, end: n }
+  const start = activeIdx - n + 1
+  return { start, end: start + n }
+})
+
+const visibleTabs = computed(() => {
+  const { start, end } = visibleTabWindow.value
+  return tabs.value.slice(start, end)
+})
+const overflowTabs = computed(() => {
+  const { start, end } = visibleTabWindow.value
+  return tabs.value.filter((_, index) => index < start || index >= end)
+})
 
 const onOverflowTabSelect = (path: string) => {
   const hit = tabs.value.find(t => t.path === path)
@@ -4533,9 +4628,7 @@ watch(
         if (!tabs.value.some(t => t.path === path)) {
           tabs.value.push({ path, title: resolveRouteTitle(path) })
         }
-        if (!activeTab.value || !tabs.value.some(t => t.path === activeTab.value)) {
-          activeTab.value = path
-        }
+        activeTab.value = path
       }
       saveTabs()
       await nextTick()

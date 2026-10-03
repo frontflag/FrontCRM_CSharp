@@ -1213,6 +1213,7 @@ const zhCN = {
     dragLeftWidth: '拖拽调整左侧栏宽度',
     dragRightWidth: '拖拽调整右侧栏宽度',
     leftPanel: '左侧面板',
+    leftPanelEmpty: '此页没有快捷筛选',
     moreTabs: '更多页签',
     contentFullscreen: '工作内容区全屏',
     closeCurrent: '关闭当前',

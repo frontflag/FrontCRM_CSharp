@@ -500,6 +500,7 @@ onMounted(() => {
 
 .overview__body {
   overflow: visible;
+  container-type: inline-size;
 }
 
 .overview__head {
@@ -543,13 +544,17 @@ onMounted(() => {
   &.is-four {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  @container (max-width: 720px) {
+    &,
+    &.is-four {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
   }
 }
 
 .kpi {
   min-width: 0;
+  overflow: hidden;
 }
 
 .kpi__label {
@@ -565,6 +570,7 @@ onMounted(() => {
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
+  overflow-wrap: anywhere;
   &.is-money {
     font-size: 16px;
   }

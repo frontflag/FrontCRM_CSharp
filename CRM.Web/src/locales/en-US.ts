@@ -1217,6 +1217,7 @@ const enUS = {
     dragLeftWidth: 'Drag to resize left panel',
     dragRightWidth: 'Drag to resize right panel',
     leftPanel: 'Left Panel',
+    leftPanelEmpty: 'No shortcuts on this page',
     moreTabs: 'More tabs',
     contentFullscreen: 'Content fullscreen',
     closeCurrent: 'Close Current',
