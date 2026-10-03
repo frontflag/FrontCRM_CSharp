@@ -32,6 +32,7 @@ function baseInput(overrides: Partial<CustomsFeeFormulaDemoInput> = {}): Customs
     vatRate: 0.13,
     agencyRate: 1.03,
     otherFee: 5,
+    inspectionFee: 0,
     financeFx: fx,
     table: {
       customsPaymentGoods: 158.4,
@@ -109,10 +110,14 @@ describe('buildCustomsFeeLineDemo', () => {
     expect(steps.find((s) => s.id === 'vat')?.mismatch).toBe(false)
   })
 
-  it('does not include inspection fee in the total', () => {
-    const matched = resultOf(exprOf(baseInput({ otherFee: 5 }), 'total'))
-    const zeroOther = resultOf(exprOf(baseInput({ otherFee: 0 }), 'total'))
+  it('adds other fee and inspection fee into the total but not the agency base', () => {
+    const matched = resultOf(exprOf(baseInput({ otherFee: 5, inspectionFee: 0 }), 'total'))
+    const zeroOther = resultOf(exprOf(baseInput({ otherFee: 0, inspectionFee: 0 }), 'total'))
+    const withInspection = resultOf(exprOf(baseInput({ otherFee: 5, inspectionFee: 80 }), 'total'))
     expect(roundAwayFromZero(matched - zeroOther, 2)).toBe(5)
+    expect(roundAwayFromZero(withInspection - matched, 2)).toBe(80)
+    const agency = resultOf(exprOf(baseInput({ otherFee: 5, inspectionFee: 80 }), 'agency'))
+    expect(agency).toBe(resultOf(exprOf(baseInput({ otherFee: 0, inspectionFee: 0 }), 'agency')))
   })
 
   it('feeds the rounded goods amount into duty', () => {

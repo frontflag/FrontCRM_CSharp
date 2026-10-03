@@ -18,8 +18,6 @@ public class CustomsFeeCalculator : ICustomsFeeCalculator
         decimal inspectionFee,
         FinanceExchangeRateDto systemFx)
     {
-        _ = inspectionFee;
-
         if (declareQty <= 0)
             throw new InvalidOperationException("申报数量须大于 0。");
         if (exchangeRate <= 0m)
@@ -47,7 +45,8 @@ public class CustomsFeeCalculator : ICustomsFeeCalculator
         var vatAmount = Round2((customsPaymentGoods + dutyAmount) * vatRate);
         var agencyMargin = brokerAgencyRate - 1m;
         var customsAgencyFee = Round2((customsPaymentGoods + dutyAmount + vatAmount) * agencyMargin);
-        var totalValueTax = Round2(customsPaymentGoods + dutyAmount + vatAmount + customsAgencyFee + otherFee);
+        var totalValueTax = Round2(
+            customsPaymentGoods + dutyAmount + vatAmount + customsAgencyFee + otherFee + inspectionFee);
         var taxIncludedUnitPrice = Round6(totalValueTax / qty);
 
         return new CustomsFeeLineResult
@@ -68,6 +67,7 @@ public class CustomsFeeCalculator : ICustomsFeeCalculator
         decimal dutyAmount,
         decimal vatAmount,
         decimal otherFee,
+        decimal inspectionFee,
         int declareQty,
         decimal brokerAgencyRate)
     {
@@ -78,7 +78,8 @@ public class CustomsFeeCalculator : ICustomsFeeCalculator
 
         var agencyMargin = brokerAgencyRate - 1m;
         var customsAgencyFee = Round2((customsPaymentGoods + dutyAmount + vatAmount) * agencyMargin);
-        var totalValueTax = Round2(customsPaymentGoods + dutyAmount + vatAmount + customsAgencyFee + otherFee);
+        var totalValueTax = Round2(
+            customsPaymentGoods + dutyAmount + vatAmount + customsAgencyFee + otherFee + inspectionFee);
         var taxIncludedUnitPrice = Round6(totalValueTax / declareQty);
 
         return new CustomsFeeLineResult
@@ -102,7 +103,6 @@ public class CustomsFeeCalculator : ICustomsFeeCalculator
         decimal otherFee,
         decimal inspectionFee)
     {
-        _ = inspectionFee;
         CustomsCostUsdRules.EnsureValid(manualCostUsd);
 
         if (declareQty <= 0)
@@ -120,7 +120,8 @@ public class CustomsFeeCalculator : ICustomsFeeCalculator
         var vatAmount = Round2((customsPaymentGoods + dutyAmount) * vatRate);
         var agencyMargin = brokerAgencyRate - 1m;
         var customsAgencyFee = Round2((customsPaymentGoods + dutyAmount + vatAmount) * agencyMargin);
-        var totalValueTax = Round2(customsPaymentGoods + dutyAmount + vatAmount + customsAgencyFee + otherFee);
+        var totalValueTax = Round2(
+            customsPaymentGoods + dutyAmount + vatAmount + customsAgencyFee + otherFee + inspectionFee);
         var taxIncludedUnitPrice = Round6(totalValueTax / qty);
 
         return new CustomsFeeLineResult

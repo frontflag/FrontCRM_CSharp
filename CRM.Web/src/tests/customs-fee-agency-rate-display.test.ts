@@ -147,6 +147,7 @@ describe('CDS00001 agency fee demo uses the saved snapshot rate', () => {
       vatRate: 0.13,
       agencyRate,
       otherFee: 0,
+      inspectionFee: 0,
       financeFx: { usdToCny: 6.7853, usdToHkd: 7.8, usdToEur: 0.92 },
       table: {
         customsPaymentGoods: 12441.34,

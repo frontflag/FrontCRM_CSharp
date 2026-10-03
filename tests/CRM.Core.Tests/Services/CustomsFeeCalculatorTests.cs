@@ -17,6 +17,7 @@ public class CustomsFeeCalculatorTests
             dutyAmount: 800m,
             vatAmount: 1144m,
             otherFee: 50m,
+            inspectionFee: 0m,
             declareQty: 10,
             brokerAgencyRate: 1.025m);
 
@@ -29,7 +30,7 @@ public class CustomsFeeCalculatorTests
     public void RecalculateAgencyFeeFromSnapshots_RateOne_ZeroAgencyFee()
     {
         var result = _calc.RecalculateAgencyFeeFromSnapshots(
-            1000m, 100m, 143m, 0m, 2, 1m);
+            1000m, 100m, 143m, 0m, 0m, 2, 1m);
 
         Assert.Equal(0m, result.CustomsAgencyFee);
         Assert.Equal(1243m, result.TotalValueTax);
@@ -37,11 +38,16 @@ public class CustomsFeeCalculatorTests
     }
 
     [Fact]
-    public void RecalculateAgencyFeeFromSnapshots_DoesNotTouchInspection()
+    public void RecalculateAgencyFeeFromSnapshots_IncludesInspectionInTotal_NotInAgencyBase()
     {
-        var result = _calc.RecalculateAgencyFeeFromSnapshots(1000m, 0m, 0m, 20m, 1, 1.03m);
-        Assert.Equal(30m, result.CustomsAgencyFee);
-        Assert.Equal(1050m, result.TotalValueTax);
+        var without = _calc.RecalculateAgencyFeeFromSnapshots(1000m, 0m, 0m, 20m, 0m, 1, 1.03m);
+        var with = _calc.RecalculateAgencyFeeFromSnapshots(1000m, 0m, 0m, 20m, 50m, 1, 1.03m);
+
+        Assert.Equal(30m, without.CustomsAgencyFee);
+        Assert.Equal(without.CustomsAgencyFee, with.CustomsAgencyFee);
+        Assert.Equal(1050m, without.TotalValueTax);
+        Assert.Equal(1100m, with.TotalValueTax);
+        Assert.Equal(1100m, with.TaxIncludedUnitPrice);
     }
 
     [Fact]
@@ -67,7 +73,7 @@ public class CustomsFeeCalculatorTests
     }
 
     [Fact]
-    public void CalculateLineFromManualCostUsd_OtherFeeFullyEntersP1_InspectionExcluded()
+    public void CalculateLineFromManualCostUsd_OtherAndInspectionFullyEnterP1()
     {
         CustomsFeeLineResult Line(decimal otherFee, decimal inspectionFee) =>
             _calc.CalculateLineFromManualCostUsd(
@@ -77,8 +83,12 @@ public class CustomsFeeCalculatorTests
         var other = Line(100m, 0m);
         var both = Line(100m, 50m);
         Assert.Equal(none.TotalValueTax + 100m, other.TotalValueTax);
-        Assert.Equal(other.TotalValueTax, both.TotalValueTax);
-        Assert.Equal(other.TaxIncludedUnitPrice, both.TaxIncludedUnitPrice);
+        Assert.Equal(other.TotalValueTax + 50m, both.TotalValueTax);
+        Assert.Equal(none.CustomsAgencyFee, other.CustomsAgencyFee);
+        Assert.Equal(other.CustomsAgencyFee, both.CustomsAgencyFee);
+        Assert.Equal(
+            Math.Round(both.TotalValueTax / 100m, 6, MidpointRounding.AwayFromZero),
+            both.TaxIncludedUnitPrice);
     }
 
     [Fact]

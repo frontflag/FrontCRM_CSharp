@@ -144,6 +144,7 @@ public sealed class CustomsAgencyRateInboundCostRefreshService : ICustomsAgencyR
                 item.DutyAmount,
                 item.VatAmount,
                 item.OtherFee,
+                item.InspectionFee,
                 item.DeclareQty,
                 agencyRate);
 

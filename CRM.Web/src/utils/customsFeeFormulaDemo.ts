@@ -56,6 +56,7 @@ export type CustomsFeeFormulaExpr =
       vat: number
       agency: number
       other: number
+      inspection: number
       result: number
     }
   | { kind: 'unit'; total: number; qty: number; result: number }
@@ -107,6 +108,7 @@ export type CustomsFeeFormulaDemoInput = {
   vatRate: number
   agencyRate: number
   otherFee: number
+  inspectionFee: number
   financeFx: ExchangeRatesUsdBase | null
   table: CustomsFeeFormulaTable
 }
@@ -300,7 +302,8 @@ export function buildCustomsFeeLineDemo(input: CustomsFeeFormulaDemoInput): Cust
 
   const agency = round2((goods + duty + vat) * (agencyRate - 1))
   const other = Number(input.otherFee) || 0
-  const total = round2(goods + duty + vat + agency + other)
+  const inspection = Number(input.inspectionFee) || 0
+  const total = round2(goods + duty + vat + agency + other + inspection)
   const unit = round6(total / qty)
   const brokerAgency = buildBrokerAgencyFormulaCheck({
     costUsd,
@@ -326,7 +329,7 @@ export function buildCustomsFeeLineDemo(input: CustomsFeeFormulaDemoInput): Cust
     },
     {
       id: 'total',
-      expr: { kind: 'total', goods, duty, vat, agency, other, result: total },
+      expr: { kind: 'total', goods, duty, vat, agency, other, inspection, result: total },
       mismatch: !sameAt(total, input.table.totalValueTax, 2),
       tableValue: Number(input.table.totalValueTax),
       reason: null

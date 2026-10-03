@@ -544,9 +544,9 @@ const zhCN = {
       recalculateOkWithDownstream:
         '费用已重算，并已回写到货通知 {notices}、入库明细 {stockIns}、库存 {layers}',
       saveOk: '费用已保存',
-      alertLockedPartial: '费用已锁定（已结关），仅可修改杂费与商检费；修改杂费后将重算价税总额并回写到货、入库与库存',
+      alertLockedPartial: '费用已锁定（已结关），仅可修改杂费与商检费；修改后将重算价税总额并回写到货、入库与库存',
       alertLockedAdminCostUsd:
-        '费用已锁定（已结关）。系统管理员或平台管理员可将采购美金价改为手工并保存，以更正历史数据并刷新下游成本。杂费变化同样会刷新下游。',
+        '费用已锁定（已结关）。系统管理员或平台管理员可将采购美金价改为手工并保存，以更正历史数据并刷新下游成本。杂费、商检费变化同样会刷新下游。',
       alertCompletedAdminCostUsd:
         '报关单已完成。管理员可以将采购美金价改为手工后修改；也可补录杂费、商检费。系统会自动刷新下游数据。（修改后需要点击“保存”按钮）',
       validateOtherFeeNegative: '杂费不能为负数',
@@ -563,13 +563,13 @@ const zhCN = {
       financeRateInvalid: '财务汇率无效',
       formulaTitle: '计算公式说明',
       formulaBody:
-        '① 采购美金价 = P0 折合 USD × 采购系数\n② 报关货款 = 采购美金价 × 报关汇率 × 数量\n③ 关税 = 报关货款 × 关税税率\n④ 增值税 = (报关货款 + 关税) × 增值税率\n⑤ 代理费 = (报关货款 + 关税 + 增值税) × (代理费率 − 1)\n⑥ 价税总额 = 报关货款 + 关税 + 增值税 + 代理费 + 杂费（不含商检）\n⑦ 含税单价 P1 = 价税总额 ÷ 数量',
+        '① 采购美金价 = P0 折合 USD × 采购系数\n② 报关货款 = 采购美金价 × 报关汇率 × 数量\n③ 关税 = 报关货款 × 关税税率\n④ 增值税 = (报关货款 + 关税) × 增值税率\n⑤ 代理费 = (报关货款 + 关税 + 增值税) × (代理费率 − 1)\n⑥ 价税总额 = 报关货款 + 关税 + 增值税 + 代理费 + 杂费 + 商检费\n⑦ 含税单价 P1 = 价税总额 ÷ 数量',
       formulaStep1: '① 采购美金价 = P0 折合 USD × 采购系数',
       formulaStep2: '② 报关货款 = 采购美金价 × 报关汇率 × 数量',
       formulaStep3: '③ 关税 = 报关货款 × 关税税率',
       formulaStep4: '④ 增值税 = (报关货款 + 关税) × 增值税率',
       formulaStep5: '⑤ 代理费 = (报关货款 + 关税 + 增值税) × (代理费率 − 1)',
-      formulaStep6: '⑥ 价税总额 = 报关货款 + 关税 + 增值税 + 代理费 + 杂费（不含商检）',
+      formulaStep6: '⑥ 价税总额 = 报关货款 + 关税 + 增值税 + 代理费 + 杂费 + 商检费',
       formulaStep7: '⑦ 含税单价 P1 = 价税总额 ÷ 数量',
       btnDemo: '演示',
       btnDemoHide: '收起演示',
@@ -604,7 +604,7 @@ const zhCN = {
       formulaBrokerVarVat: '增值税率：增值税率 = {value}',
       formulaBrokerVarComprehensive: '综合费率：0.3% = {value}',
       formulaBrokerAgencyMismatch: '报关公司公式结果与本系统代理费不一致',
-      formulaCalcTotal: '{result} = {goods} + {duty} + {vat} + {agency} + {other}',
+      formulaCalcTotal: '{result} = {goods} + {duty} + {vat} + {agency} + {other} + {inspection}',
       formulaCalcUnit: '{result} = {total} ÷ {qty}'
     },
     transfers: {

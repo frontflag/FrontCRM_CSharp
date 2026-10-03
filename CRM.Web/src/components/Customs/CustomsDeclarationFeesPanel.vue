@@ -483,6 +483,7 @@ function formatFormulaExpr(expr: CustomsFeeFormulaExpr): string {
         vat: demoFixed(expr.vat, 2),
         agency: demoFixed(expr.agency, 2),
         other: demoFixed(expr.other, 2),
+        inspection: demoFixed(expr.inspection, 2),
         result: demoFixed(expr.result, 2)
       })
     case 'unit':
@@ -526,6 +527,7 @@ const formulaDemoLines = computed(() =>
         vatRate: draft.vatRate,
         agencyRate: headerBrokerAgencyRate.value,
         otherFee: draft.otherFee,
+        inspectionFee: draft.inspectionFee,
         financeFx: financeFxRates.value,
         table: {
           customsPaymentGoods: Number(row.customsPaymentGoods),

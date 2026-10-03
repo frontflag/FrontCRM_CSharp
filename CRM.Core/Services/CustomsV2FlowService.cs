@@ -821,7 +821,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             if (!footer.OtherChanged && !footer.InspectionChanged && !costUsdChanged && !touchesRemark)
                 return;
 
-            if (footer.OtherChanged && !costUsdChanged)
+            if ((footer.OtherChanged || footer.InspectionChanged) && !costUsdChanged)
                 ApplyLineFooterTotals(row);
 
             row.ModifyTime = DateTime.UtcNow;
@@ -841,8 +841,8 @@ public class CustomsV2FlowService : ICustomsV2FlowService
             dec.ModifyByUserId = ActingUserIdNormalizer.Normalize(actingUserId);
             await _declarationRepo.UpdateAsync(dec);
             await _unitOfWork.SaveChangesAsync();
-            // 非管理员锁定态改杂费：保持原回写；管理员改费由前端试算且 cascadeInbound=false
-            if (footer.OtherChanged && !canCorrectLockedCostUsd)
+            // 非管理员锁定态改杂费/商检：回写下游；管理员改费由前端试算且 cascadeInbound=false
+            if ((footer.OtherChanged || footer.InspectionChanged) && !canCorrectLockedCostUsd)
                 await CascadeLineInboundCostAsync(row, cancellationToken);
             return;
         }
@@ -879,7 +879,7 @@ public class CustomsV2FlowService : ICustomsV2FlowService
         }
 
         var unlockedFooter = await ApplyFooterFeePatchAsync(dec, row, patch, actingUserId);
-        if (unlockedFooter.OtherChanged)
+        if (unlockedFooter.OtherChanged || unlockedFooter.InspectionChanged)
             shouldRecalculate = true;
 
         if (patch.CostUsd.HasValue || patch.CostUsdManual.HasValue)
@@ -1976,7 +1976,8 @@ ORDER BY c.""ChangedAt"" DESC";
 
         var qty = (decimal)item.DeclareQty;
         item.TotalValueTax = Math.Round(
-            item.CustomsPaymentGoods + item.DutyAmount + item.VatAmount + item.CustomsAgencyFee + item.OtherFee,
+            item.CustomsPaymentGoods + item.DutyAmount + item.VatAmount + item.CustomsAgencyFee
+            + item.OtherFee + item.InspectionFee,
             2,
             MidpointRounding.AwayFromZero);
         item.TaxIncludedUnitPrice = Math.Round(item.TotalValueTax / qty, 6, MidpointRounding.AwayFromZero);

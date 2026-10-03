@@ -546,9 +546,9 @@ const enUS = {
       recalculateOkWithDownstream:
         'Fees recalculated; updated arrival notices {notices}, inbound lines {stockIns}, stock layers {layers}',
       saveOk: 'Fees saved',
-      alertLockedPartial: 'Fees locked after clearance; only other/inspection fees editable. Other fee changes recalculate line totals and refresh arrival, inbound, and stock cost.',
+      alertLockedPartial: 'Fees locked after clearance; only other/inspection fees editable. Changes recalculate line totals and refresh arrival, inbound, and stock cost.',
       alertLockedAdminCostUsd:
-        'Fees are locked after clearance. System or platform admins can switch Cost (USD) to Manual and save to correct historical data and refresh downstream cost. Other fee changes also refresh downstream cost.',
+        'Fees are locked after clearance. System or platform admins can switch Cost (USD) to Manual and save to correct historical data and refresh downstream cost. Other/inspection fee changes also refresh downstream cost.',
       alertCompletedAdminCostUsd:
         'This declaration is completed. Admins can switch Cost (USD) to Manual and edit it, or add other/inspection fees. Downstream data is refreshed automatically. (Click Save after making changes.)',
       validateOtherFeeNegative: 'Other fee cannot be negative',
@@ -565,13 +565,13 @@ const enUS = {
       financeRateInvalid: 'Invalid finance exchange rate',
       formulaTitle: 'Calculation formulas',
       formulaBody:
-        '① Cost USD = P0 in USD × purchase ratio\n② Goods = Cost USD × customs rate × qty\n③ Duty = Goods × duty rate\n④ VAT = (Goods + Duty) × VAT rate\n⑤ Agency = (Goods + Duty + VAT) × (agency rate − 1)\n⑥ Total w/ tax = Goods + Duty + VAT + Agency + other (excl. inspection)\n⑦ P1 = Total w/ tax ÷ qty',
+        '① Cost USD = P0 in USD × purchase ratio\n② Goods = Cost USD × customs rate × qty\n③ Duty = Goods × duty rate\n④ VAT = (Goods + Duty) × VAT rate\n⑤ Agency = (Goods + Duty + VAT) × (agency rate − 1)\n⑥ Total w/ tax = Goods + Duty + VAT + Agency + other + inspection\n⑦ P1 = Total w/ tax ÷ qty',
       formulaStep1: '① Cost USD = P0 in USD × purchase ratio',
       formulaStep2: '② Goods = Cost USD × customs rate × qty',
       formulaStep3: '③ Duty = Goods × duty rate',
       formulaStep4: '④ VAT = (Goods + Duty) × VAT rate',
       formulaStep5: '⑤ Agency = (Goods + Duty + VAT) × (agency rate − 1)',
-      formulaStep6: '⑥ Total w/ tax = Goods + Duty + VAT + Agency + other (excl. inspection)',
+      formulaStep6: '⑥ Total w/ tax = Goods + Duty + VAT + Agency + other + inspection',
       formulaStep7: '⑦ P1 = Total w/ tax ÷ qty',
       btnDemo: 'Demo',
       btnDemoHide: 'Hide demo',
@@ -606,7 +606,7 @@ const enUS = {
       formulaBrokerVarVat: 'VAT rate = {value}',
       formulaBrokerVarComprehensive: 'Comprehensive rate: 0.3% = {value}',
       formulaBrokerAgencyMismatch: 'Broker formula result differs from system agency fee',
-      formulaCalcTotal: '{result} = {goods} + {duty} + {vat} + {agency} + {other}',
+      formulaCalcTotal: '{result} = {goods} + {duty} + {vat} + {agency} + {other} + {inspection}',
       formulaCalcUnit: '{result} = {total} ÷ {qty}'
     },
     transfers: {
