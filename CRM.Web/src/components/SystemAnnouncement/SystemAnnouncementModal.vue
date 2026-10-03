@@ -56,7 +56,7 @@ import { useI18n } from 'vue-i18n'
 import type { AnnouncementDetail } from '@/api/sysAnnouncements'
 import { sysAnnouncementsApi } from '@/api/sysAnnouncements'
 import {
-  renderAnnouncementMarkdown,
+  renderBbsContent,
   resolveAnnouncementDocumentImages,
   revokeObjectUrls
 } from '@/utils/sanitizeAnnouncementHtml'
@@ -117,7 +117,7 @@ const canClose = computed(() => {
   return items.value.every((x) => markedReadIds.value.has(x.id))
 })
 
-const bodyHtml = computed(() => renderAnnouncementMarkdown(current.value?.bodyMd || ''))
+const bodyHtml = computed(() => renderBbsContent(current.value?.bodyMd || ''))
 
 function typeLabel(type: string) {
   if (type === 'version_update') return t('sysAnnouncement.typeVersionUpdate')

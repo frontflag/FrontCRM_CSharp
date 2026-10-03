@@ -7,6 +7,7 @@ export interface AnnouncementDetail {
   id: string
   title: string
   type: AnnouncementType | string
+  delivery?: string
   bodyMd: string
   status: AnnouncementStatus | string
   createTime: string
@@ -19,6 +20,7 @@ export interface AnnouncementAdminListItem {
   id: string
   title: string
   type: string
+  delivery?: string
   status: string
   createTime: string
   publishedAt?: string | null
@@ -42,6 +44,14 @@ export interface AnnouncementUpsertPayload {
   title: string
   type: AnnouncementType | string
   bodyMd: string
+  delivery?: string
+}
+
+export interface DashboardNoticeItem {
+  kind: 'announcement' | 'bbs' | string
+  id: string
+  title: string
+  at: string
 }
 
 export const sysAnnouncementsApi = {
@@ -85,5 +95,14 @@ export const sysAnnouncementsApi = {
   },
   markAllRead(): Promise<void> {
     return apiClient.post('/api/v1/me/announcements/read-all') as Promise<void>
+  },
+
+  dashboardNotices(): Promise<DashboardNoticeItem[]> {
+    return apiClient.get('/api/v1/me/dashboard-notices') as Promise<DashboardNoticeItem[]>
+  },
+  dismissBbsNotice(id: string): Promise<{ recorded?: boolean }> {
+    return apiClient.post(`/api/v1/me/dashboard-notices/bbs/${encodeURIComponent(id)}/dismiss`) as Promise<{
+      recorded?: boolean
+    }>
   }
 }

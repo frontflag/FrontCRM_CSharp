@@ -55,6 +55,7 @@
         </div>
     </div>
 
+    <DashboardSystemNoticePanel />
     <IncentiveTargetPanel />
     <DashboardOverviewPanel />
     <RiskAlertPanel />
@@ -105,6 +106,7 @@ import { profileMailboxLocation } from '@/utils/profileMailboxLink'
 import WorkCalendarPanel from '@/components/Dashboard/WorkCalendarPanel.vue'
 import DashboardOverviewPanel from '@/components/Dashboard/DashboardOverviewPanel.vue'
 import IncentiveTargetPanel from '@/components/Dashboard/IncentiveTargetPanel.vue'
+import DashboardSystemNoticePanel from '@/components/Dashboard/DashboardSystemNoticePanel.vue'
 import DashboardNoticePanel from '@/components/Dashboard/DashboardNoticePanel.vue'
 import RiskAlertPanel from '@/components/Dashboard/RiskAlertPanel.vue'
 import IndustryNewsPanel from '@/components/Dashboard/IndustryNewsPanel.vue'

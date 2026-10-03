@@ -40,6 +40,7 @@ public class SysAnnouncementService : ISysAnnouncementService
                 Id = x.Id,
                 Title = x.Title,
                 Type = x.Type,
+                Delivery = x.Delivery,
                 Status = x.Status,
                 CreateTime = x.CreateTime,
                 PublishedAt = x.PublishedAt,
@@ -65,6 +66,7 @@ public class SysAnnouncementService : ISysAnnouncementService
         {
             Title = request.Title.Trim(),
             Type = NormalizeType(request.Type),
+            Delivery = NormalizeDelivery(request.Delivery),
             BodyMd = request.BodyMd ?? string.Empty,
             Status = SysAnnouncementStatuses.Draft,
             CreateTime = now,
@@ -91,6 +93,7 @@ public class SysAnnouncementService : ISysAnnouncementService
 
         entity.Title = request.Title.Trim();
         entity.Type = NormalizeType(request.Type);
+        entity.Delivery = NormalizeDelivery(request.Delivery);
         entity.BodyMd = request.BodyMd ?? string.Empty;
         entity.ModifyTime = DateTime.UtcNow;
         entity.ModifyBy = userId;
@@ -249,6 +252,7 @@ public class SysAnnouncementService : ISysAnnouncementService
     private IQueryable<SysAnnouncement> UnreadQuery(string userId) =>
         _db.SysAnnouncements.AsNoTracking()
             .Where(x => x.Status == SysAnnouncementStatuses.Published)
+            .Where(x => x.Delivery == SysAnnouncementDeliveries.Popup)
             .Where(x => !_db.SysAnnouncementReads.Any(r =>
                 r.AnnouncementId == x.Id && r.UserId == userId));
 
@@ -270,6 +274,15 @@ public class SysAnnouncementService : ISysAnnouncementService
 
         if (!string.IsNullOrWhiteSpace(request.Type) && !SysAnnouncementTypes.IsValid(request.Type.Trim()))
             throw new InvalidOperationException("公告类型无效");
+
+        if (!string.IsNullOrWhiteSpace(request.Delivery) && !SysAnnouncementDeliveries.IsValid(request.Delivery.Trim()))
+            throw new InvalidOperationException("发布方式无效");
+    }
+
+    private static string NormalizeDelivery(string? delivery)
+    {
+        var d = (delivery ?? string.Empty).Trim();
+        return SysAnnouncementDeliveries.IsValid(d) ? d : SysAnnouncementDeliveries.Popup;
     }
 
     private static string NormalizeType(string? type)
@@ -283,6 +296,7 @@ public class SysAnnouncementService : ISysAnnouncementService
         Id = x.Id,
         Title = x.Title,
         Type = x.Type,
+        Delivery = x.Delivery,
         BodyMd = x.BodyMd,
         Status = x.Status,
         CreateTime = x.CreateTime,

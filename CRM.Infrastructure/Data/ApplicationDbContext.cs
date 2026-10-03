@@ -61,6 +61,7 @@ namespace CRM.Infrastructure.Data
         public DbSet<SysAnnouncementRead> SysAnnouncementReads { get; set; } = null!;
         public DbSet<SysUserNotice> SysUserNotices { get; set; } = null!;
         public DbSet<BbsSubject> BbsSubjects { get; set; } = null!;
+        public DbSet<BbsDashboardNoticeDismiss> BbsDashboardNoticeDismisses { get; set; } = null!;
         public DbSet<BbsReply> BbsReplies { get; set; } = null!;
         public DbSet<BbsReaction> BbsReactions { get; set; } = null!;
         public DbSet<BbsBoardModerator> BbsBoardModerators { get; set; } = null!;
@@ -2836,6 +2837,7 @@ namespace CRM.Infrastructure.Data
                 entity.Property(e => e.Type).HasColumnName("type").HasMaxLength(32);
                 entity.Property(e => e.BodyMd).HasColumnName("body_md");
                 entity.Property(e => e.Status).HasColumnName("status").HasMaxLength(16);
+                entity.Property(e => e.Delivery).HasColumnName("delivery").HasMaxLength(16);
                 entity.Property(e => e.PublishedAt).HasColumnName("published_at");
                 entity.Property(e => e.PublishedBy).HasColumnName("published_by").HasMaxLength(36);
                 entity.Property(e => e.CreateTime).HasColumnName("create_time");
@@ -2858,6 +2860,19 @@ namespace CRM.Infrastructure.Data
                     .IsUnique()
                     .HasDatabaseName("ux_sys_announcement_read_ann_user");
                 entity.HasIndex(e => e.UserId).HasDatabaseName("ix_sys_announcement_read_user_id");
+            });
+
+            modelBuilder.Entity<BbsDashboardNoticeDismiss>(entity =>
+            {
+                entity.ToTable("bbs_dashboard_notice_dismiss");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("id").HasMaxLength(36);
+                entity.Property(e => e.SubjectId).HasColumnName("subject_id").HasMaxLength(36);
+                entity.Property(e => e.UserId).HasColumnName("user_id").HasMaxLength(36);
+                entity.Property(e => e.DismissedAt).HasColumnName("dismissed_at");
+                entity.HasIndex(e => new { e.SubjectId, e.UserId })
+                    .IsUnique()
+                    .HasDatabaseName("ux_bbs_dashboard_notice_dismiss_subject_user");
             });
 
             modelBuilder.Entity<SysUserNotice>(entity =>

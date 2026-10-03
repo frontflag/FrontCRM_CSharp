@@ -171,6 +171,10 @@ try
                 .CreateLogger("BbsSchemaEnsure");
             await CRM.Infrastructure.Bbs.BbsSchemaEnsure.EnsureAsync(context, bbsSchemaLogger);
 
+            var noticeSchemaLogger = services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("DashboardNoticeSchemaEnsure");
+            await CRM.Infrastructure.Services.DashboardNoticeSchemaEnsure.EnsureAsync(context, noticeSchemaLogger);
+
             try
             {
                 await context.Database.ExecuteSqlRawAsync(

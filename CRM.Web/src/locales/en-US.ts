@@ -2167,6 +2167,10 @@ const enUS = {
     quickNewVendor: 'New vendor',
     quickSystemSettings: 'System settings',
     quickHandbook: 'Training handbook',
+    systemNotices: {
+      title: 'System notices',
+      openFailed: 'Could not open'
+    },
     incentive: {
       title: 'Personal commission',
       titleWithSpan: 'Personal commission ({span})',
@@ -12740,6 +12744,9 @@ const enUS = {
     statusPublished: 'Published',
     colTitle: 'Title',
     colType: 'Type',
+    colDelivery: 'Delivery',
+    deliveryPopup: 'Login popup',
+    deliveryDesktop: 'Desktop notice',
     colStatus: 'Status',
     colPublishedAt: 'Published at',
     colActions: 'Actions',

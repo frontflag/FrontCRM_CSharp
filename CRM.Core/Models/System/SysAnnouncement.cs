@@ -32,6 +32,12 @@ public class SysAnnouncement
     [Column("status")]
     public string Status { get; set; } = SysAnnouncementStatuses.Draft;
 
+    /// <summary>popup=登录弹窗；desktop=桌面系统通告。</summary>
+    [Required]
+    [StringLength(16)]
+    [Column("delivery")]
+    public string Delivery { get; set; } = SysAnnouncementDeliveries.Popup;
+
     [Column("published_at")]
     public DateTime? PublishedAt { get; set; }
 
@@ -52,6 +58,15 @@ public class SysAnnouncement
     [StringLength(36)]
     [Column("modify_by")]
     public string? ModifyBy { get; set; }
+}
+
+public static class SysAnnouncementDeliveries
+{
+    public const string Popup = "popup";
+    public const string Desktop = "desktop";
+
+    public static bool IsValid(string? delivery) =>
+        delivery == Popup || delivery == Desktop;
 }
 
 public static class SysAnnouncementStatuses

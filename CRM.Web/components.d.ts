@@ -77,6 +77,7 @@ declare module 'vue' {
     DashboardNoticePanel: typeof import('./src/components/Dashboard/DashboardNoticePanel.vue')['default']
     DashboardOverviewPanel: typeof import('./src/components/Dashboard/DashboardOverviewPanel.vue')['default']
     DashboardSparkline: typeof import('./src/components/Dashboard/DashboardSparkline.vue')['default']
+    DashboardSystemNoticePanel: typeof import('./src/components/Dashboard/DashboardSystemNoticePanel.vue')['default']
     DetailListPanelEmpty: typeof import('./src/components/Common/DetailListPanelEmpty.vue')['default']
     DockQuoteExtendCell: typeof import('./src/components/list/DockQuoteExtendCell.vue')['default']
     DockQuoteExtendColumnHeader: typeof import('./src/components/list/DockQuoteExtendColumnHeader.vue')['default']

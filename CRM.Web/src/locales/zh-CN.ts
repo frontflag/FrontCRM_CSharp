@@ -2161,6 +2161,10 @@ const zhCN = {
     quickNewVendor: '新建供应商',
     quickSystemSettings: '系统设置',
     quickHandbook: '培训教材',
+    systemNotices: {
+      title: '系统通告',
+      openFailed: '打开失败'
+    },
     incentive: {
       title: '个人提成',
       titleWithSpan: '个人提成（{span}）',
@@ -12715,6 +12719,9 @@ const zhCN = {
     statusPublished: '已发布',
     colTitle: '标题',
     colType: '类型',
+    colDelivery: '发布方式',
+    deliveryPopup: '系统弹窗',
+    deliveryDesktop: '桌面通知',
     colStatus: '状态',
     colPublishedAt: '发布时间',
     colActions: '操作',

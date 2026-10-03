@@ -27,6 +27,8 @@ public class SysAnnouncementUpsertRequest
     public string Title { get; set; } = string.Empty;
     public string Type { get; set; } = SysAnnouncementTypes.PlatformNotice;
     public string BodyMd { get; set; } = string.Empty;
+    /// <summary>popup | desktop。空则按登录弹窗。</summary>
+    public string Delivery { get; set; } = SysAnnouncementDeliveries.Popup;
 }
 
 public class SysAnnouncementAdminListItemDto
@@ -34,6 +36,7 @@ public class SysAnnouncementAdminListItemDto
     public string Id { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
+    public string Delivery { get; set; } = SysAnnouncementDeliveries.Popup;
     public string Status { get; set; } = string.Empty;
     public DateTime CreateTime { get; set; }
     public DateTime? PublishedAt { get; set; }
@@ -45,6 +48,7 @@ public class SysAnnouncementDetailDto
     public string Id { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
+    public string Delivery { get; set; } = SysAnnouncementDeliveries.Popup;
     public string BodyMd { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public DateTime CreateTime { get; set; }
