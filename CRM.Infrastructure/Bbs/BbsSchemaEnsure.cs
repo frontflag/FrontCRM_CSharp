@@ -197,14 +197,37 @@ public static class BbsSchemaEnsure
                   ON public.bbs_poll_vote_item (vote_id, option_id);
                 CREATE INDEX IF NOT EXISTS ix_bbs_poll_vote_item_option
                   ON public.bbs_poll_vote_item (option_id);
+
+                ALTER TABLE public.bbs_subject
+                  ADD COLUMN IF NOT EXISTS is_system boolean NOT NULL DEFAULT false;
                 """,
                 cancellationToken);
 
-            logger.LogInformation("BBS 表结构已对齐：含投票帖 poll 表");
+            var forceAllPosts = ConsumePublishAllPostsMarker();
+            var wrote = await BbsOpsGuidePost.EnsureAsync(db, forceAllPosts, logger, cancellationToken);
+            logger.LogInformation(wrote
+                ? "BBS 表结构已对齐；系统说明帖已写入"
+                : "BBS 表结构已对齐；系统说明帖无变更，跳过");
         }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "BBS SchemaEnsure 失败（可手动执行 scripts/ensure_bbs_postgresql.sql）");
         }
+    }
+
+    /// <summary>发布脚本在本次启动前放下的一次性标记。读到后立即删除，避免下次重启再次全量写帖。</summary>
+    private static bool ConsumePublishAllPostsMarker()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "bbs-publish-all-posts.once");
+        if (!File.Exists(path)) return false;
+        try
+        {
+            File.Delete(path);
+        }
+        catch
+        {
+            /* 本次仍全量；删不掉则下次启动还会再写一遍 */
+        }
+        return true;
     }
 }

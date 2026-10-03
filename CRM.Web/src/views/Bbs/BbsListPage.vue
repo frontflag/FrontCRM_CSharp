@@ -201,12 +201,17 @@ function matchStatus(row: BbsSubjectListItem) {
 }
 
 const filteredTops = computed(() =>
-  topItems.value.filter((r) => matchKeyword(r) && matchStatus(r))
+  topItems.value.filter((r) => matchKeyword(r) && matchStatus(r) && matchBoard(r))
 )
+
+function matchBoard(row: BbsSubjectListItem) {
+  if (typeof category.value !== 'number') return true
+  return row.type === category.value
+}
 
 const displayRows = computed((): BbsSubjectListItem[] => {
   if (category.value === 'top') return filteredTops.value
-  if (category.value === 'all' && page.value === 1) {
+  if (page.value === 1 && (category.value === 'all' || typeof category.value === 'number')) {
     const topIds = new Set(filteredTops.value.map((r) => r.id))
     return [...filteredTops.value, ...items.value.filter((r) => !topIds.has(r.id))]
   }
@@ -262,7 +267,7 @@ async function loadList() {
 
   loading.value = true
   try {
-    if (category.value === 'all') await loadTop()
+    if (category.value === 'all' || typeof category.value === 'number') await loadTop()
     const type = typeof category.value === 'number' ? category.value : null
     const data = await bbsApi.list({
       keyword: keyword.value.trim() || undefined,

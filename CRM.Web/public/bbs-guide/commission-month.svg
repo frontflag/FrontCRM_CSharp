@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="176" viewBox="0 0 760 176">
+  <rect width="760" height="176" rx="8" fill="#f7f8fa"/>
+  <rect x="16" y="16" width="728" height="144" rx="6" fill="#fff" stroke="#e5e6eb"/>
+  <text x="32" y="44" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">业务预计提成</text>
+  <rect x="32" y="56" width="120" height="26" rx="4" fill="#fff" stroke="#e5e6eb"/>
+  <text x="44" y="73" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#86909c">人员</text>
+  <rect x="160" y="56" width="120" height="26" rx="4" fill="#fff" stroke="#e5e6eb"/>
+  <text x="172" y="73" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#86909c">账期</text>
+  <rect x="32" y="94" width="696" height="28" rx="4" fill="#f7f8fa"/>
+  <text x="44" y="112" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">业务员</text>
+  <text x="150" y="112" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">用户等级</text>
+  <text x="270" y="112" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">参与月数</text>
+  <text x="390" y="112" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">各月 GP 合计</text>
+  <text x="560" y="112" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">预计提成</text>
+  <text x="44" y="146" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">本人</text>
+  <text x="150" y="146" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">3</text>
+  <text x="270" y="146" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">1</text>
+  <text x="390" y="146" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">1000.00</text>
+  <text x="560" y="146" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">20.00</text>
+</svg>

@@ -23,6 +23,7 @@ export interface BbsSubjectListItem {
   canEdit: boolean
   canSetTop: boolean
   canModerate: boolean
+  isSystem?: boolean
   kind?: number
   voteCount?: number
   voteDeadline?: string | null

@@ -105,6 +105,8 @@ public class BbsSubjectListItemDto
     public bool CanEdit { get; set; }
     public bool CanSetTop { get; set; }
     public bool CanModerate { get; set; }
+    /// <summary>系统发布。页面上不可改帖。</summary>
+    public bool IsSystem { get; set; }
     /// <summary>0=普通 1=投票。</summary>
     public int Kind { get; set; }
     /// <summary>投票人数（投票帖）。</summary>

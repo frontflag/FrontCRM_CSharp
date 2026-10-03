@@ -86,4 +86,8 @@ public class BbsSubject
     /// <summary>已投票人数（每人计 1）。</summary>
     [Column("vote_count")]
     public int VoteCount { get; set; }
+
+    /// <summary>系统发布。页面上不可编辑、关闭、置顶或删除。</summary>
+    [Column("is_system")]
+    public bool IsSystem { get; set; }
 }

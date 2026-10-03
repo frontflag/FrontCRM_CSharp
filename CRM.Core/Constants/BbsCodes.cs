@@ -1,5 +1,14 @@
 namespace CRM.Core.Constants;
 
+/// <summary>随版本发布、各环境启动时幂等写入的系统帖。</summary>
+public static class BbsSystemPosts
+{
+    /// <summary>操作说明板块：《论坛如何使用》。</summary>
+    public const string OpsGuideId = "bbs-sys-ops-guide";
+
+    public const string AuthorName = "系统";
+}
+
 public static class BbsPermissionCodes
 {
     /// <summary>

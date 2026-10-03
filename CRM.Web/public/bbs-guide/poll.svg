@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="280" viewBox="0 0 720 280">
+  <rect width="720" height="280" rx="8" fill="#f7f8fa"/>
+  <rect x="16" y="16" width="688" height="248" rx="6" fill="#fff" stroke="#e5e6eb"/>
+  <text x="36" y="48" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">发起投票</text>
+  <text x="36" y="84" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">投票方式</text>
+  <rect x="110" y="68" width="56" height="24" rx="4" fill="#165dff"/>
+  <text x="122" y="85" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#fff">单选</text>
+  <rect x="174" y="68" width="56" height="24" rx="4" fill="#fff" stroke="#e5e6eb"/>
+  <text x="186" y="85" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">多选</text>
+  <text x="250" y="85" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">截止时间（可选）</text>
+  <text x="36" y="124" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">投票选项</text>
+  <rect x="36" y="136" width="520" height="32" rx="4" fill="#fff" stroke="#e5e6eb"/>
+  <text x="48" y="157" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">选项 1</text>
+  <rect x="36" y="176" width="520" height="32" rx="4" fill="#fff" stroke="#e5e6eb"/>
+  <text x="48" y="197" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">选项 2</text>
+  <text x="36" y="232" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#165dff">+ 添加选项</text>
+</svg>

@@ -15,6 +15,8 @@
 #   .\scripts\deploy-tenant-production.ps1 -Tenant all
 #   .\scripts\deploy-tenant-production.ps1 -Tenant all -SkipBuild
 #   .\scripts\deploy-tenant-production.ps1 -Tenant all -SkipBuild -ParallelUpload
+#   .\scripts\deploy-tenant-production.ps1 -Tenant all -PublishAllBbsGuide
+#   .\scripts\deploy-tenant-production.ps1 -Tenant all -PublishAllBbsPosts
 
 param(
     [Parameter(Mandatory = $true)]
@@ -29,7 +31,11 @@ param(
     [switch]$SkipLoginPage,
     [string]$SshKeyPath = "",
     [ValidateSet("auto", "docker", "nonDocker")]
-    [string]$DeploymentMode = "auto"
+    [string]$DeploymentMode = "auto",
+    # 论坛配图全部重传。默认只上传新建或内容变化的文件
+    [switch]$PublishAllBbsGuide,
+    # 仅本次启动重写全部系统帖。默认只写入新建或正文有变化的系统帖
+    [switch]$PublishAllBbsPosts
 )
 
 $ErrorActionPreference = "Stop"
@@ -113,6 +119,8 @@ function Get-DeployFullParams {
     if ($SkipLoginPage) { $params.SkipLoginPage = $true }
     if (-not [string]::IsNullOrWhiteSpace($EffectiveSshKeyPath)) { $params.SshKeyPath = $EffectiveSshKeyPath }
     if (-not [string]::IsNullOrWhiteSpace($DeployPackageName)) { $params.DeployPackageName = $DeployPackageName }
+    if ($PublishAllBbsGuide) { $params.PublishAllBbsGuide = $true }
+    if ($PublishAllBbsPosts) { $params.PublishAllBbsPosts = $true }
 
     return $params
 }

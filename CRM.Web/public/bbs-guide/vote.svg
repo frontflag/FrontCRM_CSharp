@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="220" viewBox="0 0 720 220">
+  <rect width="720" height="220" rx="8" fill="#f7f8fa"/>
+  <rect x="16" y="16" width="688" height="188" rx="6" fill="#fff" stroke="#e5e6eb"/>
+  <text x="36" y="48" font-size="15" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">投票 · 单选</text>
+  <circle cx="48" cy="84" r="7" fill="#fff" stroke="#165dff" stroke-width="2"/>
+  <circle cx="48" cy="84" r="3" fill="#165dff"/>
+  <text x="68" y="89" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">方案 A</text>
+  <circle cx="48" cy="116" r="7" fill="#fff" stroke="#c9cdd4" stroke-width="2"/>
+  <text x="68" y="121" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">方案 B</text>
+  <text x="36" y="156" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#86909c">投票后可查看统计结果</text>
+  <rect x="560" y="68" width="96" height="28" rx="4" fill="#165dff"/>
+  <text x="580" y="87" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#fff">提交投票</text>
+</svg>

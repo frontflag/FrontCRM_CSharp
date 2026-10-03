@@ -852,6 +852,11 @@ async function load() {
   loading.value = true
   try {
     const d = await bbsApi.detail(editId.value)
+    if (d.isSystem) {
+      ElMessage.warning(t('bbs.systemLocked'))
+      await router.replace({ name: 'BbsDetail', params: { id: editId.value } })
+      return
+    }
     form.title = d.title
     form.type = d.type
     form.anonymous = d.anonymous

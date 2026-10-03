@@ -10440,6 +10440,7 @@ const enUS = {
     loadFailed: 'Failed to load',
     saveFailed: 'Failed to save',
     actionFailed: 'Action failed',
+    systemLocked: 'System posts cannot be edited on the page',
     deleted: 'Deleted',
     delete: 'Delete',
     deleteConfirm: 'Delete this topic?',

@@ -108,6 +108,8 @@ CREATE INDEX IF NOT EXISTS ix_bbs_board_moderator_user
 COMMENT ON TABLE public.bbs_board_moderator IS '论坛板块设置；subject_type 对应 bbs_subject.type；可设版主与自定义名称；仅 SYS_ADMIN/SYS_MANAGER 可设置';
 
 -- 投票帖字段与表
+ALTER TABLE public.bbs_subject ADD COLUMN IF NOT EXISTS is_system boolean NOT NULL DEFAULT false;
+
 ALTER TABLE public.bbs_subject ADD COLUMN IF NOT EXISTS kind integer NOT NULL DEFAULT 0;
 ALTER TABLE public.bbs_subject ADD COLUMN IF NOT EXISTS vote_mode integer NOT NULL DEFAULT 0;
 ALTER TABLE public.bbs_subject ADD COLUMN IF NOT EXISTS vote_max_choices integer NULL;

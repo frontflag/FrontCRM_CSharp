@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="148" viewBox="0 0 1040 148">
+  <rect width="1040" height="148" rx="8" fill="#f7f8fa"/>
+  <rect x="16" y="16" width="1008" height="116" rx="6" fill="#fff" stroke="#e5e6eb"/>
+  <text x="32" y="42" font-size="16" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">业务预计提成月份</text>
+  <rect x="32" y="54" width="976" height="28" rx="4" fill="#f7f8fa"/>
+  <text x="40" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">统计月份</text>
+  <text x="130" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">提成用户</text>
+  <text x="230" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">等级</text>
+  <text x="290" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">达标GP</text>
+  <text x="380" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">是否达标</text>
+  <text x="470" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">本月 GP</text>
+  <text x="570" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">提成点数</text>
+  <text x="670" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">预计提成</text>
+  <text x="790" y="72" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">出库条目</text>
+  <text x="40" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">2026-03</text>
+  <text x="130" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">本人</text>
+  <text x="230" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">3</text>
+  <text x="290" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">1000.00</text>
+  <text x="380" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">是</text>
+  <text x="470" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">1000.00</text>
+  <text x="570" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">2</text>
+  <text x="670" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">20.00</text>
+  <text x="790" y="110" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">1</text>
+</svg>

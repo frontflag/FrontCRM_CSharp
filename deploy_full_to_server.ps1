@@ -18,6 +18,8 @@
 
 #   .\deploy_full_to_server.ps1 -Tenant idesemi -SkipLoginPage
 #   .\deploy_full_to_server.ps1 -Tenant semicore -IncludeLoginPage
+#   .\deploy_full_to_server.ps1 -PublishAllBbsGuide    # 论坛配图全部重传（默认只传新建或变更）
+#   .\deploy_full_to_server.ps1 -PublishAllBbsPosts    # 系统帖全部重写（默认只写新建或正文有变的）
 
 param(
     [switch]$SkipBuild,
@@ -44,10 +46,108 @@ param(
     # 冷启动 + 连库 + Kestrel 绑定略慢于 systemctl start 返回；原先 40s 且强依赖 is-active=active 易误报失败
     [int]$ApiHealthWaitSeconds = 30,
     # Optional: ssh/scp -i (PowerShell 5.1: save this script as UTF-8 with BOM if you use non-ASCII in messages)
-    [string]$SshKeyPath = ""
+    [string]$SshKeyPath = "",
+    # 默认不把 public/bbs-guide 打进全量包；清空站点前备份，覆盖后再只上传新建或内容变化的文件
+    [switch]$PublishAllBbsGuide,
+    # 仅本次 API 启动重写全部系统帖；不写入常驻配置
+    [switch]$PublishAllBbsPosts
 )
 
 $ErrorActionPreference = "Stop"
+
+function Sync-BbsGuideFiles {
+    param(
+        [Parameter(Mandatory = $true)][string]$LocalDir,
+        [Parameter(Mandatory = $true)][string]$RemoteDir,
+        [switch]$PublishAll
+    )
+
+    if (-not (Test-Path -LiteralPath $LocalDir)) {
+        Write-Host "ERROR: local bbs-guide not found: $LocalDir" -ForegroundColor Red
+        exit 1
+    }
+
+    $localRoot = (Resolve-Path -LiteralPath $LocalDir).Path
+    $local = @{}
+    Get-ChildItem -LiteralPath $localRoot -Recurse -File | ForEach-Object {
+        $rel = $_.FullName.Substring($localRoot.Length).TrimStart('\', '/') -replace '\\', '/'
+        if ($rel -notmatch '^[A-Za-z0-9._/-]+$') {
+            Write-Host "ERROR: bbs-guide file name not allowed: $rel" -ForegroundColor Red
+            exit 1
+        }
+        $hash = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        $local[$rel] = @{ Path = $_.FullName; Hash = $hash }
+    }
+
+    Write-Host (">>> BBS guide images: {0} local file(s) -> {1}" -f $local.Count, $RemoteDir) -ForegroundColor Gray
+    if ($PublishAll) {
+        Write-Host "    PublishAllBbsGuide: upload every file" -ForegroundColor DarkYellow
+    }
+
+    $remote = @{}
+    $listCmd = "if [ -d '$RemoteDir' ]; then find '$RemoteDir' -type f -exec sha256sum {} +; fi"
+    $raw = & ssh @SshOpts -p $SshPort "$SshTarget" $listCmd
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: failed to list remote bbs-guide." -ForegroundColor Red
+        exit 1
+    }
+    $prefix = $RemoteDir.TrimEnd('/') + '/'
+    foreach ($line in @($raw)) {
+        if ($line -match '^([0-9a-fA-F]{64})\s+(.+)$') {
+            $full = $Matches[2].Trim()
+            if ($full.StartsWith($prefix)) {
+                $remote[$full.Substring($prefix.Length)] = $Matches[1].ToLowerInvariant()
+            }
+        }
+    }
+
+    $toUpload = New-Object System.Collections.Generic.List[string]
+    foreach ($rel in $local.Keys) {
+        $unchanged = (-not $PublishAll) -and $remote.ContainsKey($rel) -and ($remote[$rel] -eq $local[$rel].Hash)
+        if (-not $unchanged) { [void]$toUpload.Add($rel) }
+    }
+    $toDelete = New-Object System.Collections.Generic.List[string]
+    foreach ($rel in $remote.Keys) {
+        if (-not $local.ContainsKey($rel)) { [void]$toDelete.Add($rel) }
+    }
+
+    & ssh @SshOpts -p $SshPort "$SshTarget" "mkdir -p '$RemoteDir'"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: mkdir remote bbs-guide failed." -ForegroundColor Red
+        exit 1
+    }
+
+    foreach ($rel in $toUpload) {
+        $remoteFile = $RemoteDir.TrimEnd('/') + '/' + $rel
+        $parent = $remoteFile -replace '/[^/]+$', ''
+        if ($parent -ne $RemoteDir.TrimEnd('/')) {
+            & ssh @SshOpts -p $SshPort "$SshTarget" "mkdir -p '$parent'"
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "ERROR: mkdir $parent failed." -ForegroundColor Red
+                exit 1
+            }
+        }
+        & scp @ScpOpts -P $SshPort $local[$rel].Path "${SshTarget}:${remoteFile}"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: upload bbs-guide/$rel failed." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "    upload $rel" -ForegroundColor DarkGray
+    }
+
+    foreach ($rel in $toDelete) {
+        $remoteFile = $RemoteDir.TrimEnd('/') + '/' + $rel
+        & ssh @SshOpts -p $SshPort "$SshTarget" "rm -f '$remoteFile'"
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: delete remote bbs-guide/$rel failed." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "    delete $rel" -ForegroundColor DarkGray
+    }
+
+    $unchangedCount = $local.Count - $toUpload.Count
+    Write-Host ("    bbs-guide sync done: upload {0}, delete {1}, unchanged {2}" -f $toUpload.Count, $toDelete.Count, $unchangedCount) -ForegroundColor Gray
+}
 
 # Guard: this script must be saved as UTF-8 with BOM for Windows PowerShell 5.1.
 try {
@@ -264,6 +364,12 @@ if (-not (Test-Path $stagingHelpPages)) {
     Remove-Item -Path $stagingDir -Recurse -Force -ErrorAction SilentlyContinue
     exit 1
 }
+$stagingBbsGuide = Join-Path $stagingDir "CRM.Web\dist\bbs-guide"
+if (Test-Path -LiteralPath $stagingBbsGuide) {
+    Remove-Item -LiteralPath $stagingBbsGuide -Recurse -Force
+    Write-Host "  excluded dist/bbs-guide from upload archive (synced after frontend replace)" -ForegroundColor DarkGray
+}
+
 $stagingHelpCount = (Get-ChildItem -Path $stagingHelpPages -File -ErrorAction SilentlyContinue | Measure-Object).Count
 if ($stagingHelpCount -lt 50) {
     Write-Host "ERROR: upload staging has only $stagingHelpCount help pages (expected >= 50). .md files may have been excluded." -ForegroundColor Red
@@ -404,6 +510,9 @@ else {
 }
 
 if ($useDocker) {
+    $localBbsGuideForImage = Join-Path $RepoRoot "CRM.Web\public\bbs-guide"
+    Write-Host "Docker build context has no preserved bbs-guide; syncing guide images into dist before image build..." -ForegroundColor Gray
+    Sync-BbsGuideFiles -LocalDir $localBbsGuideForImage -RemoteDir ($RemoteDeployPath + '/CRM.Web/dist/bbs-guide') -PublishAll:$PublishAllBbsGuide
     Write-Host "Docker deployment: docker compose build --no-cache (may take several minutes, output below)..." -ForegroundColor Cyan
     & ssh @SshOpts -p $SshPort "$SshTarget" "cd '$RemoteDeployPath'; docker compose build --no-cache"
     if ($LASTEXITCODE -ne 0) {
@@ -460,6 +569,11 @@ else {
             'if [ -d ''' + $NonDockerFrontendRoot + '/tenant'' ]; then ' + $SudoCmd + ' cp -a ''' + $NonDockerFrontendRoot + '/tenant'' /tmp/frontcrm_tenant_bak; fi'
         )
     }
+    $rSyncFrontParts += (
+        $SudoCmd + ' rm -rf /tmp/frontcrm_bbs_guide_bak 2>/dev/null || true; ' +
+        'if [ -d ''' + $NonDockerFrontendRoot + '/bbs-guide'' ]; then ' +
+        $SudoCmd + ' cp -a ''' + $NonDockerFrontendRoot + '/bbs-guide'' /tmp/frontcrm_bbs_guide_bak; fi'
+    )
     $rSyncFrontParts += $SudoCmd + ' rm -rf ' + $NonDockerFrontendRoot + '/*'
     $rSyncFrontParts += $SudoCmd + ' cp -r ' + $srcFront + '/* ' + $NonDockerFrontendRoot + '/'
     if ($skipLoginFlag -eq '1') {
@@ -469,6 +583,12 @@ else {
             $SudoCmd + ' rm -rf /tmp/frontcrm_tenant_bak; fi'
         )
     }
+    $rSyncFrontParts += (
+        'if [ -d /tmp/frontcrm_bbs_guide_bak ]; then ' +
+        $SudoCmd + ' rm -rf ''' + $NonDockerFrontendRoot + '/bbs-guide''; ' +
+        $SudoCmd + ' cp -a /tmp/frontcrm_bbs_guide_bak ''' + $NonDockerFrontendRoot + '/bbs-guide''; ' +
+        $SudoCmd + ' rm -rf /tmp/frontcrm_bbs_guide_bak; fi'
+    )
     # chmod -R 远快于 find -exec（万级文件时后者易拖死 SSH）
     $rSyncFrontParts += $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerFrontendRoot
     $rSyncFrontParts += $SudoCmd + ' chmod -R u=rwX,go=rX ' + $NonDockerFrontendRoot
@@ -476,17 +596,32 @@ else {
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$rSyncFront"
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync frontend failed." -ForegroundColor Red; exit 1 }
 
+    $localBbsGuide = Join-Path $RepoRoot "CRM.Web\public\bbs-guide"
+    Sync-BbsGuideFiles -LocalDir $localBbsGuide -RemoteDir ($NonDockerFrontendRoot + '/bbs-guide') -PublishAll:$PublishAllBbsGuide
+
     # 2) 覆盖后端 publish
     Write-Host ('>>> Non-Docker: sync backend publish ({0} -> {1})' -f $srcBack, $NonDockerBackendRoot) -ForegroundColor Gray
     $rSyncBack = $SudoCmd + ' rm -rf ' + $NonDockerBackendRoot + '/*; ' + $SudoCmd + ' cp -r ' + $srcBack + '/* ' + $NonDockerBackendRoot + '/; ' + $SudoCmd + ' chown -R ' + $ServerUser + ':' + $ServerUser + ' ' + $NonDockerBackendRoot + '; ' + $SudoCmd + ' chmod -R u=rwX,go=rX ' + $NonDockerBackendRoot
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rSyncBack
     if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: sync backend failed." -ForegroundColor Red; exit 1 }
 
-    # 3) reload nginx（如果 nginx 存在）
+    # 3) reload nginx（如果 nginx 存在；加 timeout，避免 systemctl/nginx 僵死时 SSH 一直无输出）
     Write-Host ">>> Non-Docker: nginx reload (if nginx exists)..." -ForegroundColor Gray
-    $rNginxReload = 'if command -v nginx >/dev/null 2>&1; then ' + $SudoCmd + ' nginx -t && ' + $SudoCmd + ' systemctl reload nginx; fi'
-    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $rNginxReload
-    if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: nginx reload / nginx -t failed." -ForegroundColor Red; exit 1 }
+    Write-Host '    SSH: nginx -t + reload (timeout 60s)...' -ForegroundColor DarkGray
+    $rNginxReload = (
+        'echo nginx-reload:start; ' +
+        'if command -v nginx >/dev/null 2>&1; then ' +
+        'timeout 60 sh -c ''' + $SudoCmd + ' nginx -t && ' + $SudoCmd + ' systemctl reload nginx'' || exit 1; ' +
+        'echo nginx-reload:systemctl-ok; ' +
+        'else echo nginx-reload:skip-no-nginx; fi; ' +
+        'echo nginx-reload:done'
+    )
+    & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$rNginxReload"
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: nginx reload / nginx -t failed or timed out (60s)." -ForegroundColor Red
+        Write-Host "  Tip: Ctrl+C if still stuck; Get-Process ssh | Stop-Process -Force; on server: sudo nginx -t && sudo systemctl reload nginx" -ForegroundColor Yellow
+        exit 1
+    }
 
     # 4) restart api: free port first; keep remote bash in one line
     Write-Host ('>>> Non-Docker: restart crm-api (free port {0} first)...' -f $BackendPort) -ForegroundColor Gray
@@ -496,6 +631,17 @@ else {
     $stopApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl stop crm-api 2>/dev/null || true; sleep 2; else pkill -f ''[d]otnet CRM.API.dll'' 2>/dev/null || true; sleep 2; fi'
     Write-Host '>>> Non-Docker: stopping crm-api...' -ForegroundColor Gray
     & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" "$stopApiOneLine"
+
+    $bbsOnce = $nd + '/bbs-publish-all-posts.once'
+    if ($PublishAllBbsPosts) {
+        Write-Host '>>> Non-Docker: mark this API start to rewrite all system BBS posts...' -ForegroundColor Gray
+        $markBbs = $SudoCmd + ' sh -c ''printf 1 > ' + $bbsOnce + ' && chmod 666 ' + $bbsOnce + ''''
+        & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $markBbs
+        if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: failed to mark BBS full post publish." -ForegroundColor Red; exit 1 }
+    } else {
+        $clearBbs = $SudoCmd + ' rm -f ' + $bbsOnce
+        & ssh @SshTty @SshOpts -p $SshPort "$SshTarget" $clearBbs | Out-Null
+    }
 
     $startApiOneLine = 'if ' + $SudoCmd + ' systemctl list-unit-files 2>/dev/null | grep -qF ''crm-api.service''; then ' + $SudoCmd + ' systemctl daemon-reload; ' + $SudoCmd + ' systemctl start crm-api || exit 1; sleep 2; else cd ' + $nd + ' || exit 1; export ASPNETCORE_ENVIRONMENT=Production; export ASPNETCORE_URLS=http://0.0.0.0:' + $bp + '; nohup dotnet CRM.API.dll > api.log 2>&1 & sleep 2; fi'
     Write-Host '>>> Non-Docker: starting crm-api...' -ForegroundColor Gray

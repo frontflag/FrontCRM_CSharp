@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="280" viewBox="0 0 720 280">
+  <rect width="720" height="280" rx="8" fill="#f7f8fa"/>
+  <rect x="16" y="16" width="168" height="248" rx="6" fill="#fff" stroke="#e5e6eb"/>
+  <text x="32" y="44" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">分类</text>
+  <text x="32" y="78" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">全部</text>
+  <text x="32" y="106" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">系统更新</text>
+  <rect x="24" y="118" width="152" height="28" rx="4" fill="#e8f3ff"/>
+  <text x="32" y="137" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#165dff">操作说明</text>
+  <text x="32" y="170" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#4e5969">交流分享</text>
+  <rect x="200" y="16" width="504" height="248" rx="6" fill="#fff" stroke="#e5e6eb"/>
+  <rect x="520" y="32" width="72" height="28" rx="4" fill="#165dff"/>
+  <text x="544" y="51" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#fff">发帖</text>
+  <rect x="600" y="32" width="88" height="28" rx="4" fill="#fff" stroke="#165dff"/>
+  <text x="614" y="51" font-size="13" font-family="Microsoft YaHei, sans-serif" fill="#165dff">发起投票</text>
+  <text x="220" y="92" font-size="12" font-family="Microsoft YaHei, sans-serif" fill="#86909c">置顶</text>
+  <rect x="216" y="104" width="472" height="56" rx="4" fill="#f7f8fa"/>
+  <rect x="228" y="122" width="36" height="18" rx="3" fill="#ff7d00"/>
+  <text x="234" y="135" font-size="11" font-family="Microsoft YaHei, sans-serif" fill="#fff">置顶</text>
+  <text x="274" y="136" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">论坛怎么用</text>
+  <text x="220" y="196" font-size="14" font-family="Microsoft YaHei, sans-serif" fill="#1d2129">周末团建地点投票</text>
+  <rect x="400" y="182" width="36" height="18" rx="3" fill="#165dff"/>
+  <text x="406" y="195" font-size="11" font-family="Microsoft YaHei, sans-serif" fill="#fff">投票</text>
+</svg>

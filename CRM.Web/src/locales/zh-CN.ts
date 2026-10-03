@@ -10419,6 +10419,7 @@ const zhCN = {
     loadFailed: '加载失败',
     saveFailed: '保存失败',
     actionFailed: '操作失败',
+    systemLocked: '系统发布的帖子不能在页面上修改',
     deleted: '已删除',
     delete: '删除',
     deleteConfirm: '确定删除该主题？',

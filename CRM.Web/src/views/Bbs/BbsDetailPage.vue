@@ -12,16 +12,16 @@
             {{ t('bbs.backList') }}
           </button>
           <div class="bbs-toolbar__actions">
-            <el-button v-if="detail.canEdit" type="primary" size="small" @click="goEdit">{{ t('bbs.edit') }}</el-button>
+            <el-button v-if="detail.canEdit && !detail.isSystem" type="primary" size="small" @click="goEdit">{{ t('bbs.edit') }}</el-button>
             <el-button
-              v-if="detail.canModerate || detail.canEdit"
+              v-if="!detail.isSystem && (detail.canModerate || detail.canEdit)"
               size="small"
               @click="toggleClose"
             >{{ detail.status === BbsSubjectStatus.Close ? t('bbs.open') : t('bbs.close') }}</el-button>
-            <el-button v-if="detail.canSetTop" size="small" @click="toggleTop">
+            <el-button v-if="detail.canSetTop && !detail.isSystem" size="small" @click="toggleTop">
               {{ detail.isTop ? t('bbs.untop') : t('bbs.setTop') }}
             </el-button>
-            <el-button v-if="detail.canDelete" size="small" type="danger" plain @click="onDelete">
+            <el-button v-if="detail.canDelete && !detail.isSystem" size="small" type="danger" plain @click="onDelete">
               {{ t('bbs.delete') }}
             </el-button>
           </div>
@@ -721,7 +721,8 @@ onUnmounted(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  /* 与正文隔开 2 行，避免赞踩贴在正文上 */
+  margin-top: calc(2 * 1.7 * 14px);
   padding-left: 48px;
 }
 
@@ -865,6 +866,18 @@ onUnmounted(() => {
 
 .bbs-closed-alert {
   margin: 12px 16px 16px;
+}
+
+.markdown-body :deep(h2),
+.markdown-body :deep(h3) {
+  margin: calc(0.5em + 1.7em) 0 0.45em;
+  font-weight: 700;
+  line-height: 1.4;
+  color: $text-primary;
+}
+
+.markdown-body :deep(h2) {
+  font-size: 1.15em;
 }
 
 .markdown-body :deep(p) {

@@ -534,6 +534,7 @@ public class BbsService : IBbsService
         ValidateContent(request.Title, request.Content, request.Type);
         await EnsureCanPostTypeAsync(request.Type, actor, ct);
         var entity = await RequireSubjectAsync(subjectId, ct);
+        EnsureNotSystemPost(entity);
         EnsureOwnerOrGlobalModerator(entity, actor);
 
         entity.Title = request.Title.Trim();
@@ -684,6 +685,7 @@ public class BbsService : IBbsService
     public async Task CloseSubjectAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
+        EnsureNotSystemPost(entity);
         EnsureOwnerOrBoardModerator(entity, actor);
         entity.Status = BbsSubjectStatuses.Close;
         entity.ModifyTime = DateTime.UtcNow;
@@ -694,6 +696,7 @@ public class BbsService : IBbsService
     public async Task OpenSubjectAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
+        EnsureNotSystemPost(entity);
         EnsureOwnerOrBoardModerator(entity, actor);
         entity.Status = BbsSubjectStatuses.Open;
         entity.ModifyTime = DateTime.UtcNow;
@@ -704,6 +707,7 @@ public class BbsService : IBbsService
     public async Task SetTopAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
+        EnsureNotSystemPost(entity);
         if (!actor.CanModerateType(entity.Type))
             throw new UnauthorizedAccessException("仅版主可置顶");
         entity.IsTop = true;
@@ -715,6 +719,7 @@ public class BbsService : IBbsService
     public async Task CancelTopAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
+        EnsureNotSystemPost(entity);
         if (!actor.CanModerateType(entity.Type))
             throw new UnauthorizedAccessException("仅版主可取消置顶");
         entity.IsTop = false;
@@ -726,6 +731,7 @@ public class BbsService : IBbsService
     public async Task DeleteSubjectAsync(string subjectId, BbsActorContext actor, CancellationToken ct = default)
     {
         var entity = await RequireSubjectAsync(subjectId, ct);
+        EnsureNotSystemPost(entity);
         EnsureOwnerOrBoardModerator(entity, actor);
         entity.IsDeleted = true;
         entity.ModifyTime = DateTime.UtcNow;
@@ -841,6 +847,7 @@ public class BbsService : IBbsService
             throw new ArgumentException("请选择至少一个文件");
 
         var subject = await RequireSubjectAsync(subjectId, ct);
+        EnsureNotSystemPost(subject);
         EnsureOwnerOrBoardModerator(subject, actor);
 
         var existing = await _documents.GetByBizAsync(BbsDocumentBizTypes.Subject, subjectId);
@@ -1065,6 +1072,7 @@ public class BbsService : IBbsService
             CanEdit = item.CanEdit,
             CanSetTop = item.CanSetTop,
             CanModerate = item.CanModerate,
+            IsSystem = item.IsSystem,
             Kind = item.Kind,
             VoteCount = item.VoteCount,
             VoteDeadline = item.VoteDeadline,
@@ -1208,6 +1216,7 @@ public class BbsService : IBbsService
             : (x.CreateBy ?? "");
         var isOwner = string.Equals(x.CreateBy, actor.UserId, StringComparison.OrdinalIgnoreCase);
         var canMod = actor.CanModerateType(x.Type);
+        var locked = x.IsSystem;
         myReactions.TryGetValue(x.Id, out var myReaction);
         return new BbsSubjectListItemDto
         {
@@ -1228,11 +1237,14 @@ public class BbsService : IBbsService
             LastReplyTime = x.LastReplyTime,
             CreateTime = x.CreateTime,
             CreateBy = x.CreateBy,
-            AuthorDisplay = FormatAuthor(rawName, x.Anonymous, canMod),
-            CanDelete = canMod || isOwner,
-            CanEdit = actor.IsGlobalModerator || isOwner,
-            CanSetTop = canMod,
+            AuthorDisplay = locked
+                ? BbsSystemPosts.AuthorName
+                : FormatAuthor(rawName, x.Anonymous, canMod),
+            CanDelete = !locked && (canMod || isOwner),
+            CanEdit = !locked && (actor.IsGlobalModerator || isOwner),
+            CanSetTop = !locked && canMod,
             CanModerate = canMod,
+            IsSystem = locked,
             Kind = x.Kind,
             VoteCount = x.VoteCount,
             VoteDeadline = x.VoteDeadline
@@ -1394,6 +1406,12 @@ public class BbsService : IBbsService
             AuthorDisplay = FormatAuthor(rawName, x.Anonymous, canModerate),
             CanDelete = canModerate || isOwner
         };
+    }
+
+    private static void EnsureNotSystemPost(BbsSubject entity)
+    {
+        if (entity.IsSystem)
+            throw new InvalidOperationException("系统发布的帖子不能在页面上修改");
     }
 
     private static string FormatAuthor(string realName, bool anonymous, bool isModerator)
